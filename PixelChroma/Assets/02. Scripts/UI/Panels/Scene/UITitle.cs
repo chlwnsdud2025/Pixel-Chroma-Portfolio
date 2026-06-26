@@ -55,6 +55,8 @@ namespace PixelChroma.UI
         {
             base.OnBeforeShow();
             SetStatus(""); // 화면이 다시 켜질 때마다 남아있는 에러 텍스트 싹 비우기
+
+            SetInteractable(true);
         }
 
         private void OnEnable()

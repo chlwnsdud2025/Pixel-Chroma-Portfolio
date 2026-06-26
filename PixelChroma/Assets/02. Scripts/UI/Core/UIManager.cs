@@ -12,6 +12,9 @@ namespace PixelChroma.UI
         [SerializeField] private Transform popupRoot;
         [SerializeField] private UIRegistrySO registry;
 
+        [Header("Initial Loading (추가됨)")]
+        [SerializeField] private UIInitialLoading initialLoading; // GameManager에서 이사 옴
+
         private readonly Dictionary<Type, UIPanel> _panels = new();
         private readonly Stack<UIPopup> _popupStack = new();
 
@@ -33,6 +36,17 @@ namespace PixelChroma.UI
             await UniTask.WhenAll(tasks);
         }
 
+        // ── [신규 추가] 초기 로딩 제어 함수 ──
+        public void ShowInitialLoading()
+        {
+            if (initialLoading != null) initialLoading.Show();
+        }
+
+        public void HideInitialLoading()
+        {
+            if (initialLoading != null) initialLoading.Hide();
+        }
+
         private async UniTask LoadAndRegisterPanel(AssetReferenceGameObject reference, Transform root)
         {
             var go = await reference.InstantiateAsync(root).ToUniTask();
@@ -40,52 +54,39 @@ namespace PixelChroma.UI
 
             if (panel == null)
             {
-                Debug.LogError($"[UIManager] {go.name} 에 UIPanel 컴포넌트가 없습니다.");
-                Addressables.ReleaseInstance(go);
+                Debug.LogError($"[UIManager] 프리팹에 UIPanel 컴포넌트가 없습니다: {go.name}");
                 return;
             }
 
-            go.transform.SetParent(root, false);
-            _panels[panel.GetType()] = panel;
+            _panels.Add(panel.GetType(), panel);
         }
 
-        // Scene 패널 열기 — UIScene만 허용
         public async UniTask ShowScene<T>() where T : UIScene
         {
-            if (!TryGetPanel<T>(out var next)) return;
+            if (!TryGetPanel<T>(out var target)) return;
 
-            if (_currentScene != null && _currentScene.gameObject.activeSelf)
+            if (_currentScene != null)
             {
-                _currentScene.OnAfterHide();
                 await _currentScene.Hide();
+                _currentScene.OnAfterHide();
             }
 
-            _currentScene = next;
+            _currentScene = target;
             _currentScene.OnBeforeShow();
             await _currentScene.Show();
         }
 
-        // Popup 열기 — UIPopup만 허용
-        public async UniTask ShowPopup<T>() where T : UIPopup
+        public async UniTask<T> ShowPopup<T>() where T : UIPopup
         {
-            if (!TryGetPanel<T>(out var popup)) return;
+            if (!TryGetPanel<T>(out var target)) return null;
 
-            _popupStack.Push(popup);
-            popup.OnBeforeShow();
-            await popup.Show();
+            target.OnBeforeShow();
+            await target.Show();
+            _popupStack.Push(target);
+
+            return target;
         }
 
-        // 가장 위 Popup 닫기
-        public async UniTask HideTopPopup()
-        {
-            if (_popupStack.Count == 0) return;
-
-            var popup = _popupStack.Pop();
-            await popup.Hide();
-            popup.OnAfterHide();
-        }
-
-        // 특정 타입의 Popup 닫기
         public async UniTask HidePopup<T>() where T : UIPopup
         {
             if (!TryGetPanel<T>(out var target)) return;
@@ -104,7 +105,6 @@ namespace PixelChroma.UI
             target.OnAfterHide();
         }
 
-        // 모든 Popup 닫기
         public async UniTask HideAllPopups()
         {
             var tasks = new List<UniTask>();
@@ -130,11 +130,9 @@ namespace PixelChroma.UI
                 return true;
             }
 
-            Debug.LogError($"[UIManager] {typeof(T).Name} 패널이 등록되지 않았습니다.");
+            Debug.LogError($"[UIManager] 패널을 찾을 수 없습니다: {typeof(T)}");
             panel = null;
             return false;
         }
-
-        public bool HasOpenPopup => _popupStack.Count > 0;
     }
 }

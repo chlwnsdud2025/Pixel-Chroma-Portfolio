@@ -6,7 +6,7 @@ namespace PixelChroma
 {
     public class GameManager : MonoSingleton<GameManager>
     {
-        [SerializeField] private UIInitialLoading initialLoading;
+        // ── [수정] UIInitialLoading 직속 변수 제거 완료 ──
 
         public GameState CurrentState { get; private set; } = GameState.Boot;
 
@@ -17,7 +17,8 @@ namespace PixelChroma
 
         private async UniTask Boot()
         {
-            initialLoading.Show();
+            // [변경] UIManager를 통해 초기 로딩 화면을 띄웁니다.
+            if (UIManager.Instance != null) UIManager.Instance.ShowInitialLoading();
 
             if (!InitializeSteam())
             {
@@ -28,7 +29,9 @@ namespace PixelChroma
 
             await UIManager.Instance.InitializeAsync();
 
-            initialLoading.Hide();
+            // [변경] UIManager를 통해 초기 로딩 화면을 숨깁니다.
+            if (UIManager.Instance != null) UIManager.Instance.HideInitialLoading();
+
             await EnterMainMenu();
         }
 
