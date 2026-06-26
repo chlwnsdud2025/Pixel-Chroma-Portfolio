@@ -1,6 +1,8 @@
 using UnityEngine;
 using Mirror;
 using UnityEngine.SceneManagement;
+using PixelChroma;
+using Mirror.FizzySteam;
 
 public class ChromaNetworkManager : NetworkManager
 {
@@ -9,6 +11,54 @@ public class ChromaNetworkManager : NetworkManager
 
     [Header("Chroma Prefabs")]
     public GameObject lobbyPlayerPrefab;
+
+    public override void Awake()
+    {
+        base.Awake();
+
+#if UNITY_EDITOR
+        var fizzy = GetComponent<FizzySteamworks>();
+        var kcp = GetComponent<kcp2k.KcpTransport>();
+        if (fizzy != null) fizzy.enabled = false;
+        if (kcp != null) { kcp.enabled = true; Transport.active = kcp; }
+#endif
+    }
+
+    public override void Start()
+    {
+        base.Start();
+#if UNITY_EDITOR
+        LobbyManager.Instance.OnLobbyEntered += OnLobbyEnteredEditor;
+#endif
+    }
+
+    public override void OnDestroy()
+    {
+        base.OnDestroy();
+#if UNITY_EDITOR
+        if (LobbyManager.Instance != null)
+            LobbyManager.Instance.OnLobbyEntered -= OnLobbyEnteredEditor;
+#endif
+    }
+
+#if UNITY_EDITOR
+    private void OnLobbyEnteredEditor(bool success)
+    {
+        if (!success) return;
+
+        if (LobbyManager.Instance.IsHost)
+        {
+            StartHost();
+            Debug.Log("[ChromaNetworkManager] 에디터 Host 시작");
+        }
+        else
+        {
+            networkAddress = "localhost";
+            StartClient();
+            Debug.Log("[ChromaNetworkManager] 에디터 Client 접속 → localhost");
+        }
+    }
+#endif
 
     public void StartGame()
     {
