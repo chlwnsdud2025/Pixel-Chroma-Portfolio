@@ -1,47 +1,56 @@
 using UnityEngine;
 using Mirror;
+using PixelChroma.UI; // 새로운 UI 네임스페이스 추가
 
-public class LobbyPlayerState : NetworkBehaviour
+namespace PixelChroma
 {
-    [SyncVar(hook = nameof(OnReadyStateChanged))]
-    public bool isReady = false;
-
-    public override void OnStartLocalPlayer()
+    public class LobbyPlayerState : NetworkBehaviour
     {
-        if (LobbyUIManager.instance != null)
-            LobbyUIManager.instance.localLobbyPlayer = this;
-    }
+        [SyncVar(hook = nameof(OnReadyStateChanged))]
+        public bool isReady = false;
 
-    [Command]
-    public void CmdToggleReady()
-    {
-        isReady = !isReady;
-        Debug.Log("레디완료! 현재 상태 " + isReady);
-    }
-
-    private void OnReadyStateChanged(bool oldReady, bool newReady)
-    {
-        if (LobbyUIManager.instance != null)
-            LobbyUIManager.instance.CheckAllReadyStates();
-    }
-
-    // [추가] 누군가 방에 처음 접속했을 때 (분모 증가)
-    public override void OnStartClient()
-    {
-        if (LobbyUIManager.instance != null)
+        public override void OnStartLocalPlayer()
         {
-            LobbyUIManager.instance.CheckAllReadyStates();
+            // [수정됨] UIManager를 통해 현재 띄워진 UILobby 패널을 찾습니다.
+            var uiLobby = UIManager.Instance.GetPanel<UILobby>();
+            if (uiLobby != null)
+            {
+                uiLobby.localLobbyPlayer = this;
+            }
         }
-    }
 
-    // [추가] 누군가 방을 나갔을 때 (분모 감소)
-    public override void OnStopClient()
-    {
-        if (LobbyUIManager.instance != null)
+        [Command]
+        public void CmdToggleReady()
         {
-            // 주의: 나가는 순간에는 오브젝트가 완전히 파괴되기 전이라 
-            // 배열 길이에 포함될 수 있으므로 0.1초 뒤에 숫자를 다시 세도록 예약합니다.
-            LobbyUIManager.instance.Invoke(nameof(LobbyUIManager.CheckAllReadyStates), 0.1f);
+            isReady = !isReady;
+        }
+
+        private void OnReadyStateChanged(bool oldReady, bool newReady)
+        {
+            var uiLobby = UIManager.Instance.GetPanel<UILobby>();
+            if (uiLobby != null)
+            {
+                uiLobby.CheckAllReadyStates();
+            }
+        }
+
+        public override void OnStartClient()
+        {
+            var uiLobby = UIManager.Instance.GetPanel<UILobby>();
+            if (uiLobby != null)
+            {
+                uiLobby.CheckAllReadyStates();
+            }
+        }
+
+        public override void OnStopClient()
+        {
+            var uiLobby = UIManager.Instance.GetPanel<UILobby>();
+            if (uiLobby != null)
+            {
+                // UILobby 클래스 내부에 있는 CheckAllReadyStates 함수를 0.1초 뒤에 실행
+                uiLobby.Invoke(nameof(UILobby.CheckAllReadyStates), 0.1f);
+            }
         }
     }
 }

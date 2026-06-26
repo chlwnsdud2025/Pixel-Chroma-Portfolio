@@ -1,118 +1,84 @@
 using UnityEngine;
 using Mirror;
 using UnityEngine.SceneManagement;
-using PixelChroma;
 using Mirror.FizzySteam;
+using Cysharp.Threading.Tasks; // 추가됨
 
-public class ChromaNetworkManager : NetworkManager
+namespace PixelChroma
 {
-    [Header("Chroma Scene Settings")]
-    [Scene] public string gameScenePath;
-
-    [Header("Chroma Prefabs")]
-    public GameObject lobbyPlayerPrefab;
-
-    public override void Awake()
+    public class ChromaNetworkManager : NetworkManager
     {
-        base.Awake();
+        [Header("Chroma Scene Settings")]
+        [Scene] public string gameScenePath;
+
+        [Header("Chroma Prefabs")]
+        public GameObject lobbyPlayerPrefab;
+
+        public override void Awake()
+        {
+            base.Awake();
 
 #if UNITY_EDITOR
-        var fizzy = GetComponent<FizzySteamworks>();
-        var kcp = GetComponent<kcp2k.KcpTransport>();
-        if (fizzy != null) fizzy.enabled = false;
-        if (kcp != null) { kcp.enabled = true; Transport.active = kcp; }
+            // 에디터에서는 스팀 API 대신 기본 로컬호스트(kcp2k) 통신을 사용하도록 자동 전환
+            var fizzy = GetComponent<FizzySteamworks>();
+            var kcp = GetComponent<kcp2k.KcpTransport>();
+            if (fizzy != null) fizzy.enabled = false;
+            if (kcp != null) { kcp.enabled = true; Transport.active = kcp; }
 #endif
-    }
-
-    public override void Start()
-    {
-        base.Start();
-#if UNITY_EDITOR
-        LobbyManager.Instance.OnLobbyEntered += OnLobbyEnteredEditor;
-#endif
-    }
-
-    public override void OnDestroy()
-    {
-        base.OnDestroy();
-#if UNITY_EDITOR
-        if (LobbyManager.Instance != null)
-            LobbyManager.Instance.OnLobbyEntered -= OnLobbyEnteredEditor;
-#endif
-    }
-
-#if UNITY_EDITOR
-    private void OnLobbyEnteredEditor(bool success)
-    {
-        if (!success) return;
-
-        if (LobbyManager.Instance.IsHost)
-        {
-            StartHost();
-            Debug.Log("[ChromaNetworkManager] 에디터 Host 시작");
-        }
-        else
-        {
-            networkAddress = "localhost";
-            StartClient();
-            Debug.Log("[ChromaNetworkManager] 에디터 Client 접속 → localhost");
-        }
-    }
-#endif
-
-    public void StartGame()
-    {
-        if (NetworkServer.active)
-        {
-            ServerChangeScene(gameScenePath);
-        }
-    }
-
-    // Auto Create Player가 켜져 있으므로, 
-    // 유저가 씬 로딩을 100% 마치고 'Ready'가 되었을 때 Mirror가 자동으로 이 함수를 호출합니다!
-    public override void OnServerAddPlayer(NetworkConnectionToClient conn)
-    {
-        string currentScene = SceneManager.GetActiveScene().name;
-        GameObject playerInstance = null;
-
-        // 현재 씬에 맞는 올바른 프리팹을 선택
-        if (currentScene == "CJY_Lobby")
-        {
-            playerInstance = Instantiate(lobbyPlayerPrefab);
-        }
-        else if (currentScene == "CJY_InGame")
-        {
-            playerInstance = Instantiate(playerPrefab);
         }
 
-        if (playerInstance != null)
+        public void StartGame()
         {
-            // 에러 없이 안전하게 플레이어 객체 지급
-            NetworkServer.AddPlayerForConnection(conn, playerInstance);
-            Debug.Log($"[ChromaNetworkManager] {currentScene} 씬에 {conn.connectionId}번 유저 스폰 완료.");
-        }
-    }
-
-    // 서버가 씬 전환을 완료했을 때
-    public override void OnServerSceneChanged(string sceneName)
-    {
-        if (sceneName == "CJY_InGame")
-        {
-            foreach (NetworkConnectionToClient conn in NetworkServer.connections.Values)
+            if (NetworkServer.active)
             {
-                if (conn.identity != null)
+                ServerChangeScene(gameScenePath);
+            }
+        }
+
+        public override void OnServerAddPlayer(NetworkConnectionToClient conn)
+        {
+            string currentScene = SceneManager.GetActiveScene().name;
+            GameObject playerInstance = null;
+
+            if (currentScene == "CJY_Lobby") playerInstance = Instantiate(lobbyPlayerPrefab);
+            else if (currentScene == "CJY_InGame") playerInstance = Instantiate(playerPrefab);
+
+            if (playerInstance != null)
+            {
+                NetworkServer.AddPlayerForConnection(conn, playerInstance);
+            }
+        }
+
+        public override void OnServerSceneChanged(string sceneName)
+        {
+            if (sceneName == "CJY_InGame")
+            {
+                foreach (NetworkConnectionToClient conn in NetworkServer.connections.Values)
                 {
-                    // 1. 씬에 배치된 스폰 포인트 중 하나를 가져옵니다.
-                    Transform startPos = GetStartPosition();
+                    if (conn.identity != null)
+                    {
+                        Transform startPos = GetStartPosition();
+                        GameObject newGamePlayer = startPos != null
+                            ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
+                            : Instantiate(playerPrefab);
 
-                    // 2. 스폰 포인트가 있으면 그 위치에, 없으면 기본 위치(0,0,0)에 생성합니다.
-                    GameObject newGamePlayer = startPos != null
-                        ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
-                        : Instantiate(playerPrefab);
-
-                    // 3. 기존 로비 플레이어를 파괴하고 새 캐릭터로 교체(자동 스폰 포함)합니다.
-                    NetworkServer.ReplacePlayerForConnection(conn, newGamePlayer);
+                        NetworkServer.ReplacePlayerForConnection(conn, newGamePlayer);
+                    }
                 }
+            }
+        }
+
+        // 클라이언트가 씬 로딩을 완료했을 때 UI 상태 변경 알림
+        public override void OnClientSceneChanged()
+        {
+            base.OnClientSceneChanged(); // Mirror의 기본 씬 처리 유지
+
+            string currentScene = SceneManager.GetActiveScene().name;
+
+            // 인게임 씬으로 넘어왔다면 GameManager를 통해 UIHUD 화면으로 전환!
+            if (currentScene == "CJY_InGame" && GameManager.Instance != null)
+            {
+                GameManager.Instance.EnterInGame().Forget();
             }
         }
     }
