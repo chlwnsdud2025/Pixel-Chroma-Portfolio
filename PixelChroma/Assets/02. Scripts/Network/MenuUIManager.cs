@@ -6,19 +6,19 @@ public class MenuUIManager : MonoBehaviour
     [Header("Offline Scene UI")]
     public SteamLobbyManager steamLobbyManager;
 
-    [Header("Lobby Scene UI")]
-    public GameObject startGameButton;
+    // [변경] 방 목록 스크롤뷰를 포함하고 있는 부모 패널 UI
+    public GameObject roomListPanel;
 
     private void Start()
     {
-        // 로비 씬에서, 방장(서버)이 아니면 게임 시작 버튼 숨기기
-        if (startGameButton != null)
+        // 게임이 처음 켜졌을 때는 방 목록 패널을 닫아둡니다.
+        if (roomListPanel != null)
         {
-            startGameButton.SetActive(NetworkServer.active);
+            roomListPanel.SetActive(false);
         }
     }
 
-    // Offline 씬의 '방 만들기' 버튼에 할당
+    // '방 만들기' 버튼에 할당
     public void OnClickCreateRoom()
     {
         if (steamLobbyManager != null)
@@ -27,13 +27,21 @@ public class MenuUIManager : MonoBehaviour
         }
     }
 
-    // Lobby 씬의 '게임 시작' 버튼에 할당
-    public void OnClickStartGame()
+    // [신규] '방 찾기(Client)' 버튼을 눌렀을 때 스크롤뷰 패널을 껐다 켰다 하는 함수
+    public void OnClickToggleRoomList()
     {
-        if (NetworkServer.active)
+        if (roomListPanel != null)
         {
-            ChromaNetworkManager manager = NetworkManager.singleton as ChromaNetworkManager;
-            manager?.StartGame();
+            // 현재 활성화 상태의 반대값(True -> False, False -> True)을 넣어서 토글합니다.
+            bool isActive = !roomListPanel.activeSelf;
+            roomListPanel.SetActive(isActive);
+
+            // [UX 디테일] 패널이 켜지는 순간, 자동으로 스팀 서버에 방 목록을 한 번 요청해 줍니다.
+            if (isActive && steamLobbyManager != null)
+            {
+                steamLobbyManager.GetLobbyList();
+                Debug.Log("[MenuUI] 방 목록 패널이 열리며 자동으로 새로고침을 요청했습니다.");
+            }
         }
     }
 }

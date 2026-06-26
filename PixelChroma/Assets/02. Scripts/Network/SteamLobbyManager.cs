@@ -1,82 +1,116 @@
 using UnityEngine;
 using Mirror;
 using Steamworks;
+using System;
+using System.Collections.Generic;
 
 public class SteamLobbyManager : MonoBehaviour
 {
-    // 스팀 콜백 리스너
+    public static SteamLobbyManager instance;
+
+    // 방 목록 UI로 데이터를 넘겨줄 이벤트 (콜백)
+    public event Action<List<CSteamID>> OnLobbyListUpdated;
+
+    protected Callback<LobbyMatchList_t> lobbyListRequested;
     protected Callback<LobbyCreated_t> lobbyCreated;
     protected Callback<GameLobbyJoinRequested_t> joinRequested;
     protected Callback<LobbyEnter_t> lobbyEntered;
 
-    // 호스트의 SteamID를 저장할 키값
     private const string HostAddressKey = "HostAddress";
+    public const string RoomStatusKey = "RoomStatus"; // 상태 키
+    public const string StatusLobby = "Lobby";        // 대기방 상태
+    public const string StatusInGame = "InGame";      // 게임 중 상태
 
+    // 현재 내가 속한 로비 ID를 저장 (호스트가 상태를 바꿀 때 필요)
+    public CSteamID currentLobbyID;
     private ChromaNetworkManager networkManager;
+
+    private void Awake() { instance = this; }
 
     private void Start()
     {
-        if (!SteamManager.Initialized)
-        {
-            Debug.LogError("[SteamLobbyManager] Steam이 켜져있지 않거나 초기화 실패!");
-            return;
-        }
-
+        if (!SteamManager.Initialized) return;
         networkManager = GetComponent<ChromaNetworkManager>();
 
-        // 콜백 함수 등록
         lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
         joinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnJoinRequested);
         lobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
+        lobbyListRequested = Callback<LobbyMatchList_t>.Create(OnLobbyMatchList);
     }
 
-    // [UI 버튼 연결용] 방 만들기 버튼을 눌렀을 때
     public void HostLobby()
     {
-        Debug.Log("[SteamLobbyManager] Steam 로비 생성 요청 중...");
-        // 최대 10명, 친구 전용(또는 Public) 로비 생성
-        SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, 10);
+        // 리스트에 노출되도록 Public 로비로 생성합니다.
+        SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, 10);
     }
 
-    // [콜백] 방 생성이 완료되었을 때
     private void OnLobbyCreated(LobbyCreated_t callback)
     {
-        if (callback.m_eResult != EResult.k_EResultOK)
-        {
-            Debug.LogError("[SteamLobbyManager] 로비 생성 실패");
-            return;
-        }
+        if (callback.m_eResult != EResult.k_EResultOK) return;
 
-        // 1. 내가 만든 스팀 로비에 내 스팀 ID를 호스트 주소로 기록
-        SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), HostAddressKey, SteamUser.GetSteamID().ToString());
+        currentLobbyID = new CSteamID(callback.m_ulSteamIDLobby);
 
-        // 2. Mirror 네트워크 호스트(서버+클라이언트) 시작
+        SteamMatchmaking.SetLobbyData(currentLobbyID, HostAddressKey, SteamUser.GetSteamID().ToString());
+        SteamMatchmaking.SetLobbyData(currentLobbyID, "RoomName", SteamFriends.GetPersonaName());
+        SteamMatchmaking.SetLobbyData(currentLobbyID, RoomStatusKey, StatusLobby);
+
+        // [추가] 글로벌 480 바다에서 우리 방을 식별하기 위한 고유 키워드 셋팅
+        SteamMatchmaking.SetLobbyData(currentLobbyID, "GameID", "PixelChroma_Dev");
+
         networkManager.StartHost();
-
-        Debug.Log($"[SteamLobbyManager] 로비 생성 성공! Mirror Host 구동 완료. 로비 씬으로 이동합니다.");
-        // ChromaNetworkManager의 씬 이동 로직 호출
-        //networkManager.ServerChangeScene("LobbyScene");
     }
 
-    // [콜백] 스팀 오버레이에서 친구 초대를 수락했을 때
+    // [신규] 방장이 게임 시작 버튼을 누를 때 이 함수를 호출하여 상태를 InGame으로 바꿉니다.
+    public void ChangeLobbyStatusToInGame()
+    {
+        if (NetworkServer.active)
+        {
+            SteamMatchmaking.SetLobbyData(currentLobbyID, RoomStatusKey, StatusInGame);
+        }
+    }
+
+    // UI에서 '방 새로고침' 버튼을 눌렀을 때 호출
+    public void GetLobbyList()
+    {
+        Debug.Log("[SteamLobbyManager] 스팀 서버에 픽셀 크로마 방 목록 요청...");
+
+        // [추가] "GameID" 값이 "PixelChroma_Dev"와 완벽히 일치(Equal)하는 방만 검색합니다!
+        SteamMatchmaking.AddRequestLobbyListStringFilter("GameID", "PixelChroma_Dev", ELobbyComparison.k_ELobbyComparisonEqual);
+
+        SteamMatchmaking.RequestLobbyList();
+    }
+
+    private void OnLobbyMatchList(LobbyMatchList_t callback)
+    {
+        List<CSteamID> lobbyList = new List<CSteamID>();
+        for (int i = 0; i < callback.m_nLobbiesMatching; i++)
+        {
+            lobbyList.Add(SteamMatchmaking.GetLobbyByIndex(i));
+        }
+
+        // 방 목록 갱신 이벤트 발생 (UI 매니저가 이 신호를 받습니다)
+        OnLobbyListUpdated?.Invoke(lobbyList);
+    }
+
+    // UI 방 목록에서 '참가' 버튼을 눌렀을 때 호출될 함수
+    public void JoinLobby(CSteamID lobbyID)
+    {
+        SteamMatchmaking.JoinLobby(lobbyID);
+    }
+
     private void OnJoinRequested(GameLobbyJoinRequested_t callback)
     {
-        Debug.Log("[SteamLobbyManager] 친구 초대 수락, 로비 입장 요청 중...");
         SteamMatchmaking.JoinLobby(callback.m_steamIDLobby);
     }
 
-    // [콜백] 로비 입장에 성공했을 때 (호스트가 아닌 클라이언트 전용)
     private void OnLobbyEntered(LobbyEnter_t callback)
     {
-        // 호스트는 이미 StartHost()를 했으므로 무시
+        currentLobbyID = new CSteamID(callback.m_ulSteamIDLobby);
+
         if (NetworkServer.active) return;
 
-        // 방장이 등록해둔 HostAddressKey(스팀 ID)를 읽어옴
-        string hostAddress = SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), HostAddressKey);
-
-        // Mirror NetworkManager에 스팀 ID를 주소로 입력하고 클라이언트로 접속
+        string hostAddress = SteamMatchmaking.GetLobbyData(currentLobbyID, HostAddressKey);
         networkManager.networkAddress = hostAddress;
         networkManager.StartClient();
-        Debug.Log($"[SteamLobbyManager] 호스트({hostAddress})에게 Mirror Client 접속 요청!");
     }
 }

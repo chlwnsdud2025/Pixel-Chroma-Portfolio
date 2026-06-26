@@ -41,6 +41,7 @@ public class LobbyUIManager : MonoBehaviour
         if (NetworkServer.active)
         {
             ChromaNetworkManager manager = NetworkManager.singleton as ChromaNetworkManager;
+            SteamLobbyManager.instance.ChangeLobbyStatusToInGame();
             manager?.StartGame();
         }
     }
