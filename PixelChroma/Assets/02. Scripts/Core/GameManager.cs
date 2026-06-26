@@ -19,8 +19,6 @@ namespace PixelChroma
         {
             initialLoading.Show();
 
-            await UniTask.Delay(1000);
-
             if (!InitializeSteam())
             {
                 Debug.LogError("[GameManager] Steam 초기화 실패");
@@ -36,10 +34,11 @@ namespace PixelChroma
 
         private bool InitializeSteam()
         {
-            if (!Steamworks.SteamAPI.Init())
-                return false;
-
+#if UNITY_EDITOR
             return true;
+#else
+            return Steamworks.SteamAPI.Init();
+#endif
         }
 
         public async UniTask EnterMainMenu()
