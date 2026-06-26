@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
 using System.Linq;
-using TMPro; // [추가] TextMeshPro 네임스페이스
+using TMPro; // TextMeshPro를 사용하기 위해 필수!
 
 public class LobbyUIManager : MonoBehaviour
 {
@@ -11,8 +11,10 @@ public class LobbyUIManager : MonoBehaviour
     [Header("UI References")]
     public Button readyButton;
     public Button startGameButton;
-    // [추가] 인원수를 표시할 텍스트 UI (예: 4 / 7)
     public TextMeshProUGUI readyCountText;
+
+    // [신규] 방 코드를 화면에 띄워줄 텍스트 UI 변수 추가
+    public TextMeshProUGUI roomCodeText;
 
     [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
@@ -22,11 +24,21 @@ public class LobbyUIManager : MonoBehaviour
     {
         startGameButton.gameObject.SetActive(NetworkServer.active);
         startGameButton.interactable = false;
-
-        // 시작할 때 텍스트 초기화
         UpdateReadyCountText(0, 0);
-    }
 
+        // [신규] 스팀 로비 데이터에서 "RoomCode"를 읽어와 UI 텍스트에 적용합니다.
+        // 호스트와 클라이언트 모두 똑같이 로비 데이터를 읽을 수 있습니다!
+        if (SteamLobbyManager.instance != null && roomCodeText != null)
+        {
+            // 스팀 매치메이킹 API를 통해 현재 방의 코드를 가져옵니다.
+            string roomCode = Steamworks.SteamMatchmaking.GetLobbyData(SteamLobbyManager.instance.currentLobbyID, "RoomCode");
+
+            // UI에 예쁘게 띄워줍니다.
+            roomCodeText.text = $"입장 코드: {roomCode}";
+
+            Debug.Log($"[LobbyUIManager] 화면에 입장 코드({roomCode})를 표시했습니다.");
+        }
+    }
     public void OnClickReady()
     {
         if (localLobbyPlayer != null)
