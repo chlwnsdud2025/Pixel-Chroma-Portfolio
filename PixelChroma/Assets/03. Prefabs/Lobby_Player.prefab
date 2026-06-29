@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 3472886577200751348}
   - component: {fileID: -1934233331388956182}
   - component: {fileID: 7482352166539666339}
+  - component: {fileID: 1652471647584574595}
   m_Layer: 0
   m_Name: Lobby_Player
   m_TagString: Untagged
@@ -166,6 +167,22 @@ MonoBehaviour:
   inputActions: {fileID: -944628639613478452, guid: dae94752ad76752479be012774c50f69, type: 3}
   animator: {fileID: 3472886577200751348}
   moveSpeed: 3
+--- !u!114 &1652471647584574595
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3329247650249689647}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1db442949a8442242960162b520ed9f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.Network.PlayerChat
+  syncMethod: 0
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
 --- !u!1 &5076602233018039120
 GameObject:
   m_ObjectHideFlags: 0
