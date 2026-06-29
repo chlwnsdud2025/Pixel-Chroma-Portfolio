@@ -36,11 +36,27 @@ namespace PixelChroma
         protected override void Awake()
         {
             base.Awake();
+
+            // 💡 [방어벽 추가] 부모 싱글톤 검증 결과, 내가 진짜가 아니라 유령이라면
+            // 아래에 있는 스팀 콜백 등록 로직을 실행하지 못하도록 즉시 튕겨냅니다.
+            if (Instance != this) return;
+
             _lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
             _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
             _lobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEnteredCallback);
             _lobbyChatUpdate = Callback<LobbyChatUpdate_t>.Create(OnLobbyChatUpdate);
             _lobbyMatchList = CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
+        }
+
+        // [안전장치 추가] 진짜든 유령이든 씬 전환으로 인해 이 컴포넌트가 파괴될 때,
+        // 스팀 통신망에 엮여있던 C++ 비동기 콜백 링크를 명시적으로 완벽하게 끊어줍니다.
+        private void OnDestroy()
+        {
+            _lobbyCreated?.Dispose();
+            _joinRequested?.Dispose();
+            _lobbyEntered?.Dispose();
+            _lobbyChatUpdate?.Dispose();
+            _lobbyMatchList?.Dispose();
         }
 
         // ── 1. 방 만들기 ─────────────────────────
@@ -51,10 +67,9 @@ namespace PixelChroma
 #if UNITY_EDITOR
             IsHost = true;
             CurrentRoomCode = GenerateCode();
-
             Debug.Log($"[LobbyManager] 에디터 방 생성 완료 (localhost) | 코드: {CurrentRoomCode}");
 
-            NetworkManager.singleton.StartHost(); // Mirror 호스트 시작
+            NetworkManager.singleton.StartHost();
             OnLobbyEntered?.Invoke(true);
 #else
             SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, maxPlayers);
@@ -81,7 +96,7 @@ namespace PixelChroma
 
             Debug.Log($"[LobbyManager] 스팀 방 생성 완료 | 코드: {CurrentRoomCode}");
 
-            NetworkManager.singleton.StartHost(); // Mirror 호스트 시작
+            NetworkManager.singleton.StartHost();
             OnLobbyEntered?.Invoke(true);
         }
 
@@ -91,7 +106,6 @@ namespace PixelChroma
             code = code.Trim().ToUpper();
 
 #if UNITY_EDITOR
-            // 💡 내가 이미 방을 파서 서버가 돌아가고 있는데, 코드를 치고 또 들어가려는 중복 시도만 차단!
             if (NetworkServer.active)
             {
                 Debug.LogWarning("[LobbyManager] 이미 당신의 에디터에서 서버가 실행 중입니다! 중복 입장을 거부합니다.");
@@ -99,14 +113,13 @@ namespace PixelChroma
                 return;
             }
 
-            // 클론 에디터나 빌드에서 접속할 때는 무조건 localhost로 접속 시도
             IsHost = false;
             CurrentRoomCode = code;
             Debug.Log($"[LobbyManager] 에디터 로컬 접속 시도 (localhost) | 입력한 코드: {code}");
 
             NetworkManager.singleton.networkAddress = "localhost";
             NetworkManager.singleton.StartClient();
-            OnLobbyEntered?.Invoke(true); // 우선 UI를 로비로 넘김 (서버 없으면 OnClientDisconnect가 알아서 쫓아냄)
+            OnLobbyEntered?.Invoke(true);
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(CodeKey, code, ELobbyComparison.k_ELobbyComparisonEqual);
@@ -162,13 +175,13 @@ namespace PixelChroma
             }
 
             CurrentLobbyId = new CSteamID(result.m_ulSteamIDLobby);
-            if (NetworkServer.active) return; // 호스트는 무시
+            if (NetworkServer.active) return;
 
             CurrentRoomCode = SteamMatchmaking.GetLobbyData(CurrentLobbyId, CodeKey);
             string hostAddress = SteamMatchmaking.GetLobbyData(CurrentLobbyId, HostAddressKey);
 
             NetworkManager.singleton.networkAddress = hostAddress;
-            NetworkManager.singleton.StartClient(); // Mirror 클라이언트 접속
+            NetworkManager.singleton.StartClient();
 
             Debug.Log($"[LobbyManager] 스팀 방 입장 완료 | 코드: {CurrentRoomCode}");
             OnLobbyEntered?.Invoke(true);

@@ -93,7 +93,8 @@ namespace PixelChroma.UI
             SetInteractable(false);
             SetStatus("방 생성 중...");
 
-            bool isPublic = publicToggle != null ? publicToggle.isOn : true;
+            // 임시: Toggle 값 대신 무조건 공개방으로 강제
+            bool isPublic = true;
             int maxPlayers = maxPlayerSlider != null ? (int)maxPlayerSlider.value : 8;
 
             LobbyManager.Instance.CreateLobby(isPublic, maxPlayers);

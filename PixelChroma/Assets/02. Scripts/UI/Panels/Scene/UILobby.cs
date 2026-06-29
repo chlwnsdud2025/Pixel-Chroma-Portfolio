@@ -22,7 +22,10 @@ namespace PixelChroma.UI
         [SerializeField] private Button startGameButton;
         [SerializeField] private TMP_Text readyCountText;
 
-        private LobbyPlayerState localLobbyPlayer;
+        [Header("친구 초대")]
+        [SerializeField] private Button inviteFriendButton; // ← Unity Inspector에서 버튼 연결
+
+        [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
         public override void Initialize()
         {
@@ -31,6 +34,7 @@ namespace PixelChroma.UI
             if (leaveButton != null) leaveButton.onClick.AddListener(OnClickLeave);
             if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
             if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
+            if (inviteFriendButton != null) inviteFriendButton.onClick.AddListener(OnClickInviteFriend);
         }
 
         private void OnEnable()
@@ -43,6 +47,10 @@ namespace PixelChroma.UI
                 startGameButton.gameObject.SetActive(NetworkServer.active);
                 startGameButton.interactable = false;
             }
+
+            // 초대 버튼은 호스트만 보이게 설정 (선택사항 — 모두 보이게 하려면 이 블록 제거)
+            if (inviteFriendButton != null)
+                inviteFriendButton.gameObject.SetActive(NetworkServer.active);
         }
 
         private void OnDisable()
@@ -78,9 +86,7 @@ namespace PixelChroma.UI
             bool isEveryoneReady = (readyPlayers == totalPlayers);
 
             if (NetworkServer.active && startGameButton != null)
-            {
                 startGameButton.interactable = isEveryoneReady;
-            }
         }
 
         private void UpdateReadyCountText(int ready, int total)
@@ -145,6 +151,20 @@ namespace PixelChroma.UI
         {
             LobbyManager.Instance.LeaveLobby();
             GameManager.Instance.EnterMainMenu().Forget();
+        }
+
+        // ── 친구 초대 ─────────────────────────────────────────
+        private void OnClickInviteFriend()
+        {
+#if UNITY_EDITOR
+            Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
+#else
+            // 스팀 오버레이 친구 초대 다이얼로그를 띄웁니다.
+            // RequestLobbyList를 전혀 사용하지 않으므로 50개 제한과 무관하게 100% 안정적입니다.
+            // 친구가 초대를 수락하면 LobbyManager의 OnGameLobbyJoinRequested 콜백이 자동 실행됩니다.
+            SteamFriends.ActivateGameOverlayInviteDialog(LobbyManager.Instance.CurrentLobbyId);
+            Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");
+#endif
         }
     }
 }
