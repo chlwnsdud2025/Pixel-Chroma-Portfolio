@@ -2,24 +2,30 @@ using UnityEngine;
 using Mirror;
 using UnityEngine.SceneManagement;
 using Mirror.FizzySteam;
-using Cysharp.Threading.Tasks; // 추가됨
+using Cysharp.Threading.Tasks;
 
 namespace PixelChroma
 {
     public class ChromaNetworkManager : NetworkManager
     {
         [Header("Chroma Scene Settings")]
-        [Scene] public string gameScenePath;
+        [Scene] public string inGameScene; // Mirror 빌트인 인게임 씬 경로 변수
 
         [Header("Chroma Prefabs")]
         public GameObject lobbyPlayerPrefab;
+
+      
+        private string GetSceneName(string scenePath)
+        {
+            if (string.IsNullOrEmpty(scenePath)) return string.Empty;
+            return System.IO.Path.GetFileNameWithoutExtension(scenePath);
+        }
 
         public override void Awake()
         {
             base.Awake();
 
 #if UNITY_EDITOR
-            // 에디터에서는 스팀 API 대신 기본 로컬호스트(kcp2k) 통신을 사용하도록 자동 전환
             var fizzy = GetComponent<FizzySteamworks>();
             var kcp = GetComponent<kcp2k.KcpTransport>();
             if (fizzy != null) fizzy.enabled = false;
@@ -31,7 +37,7 @@ namespace PixelChroma
         {
             if (NetworkServer.active)
             {
-                ServerChangeScene(gameScenePath);
+                ServerChangeScene(inGameScene);
             }
         }
 
@@ -40,8 +46,11 @@ namespace PixelChroma
             string currentScene = SceneManager.GetActiveScene().name;
             GameObject playerInstance = null;
 
-            if (currentScene == "CJY_Lobby") playerInstance = Instantiate(lobbyPlayerPrefab);
-            else if (currentScene == "CJY_InGame") playerInstance = Instantiate(playerPrefab);
+            // 드래그해서 넣어둔 씬 파일의 실제 이름과 현재 씬 이름을 안전하게 비교합니다.
+            if (currentScene == GetSceneName(onlineScene))
+                playerInstance = Instantiate(lobbyPlayerPrefab);
+            else if (currentScene == GetSceneName(inGameScene))
+                playerInstance = Instantiate(playerPrefab);
 
             if (playerInstance != null)
             {
@@ -51,7 +60,8 @@ namespace PixelChroma
 
         public override void OnServerSceneChanged(string sceneName)
         {
-            if (sceneName == "CJY_InGame")
+            // 드래그한 인게임 씬 이름과 비교
+            if (sceneName == GetSceneName(inGameScene))
             {
                 foreach (NetworkConnectionToClient conn in NetworkServer.connections.Values)
                 {
@@ -68,17 +78,31 @@ namespace PixelChroma
             }
         }
 
-        // 클라이언트가 씬 로딩을 완료했을 때 UI 상태 변경 알림
         public override void OnClientSceneChanged()
         {
-            base.OnClientSceneChanged(); // Mirror의 기본 씬 처리 유지
+            base.OnClientSceneChanged();
 
             string currentScene = SceneManager.GetActiveScene().name;
 
-            // 인게임 씬으로 넘어왔다면 GameManager를 통해 UIHUD 화면으로 전환!
-            if (currentScene == "CJY_InGame" && GameManager.Instance != null)
+            // 드래그한 인게임 씬 이름과 비교
+            if (currentScene == GetSceneName(inGameScene) && GameManager.Instance != null)
             {
                 GameManager.Instance.EnterInGame().Forget();
+            }
+        }
+
+        public override void OnClientDisconnect()
+        {
+            base.OnClientDisconnect();
+
+            if (GameManager.Instance != null)
+            {
+                Debug.LogWarning("[Network] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
+
+            
+                SceneManager.LoadScene(offlineScene);
+
+                GameManager.Instance.EnterMainMenu().Forget();
             }
         }
     }

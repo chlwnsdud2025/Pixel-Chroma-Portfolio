@@ -1,7 +1,7 @@
 using System;
 using Steamworks;
 using UnityEngine;
-using Mirror; // Mirror 연동 추가
+using Mirror;
 
 namespace PixelChroma
 {
@@ -31,7 +31,7 @@ namespace PixelChroma
         private Callback<GameLobbyJoinRequested_t> _joinRequested;
         private Callback<LobbyEnter_t> _lobbyEntered;
         private Callback<LobbyChatUpdate_t> _lobbyChatUpdate;
-        private Callback<LobbyMatchList_t> _lobbyMatchList;
+        private CallResult<LobbyMatchList_t> _lobbyMatchList;
 
         protected override void Awake()
         {
@@ -40,7 +40,7 @@ namespace PixelChroma
             _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
             _lobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEnteredCallback);
             _lobbyChatUpdate = Callback<LobbyChatUpdate_t>.Create(OnLobbyChatUpdate);
-            _lobbyMatchList = Callback<LobbyMatchList_t>.Create(OnLobbyMatchList);
+            _lobbyMatchList = CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
         }
 
         // ── 1. 방 만들기 ─────────────────────────
@@ -51,7 +51,8 @@ namespace PixelChroma
 #if UNITY_EDITOR
             IsHost = true;
             CurrentRoomCode = GenerateCode();
-            Debug.Log($"[LobbyManager] 에디터 방 생성 (localhost) | 코드: {CurrentRoomCode}");
+
+            Debug.Log($"[LobbyManager] 에디터 방 생성 완료 (localhost) | 코드: {CurrentRoomCode}");
 
             NetworkManager.singleton.StartHost(); // Mirror 호스트 시작
             OnLobbyEntered?.Invoke(true);
@@ -90,17 +91,30 @@ namespace PixelChroma
             code = code.Trim().ToUpper();
 
 #if UNITY_EDITOR
+            // 💡 내가 이미 방을 파서 서버가 돌아가고 있는데, 코드를 치고 또 들어가려는 중복 시도만 차단!
+            if (NetworkServer.active)
+            {
+                Debug.LogWarning("[LobbyManager] 이미 당신의 에디터에서 서버가 실행 중입니다! 중복 입장을 거부합니다.");
+                OnLobbyEntered?.Invoke(false);
+                return;
+            }
+
+            // 클론 에디터나 빌드에서 접속할 때는 무조건 localhost로 접속 시도
             IsHost = false;
             CurrentRoomCode = code;
-            Debug.Log($"[LobbyManager] 에디터 방 입장 (localhost) | 코드: {code}");
+            Debug.Log($"[LobbyManager] 에디터 로컬 접속 시도 (localhost) | 입력한 코드: {code}");
 
             NetworkManager.singleton.networkAddress = "localhost";
-            NetworkManager.singleton.StartClient(); // Mirror 클라이언트 접속
-            OnLobbyEntered?.Invoke(true);
+            NetworkManager.singleton.StartClient();
+            OnLobbyEntered?.Invoke(true); // 우선 UI를 로비로 넘김 (서버 없으면 OnClientDisconnect가 알아서 쫓아냄)
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(CodeKey, code, ELobbyComparison.k_ELobbyComparisonEqual);
-            SteamMatchmaking.RequestLobbyList();
+            SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
+            SteamMatchmaking.AddRequestLobbyListFilterSlotsAvailable(1);
+
+            SteamAPICall_t handle = SteamMatchmaking.RequestLobbyList();
+            _lobbyMatchList.Set(handle);
 #endif
         }
 
@@ -114,28 +128,39 @@ namespace PixelChroma
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(IsPublicKey, "True", ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(RoomStatusKey, StatusLobby, ELobbyComparison.k_ELobbyComparisonEqual);
-            SteamMatchmaking.RequestLobbyList();
+            SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
+            SteamMatchmaking.AddRequestLobbyListFilterSlotsAvailable(1);
+
+            SteamAPICall_t handle = SteamMatchmaking.RequestLobbyList();
+            _lobbyMatchList.Set(handle);
 #endif
         }
 
-        private void OnLobbyMatchList(LobbyMatchList_t result)
+        private void OnLobbyMatchList(LobbyMatchList_t result, bool ioFailure)
         {
-            if (result.m_nLobbiesMatching > 0)
+            if (ioFailure || result.m_nLobbiesMatching == 0)
             {
-                CSteamID matchedLobbyID = SteamMatchmaking.GetLobbyByIndex(0);
-                SteamMatchmaking.JoinLobby(matchedLobbyID);
-            }
-            else
-            {
-                Debug.LogWarning("[LobbyManager] 방을 찾지 못했습니다.");
+                Debug.LogWarning("[LobbyManager] 조건에 맞는 방을 찾지 못했습니다.");
                 OnLobbyEntered?.Invoke(false);
+                return;
             }
+
+            CSteamID matchedLobbyID = SteamMatchmaking.GetLobbyByIndex(0);
+            SteamMatchmaking.JoinLobby(matchedLobbyID);
         }
 
         private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t result) { SteamMatchmaking.JoinLobby(result.m_steamIDLobby); }
 
         private void OnLobbyEnteredCallback(LobbyEnter_t result)
         {
+            bool success = result.m_EChatRoomEnterResponse == (uint)EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess;
+            if (!success)
+            {
+                Debug.LogError($"[LobbyManager] 방 입장 실패 코드: {result.m_EChatRoomEnterResponse}");
+                OnLobbyEntered?.Invoke(false);
+                return;
+            }
+
             CurrentLobbyId = new CSteamID(result.m_ulSteamIDLobby);
             if (NetworkServer.active) return; // 호스트는 무시
 
@@ -166,6 +191,7 @@ namespace PixelChroma
             if (NetworkServer.active) NetworkManager.singleton.StopHost();
             else NetworkManager.singleton.StopClient();
         }
+
         // ── 유틸 ───────────────────────────────────────────────
 
         public int GetMemberCount() =>
@@ -173,13 +199,12 @@ namespace PixelChroma
 
         public CSteamID GetMember(int index) =>
             SteamMatchmaking.GetLobbyMemberByIndex(CurrentLobbyId, index);
+
         private static string GenerateCode()
         {
             var chars = new char[CodeLength];
             for (int i = 0; i < CodeLength; i++) chars[i] = CodeChars[UnityEngine.Random.Range(0, CodeChars.Length)];
             return new string(chars);
         }
-
-
     }
 }
