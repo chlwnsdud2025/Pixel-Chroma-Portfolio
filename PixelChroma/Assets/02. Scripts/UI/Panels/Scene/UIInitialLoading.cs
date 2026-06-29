@@ -1,17 +1,25 @@
+using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using UnityEngine;
 
 namespace PixelChroma.UI
 {
-    public class UIInitialLoading : MonoBehaviour
+    public class UIInitialLoading : UIPanel
     {
-        public void Show()
+        [SerializeField] private CanvasGroup canvasGroup;
+        [SerializeField] private float fadeDuration = 0.5f;
+
+        public override void Initialize() { }
+
+        protected override UniTask OnShowAnimation()
         {
-            gameObject.SetActive(true);
+            canvasGroup.alpha = 1f;
+            return UniTask.CompletedTask;
         }
 
-        public void Hide()
+        protected override async UniTask OnHideAnimation()
         {
-            gameObject.SetActive(false);
+            await canvasGroup.DOFade(0f, fadeDuration).ToUniTask();
         }
     }
 }
