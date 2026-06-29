@@ -9,7 +9,11 @@ namespace PixelChroma.UI
         [SerializeField] private CanvasGroup canvasGroup;
         [SerializeField] private float fadeDuration = 0.5f;
 
-        public override void Initialize() { }
+        public override void Initialize()
+        {
+            if (canvasGroup == null)
+                canvasGroup = GetComponent<CanvasGroup>();
+        }
 
         protected override UniTask OnShowAnimation()
         {
