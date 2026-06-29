@@ -33,6 +33,7 @@ namespace PixelChroma.UI
 
         public Color SelectedColor => Color.HSVToRGB(_hue, _saturation, _value);
         public int BrushSize => brushSizeSlider != null ? (int)brushSizeSlider.value : 1;
+        public int MaxBrushSize => maxBrushSize;
 
         public event Action<Color> OnColorChanged;
         public event Action<int> OnBrushSizeChanged;
@@ -185,6 +186,12 @@ namespace PixelChroma.UI
         {
             UpdateBrushSizeLabel();
             OnBrushSizeChanged?.Invoke((int)value);
+        }
+
+        public void SetBrushSize(int size)
+        {
+            if (brushSizeSlider == null) return;
+            brushSizeSlider.value = Mathf.Clamp(size, 1, maxBrushSize);
         }
 
         private void UpdateBrushSizeLabel()
