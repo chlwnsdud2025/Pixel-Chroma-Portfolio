@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: -1934233331388956182}
   - component: {fileID: 7482352166539666339}
   - component: {fileID: 3761791833342397255}
+  - component: {fileID: -5294142182456280051}
   m_Layer: 0
   m_Name: Lobby_Player
   m_TagString: Untagged
@@ -203,6 +204,22 @@ MonoBehaviour:
   - {fileID: -1137364592071911362, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
   - {fileID: -3549988229105279555, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
   brushSize: 1
+--- !u!114 &-5294142182456280051
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3329247650249689647}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1db442949a8442242960162b520ed9f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.Network.PlayerChat
+  syncMethod: 0
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
 --- !u!1 &5076602233018039120
 GameObject:
   m_ObjectHideFlags: 0
