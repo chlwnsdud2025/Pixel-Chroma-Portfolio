@@ -9,12 +9,11 @@ namespace PixelChroma
     public class ChromaNetworkManager : NetworkManager
     {
         [Header("Chroma Scene Settings")]
-        [Scene] public string inGameScene; // Mirror 빌트인 인게임 씬 경로 변수
+        [Scene] public string inGameScene;
 
         [Header("Chroma Prefabs")]
         public GameObject lobbyPlayerPrefab;
 
-      
         private string GetSceneName(string scenePath)
         {
             if (string.IsNullOrEmpty(scenePath)) return string.Empty;
@@ -23,6 +22,16 @@ namespace PixelChroma
 
         public override void Awake()
         {
+            // 💡 [방어벽 추가] base.Awake()보다 앞에 둡니다.
+            // 메인 메뉴로 돌아올 때 새로 생성된 유령 매니저가 정적 변수인 'Transport.active'를
+            // 망가뜨리는 것을 원천 차단하기 위해, 오브젝트를 즉시 끄고 파괴 세팅을 내립니다.
+            if (singleton != null && singleton != this)
+            {
+                gameObject.SetActive(false);
+                Destroy(gameObject);
+                return;
+            }
+
             base.Awake();
 
 #if UNITY_EDITOR
@@ -46,7 +55,6 @@ namespace PixelChroma
             string currentScene = SceneManager.GetActiveScene().name;
             GameObject playerInstance = null;
 
-            // 드래그해서 넣어둔 씬 파일의 실제 이름과 현재 씬 이름을 안전하게 비교합니다.
             if (currentScene == GetSceneName(onlineScene))
                 playerInstance = Instantiate(lobbyPlayerPrefab);
             else if (currentScene == GetSceneName(inGameScene))
@@ -60,7 +68,6 @@ namespace PixelChroma
 
         public override void OnServerSceneChanged(string sceneName)
         {
-            // 드래그한 인게임 씬 이름과 비교
             if (sceneName == GetSceneName(inGameScene))
             {
                 foreach (NetworkConnectionToClient conn in NetworkServer.connections.Values)
@@ -84,7 +91,6 @@ namespace PixelChroma
 
             string currentScene = SceneManager.GetActiveScene().name;
 
-            // 드래그한 인게임 씬 이름과 비교
             if (currentScene == GetSceneName(inGameScene) && GameManager.Instance != null)
             {
                 GameManager.Instance.EnterInGame().Forget();
@@ -95,15 +101,14 @@ namespace PixelChroma
         {
             base.OnClientDisconnect();
 
-            if (GameManager.Instance != null)
-            {
-                Debug.LogWarning("[Network] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
+            if (GameManager.Instance == null) return;
 
-            
-                SceneManager.LoadScene(offlineScene);
+            Debug.LogWarning("[Network] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
 
-                GameManager.Instance.EnterMainMenu().Forget();
-            }
+            if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
+                LobbyManager.Instance.LeaveLobby();
+
+            GameManager.Instance.EnterMainMenu().Forget();
         }
     }
 }
