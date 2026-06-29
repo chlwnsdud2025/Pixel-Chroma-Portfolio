@@ -79,7 +79,7 @@ MonoBehaviour:
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 16
-  m_ReferenceResolution: {x: 480, y: 270}
+  m_ReferenceResolution: {x: 320, y: 180}
   m_ScreenMatchMode: 0
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
@@ -152,6 +152,7 @@ MonoBehaviour:
   sceneRoot: {fileID: 31324546005191892}
   popupRoot: {fileID: 6347078160583703375}
   registry: {fileID: 11400000, guid: 5e79ad689c59e8c4eb5df5560d64c2e7, type: 2}
+  initialLoading: {fileID: 3197426453886480074}
 --- !u!1 &4510440402746877799
 GameObject:
   m_ObjectHideFlags: 0
@@ -324,6 +325,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 319db18b716af8244889e6f1abfc06e3, type: 3}
+--- !u!114 &3197426453886480074 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4027129342443223774, guid: 319db18b716af8244889e6f1abfc06e3, type: 3}
+  m_PrefabInstance: {fileID: 1998673165902304276}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e46ef5e5ffff704fa43ca05ec595b53, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIInitialLoading
 --- !u!224 &4651493803652370123 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 6571273436794395359, guid: 319db18b716af8244889e6f1abfc06e3, type: 3}

@@ -1,6 +1,7 @@
+using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
-using Cysharp.Threading.Tasks;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 
@@ -12,8 +13,8 @@ namespace PixelChroma.UI
         [SerializeField] private Transform popupRoot;
         [SerializeField] private UIRegistrySO registry;
 
-        [Header("Initial Loading (추가됨)")]
-        [SerializeField] private UIInitialLoading initialLoading; // GameManager에서 이사 옴
+        [Header("Initial Loading")]
+        [SerializeField] private UIInitialLoading initialLoading;
 
         private readonly Dictionary<Type, UIPanel> _panels = new();
         private readonly Stack<UIPopup> _popupStack = new();
@@ -36,15 +37,14 @@ namespace PixelChroma.UI
             await UniTask.WhenAll(tasks);
         }
 
-        // ── [신규 추가] 초기 로딩 제어 함수 ──
-        public void ShowInitialLoading()
+        public async UniTask ShowInitialLoading()
         {
-            if (initialLoading != null) initialLoading.Show();
+            if (initialLoading != null) await initialLoading.Show();
         }
 
-        public void HideInitialLoading()
+        public async UniTask HideInitialLoading()
         {
-            if (initialLoading != null) initialLoading.Hide();
+            if (initialLoading != null) await initialLoading.Hide();
         }
 
         private async UniTask LoadAndRegisterPanel(AssetReferenceGameObject reference, Transform root)
@@ -58,12 +58,16 @@ namespace PixelChroma.UI
                 return;
             }
 
+            panel.Initialize();
+            panel.gameObject.SetActive(false);
             _panels.Add(panel.GetType(), panel);
         }
 
-        public async UniTask ShowScene<T>() where T : UIScene
+        public async UniTask<T> ShowScene<T>() where T : UIScene
         {
-            if (!TryGetPanel<T>(out var target)) return;
+            if (!TryGetPanel<T>(out var target)) return null;
+
+            if (_currentScene == target) return target;
 
             if (_currentScene != null)
             {
@@ -74,11 +78,15 @@ namespace PixelChroma.UI
             _currentScene = target;
             _currentScene.OnBeforeShow();
             await _currentScene.Show();
+
+            return target;
         }
 
         public async UniTask<T> ShowPopup<T>() where T : UIPopup
         {
             if (!TryGetPanel<T>(out var target)) return null;
+
+            if (_popupStack.Contains(target)) return target;
 
             target.OnBeforeShow();
             await target.Show();
@@ -87,33 +95,19 @@ namespace PixelChroma.UI
             return target;
         }
 
-        public async UniTask HidePopup<T>() where T : UIPopup
+        public async UniTask HidePopup(bool instant = false)
         {
-            if (!TryGetPanel<T>(out var target)) return;
+            if (_popupStack.Count == 0) return;
 
-            var temp = new Stack<UIPopup>();
-            while (_popupStack.Count > 0)
-            {
-                var p = _popupStack.Pop();
-                if (p.GetType() != typeof(T))
-                    temp.Push(p);
-            }
-            while (temp.Count > 0)
-                _popupStack.Push(temp.Pop());
-
-            await target.Hide();
-            target.OnAfterHide();
+            var popup = _popupStack.Pop();
+            await popup.Hide(instant);
+            popup.OnAfterHide();
         }
 
-        public async UniTask HideAllPopups()
+        public async UniTask HideAllPopups(bool instant = true)
         {
-            var tasks = new List<UniTask>();
             while (_popupStack.Count > 0)
-            {
-                var popup = _popupStack.Pop();
-                tasks.Add(popup.Hide());
-            }
-            await UniTask.WhenAll(tasks);
+                await HidePopup(instant);
         }
 
         public T GetPanel<T>() where T : UIPanel

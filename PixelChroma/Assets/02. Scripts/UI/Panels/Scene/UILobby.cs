@@ -27,9 +27,9 @@ namespace PixelChroma.UI
 
         [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
-        protected override void Awake()
+        public override void Initialize()
         {
-            base.Awake();
+            base.Initialize();
             if (copyCodeButton != null) copyCodeButton.onClick.AddListener(OnClickCopyCode);
             if (leaveButton != null) leaveButton.onClick.AddListener(OnClickLeave);
             if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
@@ -40,6 +40,7 @@ namespace PixelChroma.UI
         private void OnEnable()
         {
             LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
+            LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
 
             if (startGameButton != null)
             {
@@ -56,17 +57,45 @@ namespace PixelChroma.UI
         {
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.OnMembersChanged -= RefreshMemberList;
+
+            LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
         }
 
         protected override UniTask OnShow()
         {
             RefreshRoomCode();
             RefreshMemberList();
-            CheckAllReadyStates();
+            RefreshReadyUI();
+
             return UniTask.CompletedTask;
         }
 
-        // ── 미러(Mirror) 네트워크 연동부 ─────────────────────────────
+        // ── Ready UI ─────────────────────────────────────────
+
+        private void RefreshReadyUI()
+        {
+            var allPlayers = LobbyPlayerState.AllPlayers;
+            int totalPlayers = allPlayers.Count;
+            int readyPlayers = allPlayers.Count(p => p.isReady);
+
+            localLobbyPlayer = allPlayers.FirstOrDefault(p => p.isLocalPlayer);
+
+            UpdateReadyCountText(readyPlayers, totalPlayers);
+            if (totalPlayers == 0) return;
+
+            bool isEveryoneReady = (readyPlayers == totalPlayers);
+
+            if (NetworkServer.active && startGameButton != null)
+                startGameButton.interactable = isEveryoneReady;
+        }
+
+        private void UpdateReadyCountText(int ready, int total)
+        {
+            if (readyCountText != null)
+                readyCountText.text = $"준비 완료: {ready} / {total}";
+        }
+
+        // ── 버튼 핸들러 ──────────────────────────────────────
 
         private void OnClickReady()
         {
@@ -82,28 +111,6 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.ChangeLobbyStatusToInGame();
                 manager?.StartGame();
             }
-        }
-
-        public void CheckAllReadyStates()
-        {
-            LobbyPlayerState[] allPlayers = FindObjectsByType<LobbyPlayerState>(FindObjectsSortMode.None);
-
-            int totalPlayers = allPlayers.Length;
-            int readyPlayers = allPlayers.Count(player => player.isReady);
-
-            UpdateReadyCountText(readyPlayers, totalPlayers);
-            if (totalPlayers == 0) return;
-
-            bool isEveryoneReady = (readyPlayers == totalPlayers);
-
-            if (NetworkServer.active && startGameButton != null)
-                startGameButton.interactable = isEveryoneReady;
-        }
-
-        private void UpdateReadyCountText(int ready, int total)
-        {
-            if (readyCountText != null)
-                readyCountText.text = $"준비 완료: {ready} / {total}";
         }
 
         // ── 표시 ───────────────────────────────────────────────
