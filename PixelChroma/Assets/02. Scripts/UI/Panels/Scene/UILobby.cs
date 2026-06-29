@@ -24,9 +24,9 @@ namespace PixelChroma.UI
 
         [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
-        protected override void Awake()
+        public override void Initialize()
         {
-            base.Awake();
+            base.Initialize();
             if (copyCodeButton != null) copyCodeButton.onClick.AddListener(OnClickCopyCode);
             if (leaveButton != null) leaveButton.onClick.AddListener(OnClickLeave);
             if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);

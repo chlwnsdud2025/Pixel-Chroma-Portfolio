@@ -22,16 +22,14 @@ namespace PixelChroma.UI
         [SerializeField] private Button confirmCreateButton;    // (추가) 패널 안의 최종 생성 버튼
         [SerializeField] private Button closeSettingsButton;    // (추가) 패널 안의 닫기/취소 버튼
 
-        protected override void Awake()
+        public override void Initialize()
         {
-            base.Awake();
+            base.Initialize();
 
-            // 메인 화면 버튼 이벤트
             if (openRoomSettingsButton != null) openRoomSettingsButton.onClick.AddListener(OnClickOpenSettings);
             if (quickJoinButton != null) quickJoinButton.onClick.AddListener(OnClickQuickJoin);
             if (joinButton != null) joinButton.onClick.AddListener(OnClickJoin);
 
-            // 방 설정 패널 내부 버튼 이벤트
             if (confirmCreateButton != null) confirmCreateButton.onClick.AddListener(OnClickConfirmCreate);
             if (closeSettingsButton != null) closeSettingsButton.onClick.AddListener(OnClickCloseSettings);
 
@@ -45,7 +43,6 @@ namespace PixelChroma.UI
                     maxPlayerText.text = $"최대 인원: {v}명");
             }
 
-            // (추가) 시작 시 방 설정 패널은 숨겨둡니다.
             if (roomSettingsPanel != null) roomSettingsPanel.SetActive(false);
 
             SetStatus("");
