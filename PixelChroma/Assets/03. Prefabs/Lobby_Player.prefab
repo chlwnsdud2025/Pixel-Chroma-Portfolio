@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 3472886577200751348}
   - component: {fileID: -1934233331388956182}
   - component: {fileID: 7482352166539666339}
+  - component: {fileID: 3761791833342397255}
   m_Layer: 0
   m_Name: Lobby_Player
   m_TagString: Untagged
@@ -165,7 +166,43 @@ MonoBehaviour:
   syncInterval: 0
   inputActions: {fileID: -944628639613478452, guid: dae94752ad76752479be012774c50f69, type: 3}
   animator: {fileID: 3472886577200751348}
+  paintCanvas: {fileID: 3761791833342397255}
   moveSpeed: 3
+--- !u!114 &3761791833342397255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3329247650249689647}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23a81b8823b21ba48aa2ea91138e7c8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.PlayerPaintCanvas
+  syncMethod: 0
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  targetRenderer: {fileID: 1248774305928095882}
+  originalSprites:
+  - {fileID: -6598946016331564889, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -7675304248189546062, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -6388338761078672736, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -303320121775701381, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: 3729461876300729580, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -672529477206987394, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: 5629586733242638167, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: 7767812757204367948, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: 2249745419088220813, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: 5333771517180107481, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -646623592477257922, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: 5856893256139009897, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: 7043811978007918041, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -7723253972256136601, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -1137364592071911362, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  - {fileID: -3549988229105279555, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+  brushSize: 1
 --- !u!1 &5076602233018039120
 GameObject:
   m_ObjectHideFlags: 0
