@@ -1,7 +1,9 @@
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using Mirror;
 using UnityEngine.InputSystem;
 using Cysharp.Threading.Tasks;
+using Unity.Cinemachine;
 using PixelChroma.UI;
 
 namespace PixelChroma
@@ -22,9 +24,16 @@ namespace PixelChroma
         [Header("Settings")]
         public float moveSpeed = 3f;
 
+        [Header("Zoom (PPU)")]
+        [SerializeField] private int maxPPU = 64;
+        [SerializeField] private int zoomStepPPU = 2;
+
         private InputAction moveAction;
         private UIInGameHUD _hud;
         private bool _isPaintMode;
+        private CinemachineCamera _cinemachineCamera;
+        private PixelPerfectCamera _pixelPerfectCamera;
+        private int _originalPPU;
 
         public override void OnStartLocalPlayer()
         {
@@ -32,7 +41,23 @@ namespace PixelChroma
             moveAction = map.FindAction("Move");
             moveAction.Enable();
 
+            SetupCinemachineFollow();
             ShowHUDAsync().Forget();
+        }
+
+        private void SetupCinemachineFollow()
+        {
+            _cinemachineCamera = FindAnyObjectByType<CinemachineCamera>();
+            if (_cinemachineCamera != null)
+                _cinemachineCamera.Follow = transform;
+
+            var mainCam = Camera.main;
+            if (mainCam != null)
+            {
+                _pixelPerfectCamera = mainCam.GetComponent<PixelPerfectCamera>();
+                if (_pixelPerfectCamera != null)
+                    _originalPPU = _pixelPerfectCamera.assetsPPU;
+            }
         }
 
         public override void OnStopLocalPlayer()
@@ -68,6 +93,8 @@ namespace PixelChroma
             if (Keyboard.current != null && Keyboard.current[Key.F].wasPressedThisFrame)
                 TogglePaintMode();
 
+            HandleScrollWheel();
+
             if (_isPaintMode)
             {
                 HandlePainting();
@@ -94,6 +121,47 @@ namespace PixelChroma
                 animator.SetFloat(MoveX, input.x);
                 animator.SetFloat(MoveY, input.y);
             }
+        }
+
+        private void HandleScrollWheel()
+        {
+            if (Mouse.current == null) return;
+            float scroll = Mouse.current.scroll.y.ReadValue();
+            if (Mathf.Approximately(scroll, 0f)) return;
+
+            bool altHeld = Keyboard.current != null &&
+                           (Keyboard.current[Key.LeftAlt].isPressed || Keyboard.current[Key.RightAlt].isPressed);
+
+            if (altHeld)
+            {
+                if (_pixelPerfectCamera != null)
+                {
+                    int current = _pixelPerfectCamera.assetsPPU;
+                    int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
+                    _pixelPerfectCamera.assetsPPU = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
+                }
+            }
+            else if (_isPaintMode && paintCanvas != null)
+            {
+                int current = paintCanvas.BrushSize;
+                int next = scroll > 0 ? current + 1 : current - 1;
+                next = Mathf.Clamp(next, 1, GetMaxBrushSize());
+                paintCanvas.BrushSize = next;
+                SyncBrushSizeToUI(next);
+            }
+        }
+
+        private int GetMaxBrushSize()
+        {
+            if (_hud != null && _hud.ColorPicker != null && _hud.ColorPicker.MaxBrushSize > 0)
+                return _hud.ColorPicker.MaxBrushSize;
+            return 20;
+        }
+
+        private void SyncBrushSizeToUI(int size)
+        {
+            if (_hud != null && _hud.ColorPicker != null)
+                _hud.ColorPicker.SetBrushSize(size);
         }
 
         private void TogglePaintMode()
