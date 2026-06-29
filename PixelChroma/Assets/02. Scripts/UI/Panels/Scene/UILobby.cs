@@ -22,7 +22,7 @@ namespace PixelChroma.UI
         [SerializeField] private Button startGameButton;
         [SerializeField] private TMP_Text readyCountText;
 
-        [HideInInspector] public LobbyPlayerState localLobbyPlayer;
+        private LobbyPlayerState localLobbyPlayer;
 
         public override void Initialize()
         {
@@ -36,6 +36,7 @@ namespace PixelChroma.UI
         private void OnEnable()
         {
             LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
+            LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
 
             if (startGameButton != null)
             {
@@ -48,42 +49,28 @@ namespace PixelChroma.UI
         {
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.OnMembersChanged -= RefreshMemberList;
+
+            LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
         }
 
         protected override UniTask OnShow()
         {
             RefreshRoomCode();
             RefreshMemberList();
-
-            CheckAllReadyStates();
+            RefreshReadyUI();
 
             return UniTask.CompletedTask;
         }
 
-        // ── 미러(Mirror) 네트워크 연동부 ─────────────────────────────
+        // ── Ready UI ─────────────────────────────────────────
 
-        private void OnClickReady()
+        private void RefreshReadyUI()
         {
-            if (localLobbyPlayer != null)
-                localLobbyPlayer.CmdToggleReady();
-        }
+            var allPlayers = LobbyPlayerState.AllPlayers;
+            int totalPlayers = allPlayers.Count;
+            int readyPlayers = allPlayers.Count(p => p.isReady);
 
-        private void OnClickStartGame()
-        {
-            if (NetworkServer.active)
-            {
-                ChromaNetworkManager manager = NetworkManager.singleton as ChromaNetworkManager;
-                LobbyManager.Instance.ChangeLobbyStatusToInGame();
-                manager?.StartGame();
-            }
-        }
-
-        public void CheckAllReadyStates()
-        {
-            LobbyPlayerState[] allPlayers = FindObjectsByType<LobbyPlayerState>(FindObjectsSortMode.None);
-
-            int totalPlayers = allPlayers.Length;
-            int readyPlayers = allPlayers.Count(player => player.isReady);
+            localLobbyPlayer = allPlayers.FirstOrDefault(p => p.isLocalPlayer);
 
             UpdateReadyCountText(readyPlayers, totalPlayers);
             if (totalPlayers == 0) return;
@@ -100,6 +87,24 @@ namespace PixelChroma.UI
         {
             if (readyCountText != null)
                 readyCountText.text = $"준비 완료: {ready} / {total}";
+        }
+
+        // ── 버튼 핸들러 ──────────────────────────────────────
+
+        private void OnClickReady()
+        {
+            if (localLobbyPlayer != null)
+                localLobbyPlayer.CmdToggleReady();
+        }
+
+        private void OnClickStartGame()
+        {
+            if (NetworkServer.active)
+            {
+                ChromaNetworkManager manager = NetworkManager.singleton as ChromaNetworkManager;
+                LobbyManager.Instance.ChangeLobbyStatusToInGame();
+                manager?.StartGame();
+            }
         }
 
         // ── 표시 ───────────────────────────────────────────────
