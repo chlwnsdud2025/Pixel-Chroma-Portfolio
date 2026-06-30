@@ -39,11 +39,14 @@ namespace PixelChroma
         protected InputAction moveAction;
         protected CinemachineCamera cinemachineCamera;
         protected bool isPaintMode;
+        private Rigidbody2D _rb;
         private PixelPerfectCamera _pixelPerfectCamera;
         private int _originalPPU;
 
         public override void OnStartLocalPlayer()
         {
+            _rb = GetComponent<Rigidbody2D>();
+
             var map = inputActions.FindActionMap("PlayerControll");
             moveAction = map.FindAction("Move");
             moveAction.Enable();
@@ -89,28 +92,37 @@ namespace PixelChroma
             if (isPaintMode)
                 HandlePainting();
 
+            UpdateAnimation();
+        }
+
+        protected virtual void FixedUpdate()
+        {
+            if (!isLocalPlayer) return;
             HandleMovement();
         }
 
         protected virtual void HandleMovement()
         {
+            if (_rb == null) return;
+
+            Vector2 input = moveAction.ReadValue<Vector2>();
+            _rb.linearVelocity = input.sqrMagnitude > 0.01f
+                ? input.normalized * moveSpeed
+                : Vector2.zero;
+        }
+
+        private void UpdateAnimation()
+        {
+            if (animator == null) return;
+
             Vector2 input = moveAction.ReadValue<Vector2>();
             bool moving = input.sqrMagnitude > 0.01f;
 
+            animator.SetBool(IsMoving, moving);
             if (moving)
             {
-                Vector3 move = new Vector3(input.x, input.y, 0).normalized;
-                transform.position += move * moveSpeed * Time.deltaTime;
-            }
-
-            if (animator != null)
-            {
-                animator.SetBool(IsMoving, moving);
-                if (moving)
-                {
-                    animator.SetFloat(MoveX, input.x);
-                    animator.SetFloat(MoveY, input.y);
-                }
+                animator.SetFloat(MoveX, input.x);
+                animator.SetFloat(MoveY, input.y);
             }
         }
 
