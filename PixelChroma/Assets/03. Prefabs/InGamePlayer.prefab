@@ -13,12 +13,11 @@ GameObject:
   - component: {fileID: 6066479378772764670}
   - component: {fileID: 2893157790693939566}
   - component: {fileID: 3472886577200751348}
-  - component: {fileID: -1934233331388956182}
-  - component: {fileID: 7482352166539666339}
+  - component: {fileID: 695693200617886232}
   - component: {fileID: 3761791833342397255}
   - component: {fileID: -5294142182456280051}
   m_Layer: 0
-  m_Name: Lobby_Player
+  m_Name: InGamePlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -53,7 +52,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Mirror::Mirror.NetworkIdentity
   sceneId: 0
-  _assetId: 2733390412
+  _assetId: 2048365842
   serverOnly: 0
   visibility: 0
   hasSpawned: 0
@@ -132,7 +131,7 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &-1934233331388956182
+--- !u!114 &695693200617886232
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -141,34 +140,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 3329247650249689647}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 269e60768d8089349ad09f9a556775f7, type: 3}
+  m_Script: {fileID: 11500000, guid: 1ce7a1e40e2a22e4d8ec1cba4a649c22, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LobbyPlayerState
-  syncMethod: 0
-  syncDirection: 0
-  syncMode: 0
-  syncInterval: 0
-  isReady: 0
---- !u!114 &7482352166539666339
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3329247650249689647}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f83c2efc57994f943b71457e3a283835, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.LobbyPlayerController
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.InGamePlayerController
   syncMethod: 0
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
   inputActions: {fileID: -944628639613478452, guid: dae94752ad76752479be012774c50f69, type: 3}
   animator: {fileID: 3472886577200751348}
+  spriteRenderer: {fileID: 1248774305928095882}
   paintCanvas: {fileID: 3761791833342397255}
-  moveSpeed: 3
+  moveSpeed: 5
+  maxPPU: 64
+  zoomStepPPU: 2
 --- !u!114 &3761791833342397255
 MonoBehaviour:
   m_ObjectHideFlags: 0

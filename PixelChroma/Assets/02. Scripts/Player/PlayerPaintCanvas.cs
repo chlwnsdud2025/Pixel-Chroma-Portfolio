@@ -112,8 +112,26 @@ namespace PixelChroma
         {
             bool painted = PaintLocal(px, py, color, brushSize);
             if (painted)
+            {
                 ApplyChanges();
+                CmdPaint(px, py, color, brushSize);
+            }
             return painted;
+        }
+
+        [Command]
+        private void CmdPaint(int px, int py, Color color, int size)
+        {
+            RpcPaint(px, py, color, size);
+        }
+
+        [ClientRpc]
+        private void RpcPaint(int px, int py, Color color, int size)
+        {
+            if (isOwned) return;
+
+            if (PaintLocal(px, py, color, size))
+                ApplyChanges();
         }
 
         private bool PaintLocal(int px, int py, Color color, int size)
@@ -153,11 +171,20 @@ namespace PixelChroma
         {
             if (_runtimeTextures == null) return;
 
-            int half = brushSize / 2;
+            EraseLocal(px, py, brushSize);
+            ApplyChanges();
+            CmdErase(px, py, brushSize);
+        }
 
-            for (int bx = -half; bx < brushSize - half; bx++)
+        private void EraseLocal(int px, int py, int size)
+        {
+            if (_runtimeTextures == null) return;
+
+            int half = size / 2;
+
+            for (int bx = -half; bx < size - half; bx++)
             {
-                for (int by = -half; by < brushSize - half; by++)
+                for (int by = -half; by < size - half; by++)
                 {
                     int x = px + bx;
                     int y = py + by;
@@ -170,6 +197,20 @@ namespace PixelChroma
             }
 
             _isDirty = true;
+        }
+
+        [Command]
+        private void CmdErase(int px, int py, int size)
+        {
+            RpcErase(px, py, size);
+        }
+
+        [ClientRpc]
+        private void RpcErase(int px, int py, int size)
+        {
+            if (isOwned) return;
+
+            EraseLocal(px, py, size);
             ApplyChanges();
         }
 

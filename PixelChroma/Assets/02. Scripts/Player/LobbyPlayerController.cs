@@ -2,9 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using Mirror;
 using UnityEngine.InputSystem;
-using Cysharp.Threading.Tasks;
 using Unity.Cinemachine;
-using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -19,7 +17,6 @@ namespace PixelChroma
 
         [Header("References")]
         public Animator animator;
-        public PlayerPaintCanvas paintCanvas;
 
         [Header("Settings")]
         public float moveSpeed = 3f;
@@ -29,8 +26,6 @@ namespace PixelChroma
         [SerializeField] private int zoomStepPPU = 2;
 
         private InputAction moveAction;
-        private UIInGameHUD _hud;
-        private bool _isPaintMode;
         private CinemachineCamera _cinemachineCamera;
         private PixelPerfectCamera _pixelPerfectCamera;
         private int _originalPPU;
@@ -42,7 +37,6 @@ namespace PixelChroma
             moveAction.Enable();
 
             SetupCinemachineFollow();
-            ShowHUDAsync().Forget();
         }
 
         private void SetupCinemachineFollow()
@@ -63,44 +57,13 @@ namespace PixelChroma
         public override void OnStopLocalPlayer()
         {
             moveAction?.Disable();
-
-            if (_hud != null && _hud.ColorPicker != null)
-                _hud.ColorPicker.OnBrushSizeChanged -= OnBrushSizeChanged;
-        }
-
-        private async UniTaskVoid ShowHUDAsync()
-        {
-            _hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
-
-            if (_hud != null && _hud.ColorPicker != null)
-            {
-                _hud.ColorPicker.OnBrushSizeChanged += OnBrushSizeChanged;
-                if (paintCanvas != null)
-                    paintCanvas.BrushSize = _hud.ColorPicker.BrushSize;
-            }
-        }
-
-        private void OnBrushSizeChanged(int size)
-        {
-            if (paintCanvas != null)
-                paintCanvas.BrushSize = size;
         }
 
         void Update()
         {
             if (!isLocalPlayer) return;
 
-            if (Keyboard.current != null && Keyboard.current[Key.F].wasPressedThisFrame)
-                TogglePaintMode();
-
-            HandleScrollWheel();
-
-            if (_isPaintMode)
-            {
-                HandlePainting();
-                return;
-            }
-
+            HandleZoom();
             HandleMovement();
         }
 
@@ -123,9 +86,10 @@ namespace PixelChroma
             }
         }
 
-        private void HandleScrollWheel()
+        private void HandleZoom()
         {
-            if (Mouse.current == null) return;
+            if (_pixelPerfectCamera == null || Mouse.current == null) return;
+
             float scroll = Mouse.current.scroll.y.ReadValue();
             if (Mathf.Approximately(scroll, 0f)) return;
 
@@ -134,58 +98,10 @@ namespace PixelChroma
 
             if (altHeld)
             {
-                if (_pixelPerfectCamera != null)
-                {
-                    int current = _pixelPerfectCamera.assetsPPU;
-                    int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
-                    _pixelPerfectCamera.assetsPPU = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
-                }
+                int current = _pixelPerfectCamera.assetsPPU;
+                int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
+                _pixelPerfectCamera.assetsPPU = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
             }
-            else if (_isPaintMode && paintCanvas != null)
-            {
-                int current = paintCanvas.BrushSize;
-                int next = scroll > 0 ? current + 1 : current - 1;
-                next = Mathf.Clamp(next, 1, GetMaxBrushSize());
-                paintCanvas.BrushSize = next;
-                SyncBrushSizeToUI(next);
-            }
-        }
-
-        private int GetMaxBrushSize()
-        {
-            if (_hud != null && _hud.ColorPicker != null && _hud.ColorPicker.MaxBrushSize > 0)
-                return _hud.ColorPicker.MaxBrushSize;
-            return 20;
-        }
-
-        private void SyncBrushSizeToUI(int size)
-        {
-            if (_hud != null && _hud.ColorPicker != null)
-                _hud.ColorPicker.SetBrushSize(size);
-        }
-
-        private void TogglePaintMode()
-        {
-            _isPaintMode = !_isPaintMode;
-            _hud?.SetPaintMode(_isPaintMode);
-        }
-
-        private void HandlePainting()
-        {
-            if (paintCanvas == null || Mouse.current == null) return;
-            if (!Mouse.current.leftButton.isPressed) return;
-
-            Vector2 screenPos = Mouse.current.position.ReadValue();
-            Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
-            worldPos.z = 0;
-
-            Color color = _hud != null && _hud.ColorPicker != null
-                ? _hud.ColorPicker.SelectedColor
-                : Color.white;
-
-            Vector2Int pixel = paintCanvas.WorldToPixel(worldPos);
-            if (paintCanvas.IsInBounds(pixel.x, pixel.y))
-                paintCanvas.PaintAt(pixel.x, pixel.y, color);
         }
     }
 }
