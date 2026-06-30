@@ -18,17 +18,37 @@ namespace PixelChroma
             ShowHUDAsync().Forget();
         }
 
+        protected override void OnLocalPlayerStopped()
+        {
+            if (_hud != null && _hud.ColorPicker != null)
+                _hud.ColorPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
+
+            ClearPaintEvents();
+        }
+
         private async UniTaskVoid ShowHUDAsync()
         {
             _hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
+            if (_hud == null) return;
+
+            OnPaintModeChanged += _hud.SetPaintMode;
+
+            if (_hud.ColorPicker != null)
+            {
+                PaintColorProvider = () => _hud.ColorPicker.SelectedColor;
+                MaxBrushSizeProvider = () => _hud.ColorPicker.MaxBrushSize > 0 ? _hud.ColorPicker.MaxBrushSize : 20;
+                OnBrushSizeScrolled += _hud.ColorPicker.SetBrushSize;
+                _hud.ColorPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
+
+                if (paintCanvas != null)
+                    paintCanvas.BrushSize = _hud.ColorPicker.BrushSize;
+            }
         }
 
-        protected override void Update()
+        private void OnUIBrushSizeChanged(int size)
         {
-            if (!isLocalPlayer) return;
-
-            HandleZoom();
-            HandleMovement();
+            if (paintCanvas != null)
+                paintCanvas.BrushSize = size;
         }
 
         private void OnTriggerEnter2D(Collider2D other)

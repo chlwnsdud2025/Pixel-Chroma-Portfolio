@@ -1,4 +1,6 @@
+using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering.Universal;
 using Mirror;
 using UnityEngine.InputSystem;
@@ -17,6 +19,7 @@ namespace PixelChroma
 
         [Header("References")]
         public Animator animator;
+        public PlayerPaintCanvas paintCanvas;
 
         [Header("Settings")]
         public float moveSpeed = 5f;
@@ -28,8 +31,14 @@ namespace PixelChroma
         [SyncVar]
         public PlayerRole role = PlayerRole.None;
 
+        public event Action<bool> OnPaintModeChanged;
+        public event Action<int> OnBrushSizeScrolled;
+        public Func<Color> PaintColorProvider;
+        public Func<int> MaxBrushSizeProvider;
+
         protected InputAction moveAction;
         protected CinemachineCamera cinemachineCamera;
+        protected bool isPaintMode;
         private PixelPerfectCamera _pixelPerfectCamera;
         private int _originalPPU;
 
@@ -72,7 +81,14 @@ namespace PixelChroma
         {
             if (!isLocalPlayer) return;
 
-            HandleZoom();
+            if (Keyboard.current != null && Keyboard.current[Key.F].wasPressedThisFrame)
+                TogglePaintMode();
+
+            HandleScrollWheel();
+
+            if (isPaintMode)
+                HandlePainting();
+
             HandleMovement();
         }
 
@@ -126,6 +142,60 @@ namespace PixelChroma
         {
             return Keyboard.current != null &&
                    (Keyboard.current[Key.LeftAlt].isPressed || Keyboard.current[Key.RightAlt].isPressed);
+        }
+
+        private void HandleScrollWheel()
+        {
+            float scroll = GetScrollValue();
+            if (Mathf.Approximately(scroll, 0f)) return;
+
+            if (IsAltHeld())
+            {
+                HandleZoom();
+                return;
+            }
+
+            if (isPaintMode && paintCanvas != null)
+            {
+                int max = MaxBrushSizeProvider?.Invoke() ?? 20;
+                int current = paintCanvas.BrushSize;
+                int next = scroll > 0 ? current + 1 : current - 1;
+                next = Mathf.Clamp(next, 1, max);
+                paintCanvas.BrushSize = next;
+                OnBrushSizeScrolled?.Invoke(next);
+            }
+        }
+
+        private void TogglePaintMode()
+        {
+            isPaintMode = !isPaintMode;
+            OnPaintModeChanged?.Invoke(isPaintMode);
+        }
+
+        private void HandlePainting()
+        {
+            if (paintCanvas == null || Mouse.current == null) return;
+            if (!Mouse.current.leftButton.isPressed) return;
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                return;
+
+            Vector2 screenPos = Mouse.current.position.ReadValue();
+            Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
+            worldPos.z = 0;
+
+            Color color = PaintColorProvider?.Invoke() ?? Color.white;
+
+            Vector2Int pixel = paintCanvas.WorldToPixel(worldPos);
+            if (paintCanvas.IsInBounds(pixel.x, pixel.y))
+                paintCanvas.PaintAt(pixel.x, pixel.y, color);
+        }
+
+        protected void ClearPaintEvents()
+        {
+            OnPaintModeChanged = null;
+            OnBrushSizeScrolled = null;
+            PaintColorProvider = null;
+            MaxBrushSizeProvider = null;
         }
     }
 }
