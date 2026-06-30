@@ -13,11 +13,11 @@ GameObject:
   - component: {fileID: 6066479378772764670}
   - component: {fileID: 2893157790693939566}
   - component: {fileID: 3472886577200751348}
-  - component: {fileID: 695693200617886232}
+  - component: {fileID: 881561671428847778}
   - component: {fileID: 3761791833342397255}
   - component: {fileID: -5294142182456280051}
   m_Layer: 0
-  m_Name: InGamePlayer
+  m_Name: SeekerPlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -33,8 +33,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 8358088261155895736}
   m_Father: {fileID: 0}
@@ -131,7 +131,7 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &695693200617886232
+--- !u!114 &881561671428847778
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -140,20 +140,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 3329247650249689647}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ce7a1e40e2a22e4d8ec1cba4a649c22, type: 3}
+  m_Script: {fileID: 11500000, guid: addbfa2a214efa043b4d67c181180a8f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.InGamePlayerController
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.SeekerPlayer
   syncMethod: 0
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
   inputActions: {fileID: -944628639613478452, guid: dae94752ad76752479be012774c50f69, type: 3}
   animator: {fileID: 3472886577200751348}
-  spriteRenderer: {fileID: 1248774305928095882}
-  paintCanvas: {fileID: 3761791833342397255}
   moveSpeed: 5
   maxPPU: 64
   zoomStepPPU: 2
+  role: 0
+  catchRadius: 1.5
 --- !u!114 &3761791833342397255
 MonoBehaviour:
   m_ObjectHideFlags: 0
