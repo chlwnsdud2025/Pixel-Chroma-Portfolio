@@ -27,6 +27,12 @@ namespace PixelChroma.UI
 
         [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
+        [Header("Customize")]
+        [SerializeField] private GameObject paintModeRoot;
+        [SerializeField] private UIColorPicker colorPicker;
+
+        public UIColorPicker ColorPicker => colorPicker;
+
         public override void Initialize()
         {
             base.Initialize();
@@ -35,6 +41,13 @@ namespace PixelChroma.UI
             if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
             if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
             if (inviteFriendButton != null) inviteFriendButton.onClick.AddListener(OnClickInviteFriend);
+            if (paintModeRoot != null) paintModeRoot.SetActive(false);
+        }
+
+        public void SetPaintMode(bool active)
+        {
+            if (paintModeRoot != null)
+                paintModeRoot.SetActive(active);
         }
 
         private void OnEnable()
@@ -51,6 +64,8 @@ namespace PixelChroma.UI
             // 초대 버튼은 호스트만 보이게 설정 (선택사항 — 모두 보이게 하려면 이 블록 제거)
             if (inviteFriendButton != null)
                 inviteFriendButton.gameObject.SetActive(NetworkServer.active);
+
+
         }
 
         private void OnDisable()
@@ -92,7 +107,7 @@ namespace PixelChroma.UI
         private void UpdateReadyCountText(int ready, int total)
         {
             if (readyCountText != null)
-                readyCountText.text = $"준비 완료: {ready} / {total}";
+                readyCountText.text = $"{ready} / {total}";
         }
 
         // ── 버튼 핸들러 ──────────────────────────────────────

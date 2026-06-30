@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using UnityEngine;
 using Mirror;
 using UnityEngine.SceneManagement;
@@ -13,18 +17,21 @@ namespace PixelChroma
 
         [Header("Chroma Prefabs")]
         public GameObject lobbyPlayerPrefab;
+        public GameObject runnerPrefab;
+        public GameObject seekerPrefab;
 
-        private string GetSceneName(string scenePath)
-        {
-            if (string.IsNullOrEmpty(scenePath)) return string.Empty;
-            return System.IO.Path.GetFileNameWithoutExtension(scenePath);
-        }
+        [Header("Countdown")]
+        public float countdownDuration = 5f;
+
+        public static event Action<int> OnCountdownTick;
+        public static event Action OnCountdownEnd;
+
+        private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
+        private bool _isCountingDown;
+        private CancellationTokenSource _countdownCts;
 
         public override void Awake()
         {
-            // 💡 [방어벽 추가] base.Awake()보다 앞에 둡니다.
-            // 메인 메뉴로 돌아올 때 새로 생성된 유령 매니저가 정적 변수인 'Transport.active'를
-            // 망가뜨리는 것을 원천 차단하기 위해, 오브젝트를 즉시 끄고 파괴 세팅을 내립니다.
             if (singleton != null && singleton != this)
             {
                 gameObject.SetActive(false);
@@ -42,12 +49,72 @@ namespace PixelChroma
 #endif
         }
 
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            NetworkClient.RegisterHandler<CountdownTickMessage>(OnClientCountdownTick);
+            NetworkClient.RegisterHandler<CountdownEndMessage>(OnClientCountdownEnd);
+        }
+
+        public override void OnStopClient()
+        {
+            base.OnStopClient();
+            NetworkClient.UnregisterHandler<CountdownTickMessage>();
+            NetworkClient.UnregisterHandler<CountdownEndMessage>();
+        }
+
         public void StartGame()
         {
-            if (NetworkServer.active)
+            if (!NetworkServer.active || _isCountingDown) return;
+
+            AssignRoles();
+            ApplyRolesToLobbyPlayers();
+            StartCountdownAsync().Forget();
+        }
+
+        private async UniTaskVoid StartCountdownAsync()
+        {
+            _isCountingDown = true;
+            _countdownCts = new CancellationTokenSource();
+
+            int remaining = Mathf.CeilToInt(countdownDuration);
+
+            while (remaining > 0)
             {
-                ServerChangeScene(inGameScene);
+                NetworkServer.SendToAll(new CountdownTickMessage { remainingSeconds = remaining });
+
+                await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: _countdownCts.Token);
+                remaining--;
             }
+
+            NetworkServer.SendToAll(new CountdownEndMessage());
+
+            _isCountingDown = false;
+            _countdownCts = null;
+
+            ServerChangeScene(inGameScene);
+        }
+
+        private void ApplyRolesToLobbyPlayers()
+        {
+            foreach (var conn in NetworkServer.connections.Values)
+            {
+                if (conn.identity == null) continue;
+
+                var playerBase = conn.identity.GetComponent<PlayerBase>();
+                if (playerBase != null && _assignedRoles.TryGetValue(conn.connectionId, out var role))
+                    playerBase.role = role;
+            }
+        }
+
+        private static void OnClientCountdownTick(CountdownTickMessage msg)
+        {
+            OnCountdownTick?.Invoke(msg.remainingSeconds);
+        }
+
+        private static void OnClientCountdownEnd(CountdownEndMessage msg)
+        {
+            OnCountdownEnd?.Invoke();
         }
 
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
@@ -56,9 +123,28 @@ namespace PixelChroma
             GameObject playerInstance = null;
 
             if (currentScene == GetSceneName(onlineScene))
+            {
                 playerInstance = Instantiate(lobbyPlayerPrefab);
+            }
             else if (currentScene == GetSceneName(inGameScene))
-                playerInstance = Instantiate(playerPrefab);
+            {
+                PlayerRole role = _assignedRoles.TryGetValue(conn.connectionId, out var assigned)
+                    ? assigned
+                    : PlayerRole.Runner;
+
+                GameObject prefab = role == PlayerRole.Seeker ? seekerPrefab : runnerPrefab;
+
+                Transform startPos = GetStartPosition();
+                playerInstance = startPos != null
+                    ? Instantiate(prefab, startPos.position, startPos.rotation)
+                    : Instantiate(prefab);
+
+                var playerBase = playerInstance.GetComponent<PlayerBase>();
+                if (playerBase != null)
+                    playerBase.role = role;
+
+                _assignedRoles.Remove(conn.connectionId);
+            }
 
             if (playerInstance != null)
             {
@@ -68,21 +154,8 @@ namespace PixelChroma
 
         public override void OnServerSceneChanged(string sceneName)
         {
-            if (sceneName == GetSceneName(inGameScene))
-            {
-                foreach (NetworkConnectionToClient conn in NetworkServer.connections.Values)
-                {
-                    if (conn.identity != null)
-                    {
-                        Transform startPos = GetStartPosition();
-                        GameObject newGamePlayer = startPos != null
-                            ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
-                            : Instantiate(playerPrefab);
-
-                        NetworkServer.ReplacePlayerForConnection(conn, newGamePlayer);
-                    }
-                }
-            }
+            // 역할 배정은 StartGame() 카운트다운 시점에 이미 완료됨.
+            // 씬별 추가 처리가 필요하면 여기에 분기 추가.
         }
 
         public override void OnClientSceneChanged()
@@ -109,6 +182,41 @@ namespace PixelChroma
                 LobbyManager.Instance.LeaveLobby();
 
             GameManager.Instance.EnterMainMenu().Forget();
+        }
+
+        public override void OnServerDisconnect(NetworkConnectionToClient conn)
+        {
+            base.OnServerDisconnect(conn);
+            _assignedRoles.Remove(conn.connectionId);
+        }
+
+        private void AssignRoles()
+        {
+            _assignedRoles.Clear();
+
+            var conns = NetworkServer.connections.Values.ToList();
+            if (conns.Count == 0) return;
+
+            // TODO: 현재는 랜덤 1명을 술래로 지정하지만,
+            //       추후 방 생성 시 seekerCount를 설정하거나 로비에서 변경할 수 있도록 확장 예정.
+            //       - 방 생성 옵션(SyncVar 또는 Lobby 메타데이터)으로 seekerCount를 받아오기
+            //       - 로비 UI에서 호스트가 seekerCount를 조절할 수 있는 기능 추가
+            //       - seekerCount에 따라 아래 배정 로직을 N명 랜덤 선택으로 변경
+            int seekerCount = 1;
+
+            var shuffled = conns.OrderBy(_ => UnityEngine.Random.value).ToList();
+
+            for (int i = 0; i < shuffled.Count; i++)
+            {
+                PlayerRole role = (i < seekerCount) ? PlayerRole.Seeker : PlayerRole.Runner;
+                _assignedRoles[shuffled[i].connectionId] = role;
+            }
+        }
+
+        private string GetSceneName(string scenePath)
+        {
+            if (string.IsNullOrEmpty(scenePath)) return string.Empty;
+            return System.IO.Path.GetFileNameWithoutExtension(scenePath);
         }
     }
 }

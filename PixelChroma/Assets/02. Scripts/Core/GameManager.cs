@@ -1,13 +1,13 @@
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 
 namespace PixelChroma
 {
     public class GameManager : MonoSingleton<GameManager>
     {
-        // ── [수정] UIInitialLoading 직속 변수 제거 완료 ──
-
         public GameState CurrentState { get; private set; } = GameState.Boot;
 
         private async void Start()
@@ -18,7 +18,8 @@ namespace PixelChroma
         private async UniTask Boot()
         {
             // [변경] UIManager를 통해 초기 로딩 화면을 띄웁니다.
-            if (UIManager.Instance != null) UIManager.Instance.ShowInitialLoading();
+            if (UIManager.Instance != null) 
+                UIManager.Instance.ShowInitialLoading().Forget();
 
             if (!InitializeSteam())
             {
@@ -30,7 +31,8 @@ namespace PixelChroma
             await UIManager.Instance.InitializeAsync();
 
             // [변경] UIManager를 통해 초기 로딩 화면을 숨깁니다.
-            if (UIManager.Instance != null) UIManager.Instance.HideInitialLoading();
+            if (UIManager.Instance != null) 
+                UIManager.Instance.HideInitialLoading().Forget();
 
             await EnterMainMenu();
         }
@@ -47,20 +49,32 @@ namespace PixelChroma
         public async UniTask EnterMainMenu()
         {
             CurrentState = GameState.MainMenu;
+            EnsureEventSystem();
             await UIManager.Instance.ShowScene<UITitle>();
         }
 
         public async UniTask EnterLobby()
         {
             CurrentState = GameState.Lobby;
+            EnsureEventSystem();
             await UIManager.Instance.ShowScene<UILobby>();
         }
 
         public async UniTask EnterInGame()
         {
             CurrentState = GameState.InGame;
+            EnsureEventSystem();
             await UIManager.Instance.HideAllPopups();
             await UIManager.Instance.ShowScene<UIInGameHUD>();
+        }
+
+        private static void EnsureEventSystem()
+        {
+            if (EventSystem.current != null) return;
+
+            var go = new GameObject("EventSystem");
+            go.AddComponent<EventSystem>();
+            go.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

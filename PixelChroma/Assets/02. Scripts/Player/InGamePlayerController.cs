@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering.Universal;
 using Mirror;
 using UnityEngine.InputSystem;
@@ -8,7 +9,7 @@ using PixelChroma.UI;
 
 namespace PixelChroma
 {
-    public class LobbyPlayerController : NetworkBehaviour
+    public class InGamePlayerController : NetworkBehaviour
     {
         private static readonly int MoveX = Animator.StringToHash("MoveX");
         private static readonly int MoveY = Animator.StringToHash("MoveY");
@@ -19,10 +20,11 @@ namespace PixelChroma
 
         [Header("References")]
         public Animator animator;
+        public SpriteRenderer spriteRenderer;
         public PlayerPaintCanvas paintCanvas;
 
         [Header("Settings")]
-        public float moveSpeed = 3f;
+        public float moveSpeed = 5f;
 
         [Header("Zoom (PPU)")]
         [SerializeField] private int maxPPU = 64;
@@ -86,7 +88,7 @@ namespace PixelChroma
                 paintCanvas.BrushSize = size;
         }
 
-        void Update()
+        private void Update()
         {
             if (!isLocalPlayer) return;
 
@@ -115,11 +117,14 @@ namespace PixelChroma
                 transform.position += move * moveSpeed * Time.deltaTime;
             }
 
-            animator.SetBool(IsMoving, moving);
-            if (moving)
+            if (animator != null)
             {
-                animator.SetFloat(MoveX, input.x);
-                animator.SetFloat(MoveY, input.y);
+                animator.SetBool(IsMoving, moving);
+                if (moving)
+                {
+                    animator.SetFloat(MoveX, input.x);
+                    animator.SetFloat(MoveY, input.y);
+                }
             }
         }
 
@@ -168,12 +173,18 @@ namespace PixelChroma
         {
             _isPaintMode = !_isPaintMode;
             _hud?.SetPaintMode(_isPaintMode);
+
+            if (_isPaintMode && animator != null)
+                animator.SetBool(IsMoving, false);
         }
 
         private void HandlePainting()
         {
             if (paintCanvas == null || Mouse.current == null) return;
             if (!Mouse.current.leftButton.isPressed) return;
+            if (UnityEngine.EventSystems.EventSystem.current != null &&
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+                return;
 
             Vector2 screenPos = Mouse.current.position.ReadValue();
             Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);

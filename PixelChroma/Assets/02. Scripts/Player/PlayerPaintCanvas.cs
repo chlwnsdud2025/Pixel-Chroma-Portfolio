@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Mirror;
 
@@ -112,8 +113,26 @@ namespace PixelChroma
         {
             bool painted = PaintLocal(px, py, color, brushSize);
             if (painted)
+            {
                 ApplyChanges();
+                CmdPaint(px, py, color, brushSize);
+            }
             return painted;
+        }
+
+        [Command]
+        private void CmdPaint(int px, int py, Color color, int size)
+        {
+            RpcPaint(px, py, color, size);
+        }
+
+        [ClientRpc]
+        private void RpcPaint(int px, int py, Color color, int size)
+        {
+            if (isOwned) return;
+
+            if (PaintLocal(px, py, color, size))
+                ApplyChanges();
         }
 
         private bool PaintLocal(int px, int py, Color color, int size)
@@ -153,11 +172,20 @@ namespace PixelChroma
         {
             if (_runtimeTextures == null) return;
 
-            int half = brushSize / 2;
+            EraseLocal(px, py, brushSize);
+            ApplyChanges();
+            CmdErase(px, py, brushSize);
+        }
 
-            for (int bx = -half; bx < brushSize - half; bx++)
+        private void EraseLocal(int px, int py, int size)
+        {
+            if (_runtimeTextures == null) return;
+
+            int half = size / 2;
+
+            for (int bx = -half; bx < size - half; bx++)
             {
-                for (int by = -half; by < brushSize - half; by++)
+                for (int by = -half; by < size - half; by++)
                 {
                     int x = px + bx;
                     int y = py + by;
@@ -170,6 +198,20 @@ namespace PixelChroma
             }
 
             _isDirty = true;
+        }
+
+        [Command]
+        private void CmdErase(int px, int py, int size)
+        {
+            RpcErase(px, py, size);
+        }
+
+        [ClientRpc]
+        private void RpcErase(int px, int py, int size)
+        {
+            if (isOwned) return;
+
+            EraseLocal(px, py, size);
             ApplyChanges();
         }
 
@@ -211,6 +253,56 @@ namespace PixelChroma
         {
             return px >= 0 && px < _texWidth && py >= 0 && py < _texHeight;
         }
+
+#if UNITY_EDITOR
+        [ContextMenu("Animator에서 스프라이트 자동 수집")]
+        private void CollectSpritesFromAnimator()
+        {
+            var animator = GetComponent<Animator>();
+            if (animator == null || animator.runtimeAnimatorController == null)
+            {
+                Debug.LogWarning("Animator 또는 AnimatorController가 없습니다.", this);
+                return;
+            }
+
+            var clips = animator.runtimeAnimatorController.animationClips;
+            if (clips == null || clips.Length == 0)
+            {
+                Debug.LogWarning("AnimationClip이 없습니다.", this);
+                return;
+            }
+
+            var sprites = new HashSet<Sprite>();
+
+            foreach (var clip in clips)
+            {
+                var bindings = UnityEditor.AnimationUtility.GetObjectReferenceCurveBindings(clip);
+                foreach (var binding in bindings)
+                {
+                    if (binding.type != typeof(SpriteRenderer) ||
+                        binding.propertyName != "m_Sprite")
+                        continue;
+
+                    var keyframes = UnityEditor.AnimationUtility.GetObjectReferenceCurve(clip, binding);
+                    foreach (var kf in keyframes)
+                    {
+                        if (kf.value is Sprite sprite)
+                            sprites.Add(sprite);
+                    }
+                }
+            }
+
+            if (sprites.Count == 0)
+            {
+                Debug.LogWarning("Animator의 AnimationClip에서 스프라이트를 찾을 수 없습니다.", this);
+                return;
+            }
+
+            originalSprites = sprites.OrderBy(s => s.name).ToArray();
+            UnityEditor.EditorUtility.SetDirty(this);
+            Debug.Log($"스프라이트 {originalSprites.Length}개를 수집했습니다.", this);
+        }
+#endif
 
         private void OnDestroy()
         {
