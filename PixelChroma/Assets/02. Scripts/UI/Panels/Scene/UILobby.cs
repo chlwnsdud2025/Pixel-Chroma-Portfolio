@@ -159,11 +159,18 @@ namespace PixelChroma.UI
 #if UNITY_EDITOR
             Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
 #else
-            // 스팀 오버레이 친구 초대 다이얼로그를 띄웁니다.
-            // RequestLobbyList를 전혀 사용하지 않으므로 50개 제한과 무관하게 100% 안정적입니다.
-            // 친구가 초대를 수락하면 LobbyManager의 OnGameLobbyJoinRequested 콜백이 자동 실행됩니다.
-            SteamFriends.ActivateGameOverlayInviteDialog(LobbyManager.Instance.CurrentLobbyId);
-            Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");
+            // 1. 현재 우리가 속해있는 방(로비)의 ID가 정상적인지 확인합니다.
+            if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
+            {
+                Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");
+                
+                // [핵심] 스팀 오버레이의 '친구 초대 다이얼로그'를 강제로 화면에 띄웁니다!
+                SteamFriends.ActivateGameOverlayInviteDialog(LobbyManager.Instance.CurrentLobbyId);
+            }
+            else
+            {
+                Debug.LogWarning("[UILobby] 유효한 스팀 로비 ID가 없어 초대 창을 띄울 수 없습니다.");
+            }
 #endif
         }
     }
