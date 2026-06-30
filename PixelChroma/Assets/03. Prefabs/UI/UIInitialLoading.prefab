@@ -67,8 +67,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Loading
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 31ea6bb509e46414b827f6ca444b7f80, type: 2}
-  m_sharedMaterial: {fileID: 5608697336681276892, guid: 31ea6bb509e46414b827f6ca444b7f80, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -221,6 +221,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6571273436794395359}
+  - component: {fileID: 5788596398824553138}
   - component: {fileID: 4027129342443223774}
   m_Layer: 5
   m_Name: UIInitialLoading
@@ -250,6 +251,18 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!225 &5788596398824553138
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5785951874890402499}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!114 &4027129342443223774
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -262,3 +275,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e46ef5e5ffff704fa43ca05ec595b53, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIInitialLoading
+  canvasGroup: {fileID: 5788596398824553138}
+  fadeDuration: 0.5
