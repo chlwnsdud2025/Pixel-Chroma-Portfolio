@@ -22,6 +22,9 @@ namespace PixelChroma.UI
         [SerializeField] private Button startGameButton;
         [SerializeField] private TMP_Text readyCountText;
 
+        [Header("Countdown")]
+        [SerializeField] private TMP_Text timerText;
+
         [Header("친구 초대")]
         [SerializeField] private Button inviteFriendButton; // ← Unity Inspector에서 버튼 연결
 
@@ -54,6 +57,11 @@ namespace PixelChroma.UI
         {
             LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
             LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
+            ChromaNetworkManager.OnCountdownTick += OnCountdownTick;
+            ChromaNetworkManager.OnCountdownEnd += OnCountdownEnd;
+
+            if (timerText != null)
+                timerText.gameObject.SetActive(false);
 
             if (startGameButton != null)
             {
@@ -74,6 +82,8 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.OnMembersChanged -= RefreshMemberList;
 
             LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
+            ChromaNetworkManager.OnCountdownTick -= OnCountdownTick;
+            ChromaNetworkManager.OnCountdownEnd -= OnCountdownEnd;
         }
 
         protected override UniTask OnShow()
@@ -126,6 +136,22 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.ChangeLobbyStatusToInGame();
                 manager?.StartGame();
             }
+        }
+
+        // ── 카운트다운 ────────────────────────────────────────────
+
+        private void OnCountdownTick(int remainingSeconds)
+        {
+            if (timerText == null) return;
+
+            timerText.gameObject.SetActive(true);
+            timerText.text = remainingSeconds.ToString();
+        }
+
+        private void OnCountdownEnd()
+        {
+            if (timerText != null)
+                timerText.gameObject.SetActive(false);
         }
 
         // ── 표시 ───────────────────────────────────────────────
