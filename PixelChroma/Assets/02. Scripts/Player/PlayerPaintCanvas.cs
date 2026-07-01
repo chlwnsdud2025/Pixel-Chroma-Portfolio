@@ -215,6 +215,60 @@ namespace PixelChroma
             ApplyChanges();
         }
 
+        // ── 💦 물총 피격 및 생존 검사용 신규 로직 ──────────────────────────────────
+
+        /// <summary>
+        /// 네트워크 통신 없이 픽셀 1개만 원본 색상으로 조용히 복구합니다.
+        /// RunnerPlayer에서 물총 범위를 대량으로 씻어낼 때 RPC 폭주를 막기 위해 사용됩니다.
+        /// </summary>
+        public void RestorePixelLocal(int px, int py)
+        {
+            if (_runtimeTextures == null) return;
+            if (!IsInBounds(px, py)) return;
+
+            int idx = py * _texWidth + px;
+            for (int i = 0; i < _runtimeTextures.Length; i++)
+            {
+                _runtimeTextures[i].SetPixel(px, py, _originalPixels[i][idx]);
+            }
+            _isDirty = true;
+        }
+
+        /// <summary>
+        /// 캔버스 전체를 검사하여 덧칠된 페인트가 하나라도 남아있는지 확인합니다.
+        /// (true = 살아있음 / false = 다 씻겨서 죽음)
+        /// </summary>
+        public bool HasAnyPaintedPixels()
+        {
+            if (_runtimeTextures == null || _runtimeTextures.Length == 0) return true;
+
+            // 메모리 할당(GC)을 막기 위해 GetPixels() 배열 생성 대신 GetPixel() 루프를 돌립니다.
+            for (int y = 0; y < _texHeight; y++)
+            {
+                for (int x = 0; x < _texWidth; x++)
+                {
+                    int idx = y * _texWidth + x;
+                    Color original = _originalPixels[0][idx];
+
+                    // 애초에 칠할 수 없는 투명한 배경 부분은 검사에서 제외합니다.
+                    if (original.a < 0.01f) continue;
+
+                    Color current = _runtimeTextures[0].GetPixel(x, y);
+
+                    // 픽셀 색상이 원본과 다르면 (덧칠해져 있으면) 아직 살아있는 것입니다!
+                    if (current != original)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // 모든 픽셀이 원본 색상과 동일하다면 페인트가 완전히 씻겨 내려간 것입니다.
+            return false;
+        }
+
+        // ────────────────────────────────────────────────────────────────────────
+
         public void ResetTexture()
         {
             if (_runtimeTextures == null) return;

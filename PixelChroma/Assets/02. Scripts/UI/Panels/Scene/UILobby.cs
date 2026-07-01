@@ -26,7 +26,7 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text timerText;
 
         [Header("친구 초대")]
-        [SerializeField] private Button inviteFriendButton; // ← Unity Inspector에서 버튼 연결
+        [SerializeField] private Button inviteFriendButton;
 
         [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
@@ -57,8 +57,10 @@ namespace PixelChroma.UI
         {
             LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
             LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
-            ChromaNetworkManager.OnCountdownTick += OnCountdownTick;
-            ChromaNetworkManager.OnCountdownEnd += OnCountdownEnd;
+
+            // 💡 [수정] 이벤트 명과 헷갈리지 않도록 함수 명을 Handle~ 로 변경하여 안전하게 구독합니다.
+            ChromaNetworkManager.OnCountdownTick += HandleCountdownTick;
+            ChromaNetworkManager.OnCountdownEnd += HandleCountdownEnd;
 
             if (timerText != null)
                 timerText.gameObject.SetActive(false);
@@ -69,11 +71,8 @@ namespace PixelChroma.UI
                 startGameButton.interactable = false;
             }
 
-            // 초대 버튼은 호스트만 보이게 설정 (선택사항 — 모두 보이게 하려면 이 블록 제거)
             if (inviteFriendButton != null)
                 inviteFriendButton.gameObject.SetActive(NetworkServer.active);
-
-
         }
 
         private void OnDisable()
@@ -82,8 +81,10 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.OnMembersChanged -= RefreshMemberList;
 
             LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
-            ChromaNetworkManager.OnCountdownTick -= OnCountdownTick;
-            ChromaNetworkManager.OnCountdownEnd -= OnCountdownEnd;
+
+            // 💡 [수정] 구독 해제
+            ChromaNetworkManager.OnCountdownTick -= HandleCountdownTick;
+            ChromaNetworkManager.OnCountdownEnd -= HandleCountdownEnd;
         }
 
         protected override UniTask OnShow()
@@ -140,15 +141,16 @@ namespace PixelChroma.UI
 
         // ── 카운트다운 ────────────────────────────────────────────
 
-        private void OnCountdownTick(int remainingSeconds)
+        private void HandleCountdownTick(int remainingSeconds)
         {
             if (timerText == null) return;
 
             timerText.gameObject.SetActive(true);
-            timerText.text = remainingSeconds.ToString();
+            // 텍스트를 조금 더 친절하게 표시하도록 수정할 수 있습니다.
+            timerText.text = $"게임 시작까지... {remainingSeconds}";
         }
 
-        private void OnCountdownEnd()
+        private void HandleCountdownEnd()
         {
             if (timerText != null)
                 timerText.gameObject.SetActive(false);
@@ -199,13 +201,10 @@ namespace PixelChroma.UI
         {
 #if UNITY_EDITOR
             Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
-#else
-            // 1. 현재 우리가 속해있는 방(로비)의 ID가 정상적인지 확인합니다.
+#else            
             if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
             {
                 Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");
-                
-                // [핵심] 스팀 오버레이의 '친구 초대 다이얼로그'를 강제로 화면에 띄웁니다!
                 SteamFriends.ActivateGameOverlayInviteDialog(LobbyManager.Instance.CurrentLobbyId);
             }
             else

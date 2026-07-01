@@ -222,31 +222,44 @@ namespace PixelChroma
         private void HandleEyedropper()
         {
             bool spaceHeld = eyedropperAction.IsPressed();
+            if (!spaceHeld) _eyedropperLocked = false;
 
-            if (!spaceHeld)
-                _eyedropperLocked = false;
-
+            // 스페이스바를 누르면 UI 스포이드 상태도 강제로 켬
             if (spaceHeld && !_isEyedropperActive && !_eyedropperLocked)
             {
-                _isEyedropperActive = true;
-                OnEyedropperStateChanged?.Invoke(true);
-                _eyedropperCoroutine = StartCoroutine(EyedropperCaptureLoop());
+                _boundPicker?.SetEyedropper(true);
             }
-            else if (!spaceHeld && _isEyedropperActive)
+            // 스페이스바를 뗐는데 UI 스포이드 버튼이 안 눌려져 있다면 끔
+            else if (!spaceHeld && _isEyedropperActive && (_boundPicker == null || !_boundPicker.IsEyedropperMode))
             {
-                StopEyedropperCapture();
-                _isEyedropperActive = false;
-                OnEyedropperPicked?.Invoke(_eyedropperColor);
-                OnEyedropperStateChanged?.Invoke(false);
+                _boundPicker?.SetEyedropper(false);
             }
 
-            if (_isEyedropperActive && Mouse.current != null
-                && Mouse.current.leftButton.wasPressedThisFrame)
+            // 스포이드 모드일 때 맵 클릭하면 색상 확정 후 모드 종료
+            if (_isEyedropperActive && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                // UI 영역 클릭이면 무시
+                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+                _boundPicker?.SetEyedropper(false); // UI 버튼도 자동으로 꺼짐
+                _eyedropperLocked = true;
+                OnEyedropperPicked?.Invoke(_eyedropperColor);
+            }
+        }
+
+        // 💡 UI에서 스포이드 버튼을 눌렀을 때 호출됨
+        private void HandleUIEyedropperToggle(bool isActive)
+        {
+            if (isActive && !_isEyedropperActive)
+            {
+                _isEyedropperActive = true;
+                _eyedropperCoroutine = StartCoroutine(EyedropperCaptureLoop());
+                OnEyedropperStateChanged?.Invoke(true);
+            }
+            else if (!isActive && _isEyedropperActive)
             {
                 StopEyedropperCapture();
                 _isEyedropperActive = false;
-                _eyedropperLocked = true;
-                OnEyedropperPicked?.Invoke(_eyedropperColor);
                 OnEyedropperStateChanged?.Invoke(false);
             }
         }
@@ -285,27 +298,37 @@ namespace PixelChroma
             }
         }
 
+        // 💡 그리기 로직에 지우개 모드 판정 추가
         private void HandlePainting()
         {
-            if (_isEyedropperActive) return;
+            if (_isEyedropperActive) return; // 스포이드 모드일 땐 칠하지 않음
             if (paintCanvas == null || Mouse.current == null) return;
             if (!Mouse.current.leftButton.isPressed) return;
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-                return;
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             Vector2 screenPos = Mouse.current.position.ReadValue();
             Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
             worldPos.z = 0;
 
-            Color color = PaintColorProvider?.Invoke() ?? Color.white;
-
             Vector2Int pixel = paintCanvas.WorldToPixel(worldPos);
             if (paintCanvas.IsInBounds(pixel.x, pixel.y))
-                paintCanvas.PaintAt(pixel.x, pixel.y, color);
+            {
+                // 지우개 버튼이 켜져 있으면 EraseAt 호출
+                if (_boundPicker != null && _boundPicker.IsEraserMode)
+                {
+                    paintCanvas.EraseAt(pixel.x, pixel.y);
+                }
+                // 일반 상태면 색칠(PaintAt) 호출
+                else
+                {
+                    Color color = PaintColorProvider?.Invoke() ?? Color.white;
+                    paintCanvas.PaintAt(pixel.x, pixel.y, color);
+                }
+            }
         }
 
         private IPaintHUD _boundHUD;
-        private UIColorPicker _boundPicker;
+        protected UIColorPicker _boundPicker;
 
         protected void BindPaintHUD(IPaintHUD hud)
         {
@@ -320,10 +343,12 @@ namespace PixelChroma
             {
                 PaintColorProvider = () => _boundPicker.SelectedColor;
                 OnBrushSizeScrolled += _boundPicker.SetBrushSize;
-                OnEyedropperStateChanged += _boundPicker.SetEyedropperActive;
                 OnEyedropperPreview += _boundPicker.SetEyedropperPreview;
                 OnEyedropperPicked += _boundPicker.SetColor;
                 _boundPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
+
+                // UI 스포이드 토글 연동
+                _boundPicker.OnEyedropperModeChanged += HandleUIEyedropperToggle;
 
                 if (paintCanvas != null)
                     paintCanvas.BrushSize = _boundPicker.BrushSize;
@@ -333,7 +358,10 @@ namespace PixelChroma
         protected void UnbindPaintHUD()
         {
             if (_boundPicker != null)
+            {
                 _boundPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
+                _boundPicker.OnEyedropperModeChanged -= HandleUIEyedropperToggle;
+            }
 
             OnPaintModeChanged = null;
             OnBrushSizeScrolled = null;
