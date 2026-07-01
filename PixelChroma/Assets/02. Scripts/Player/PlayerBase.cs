@@ -6,6 +6,7 @@ using UnityEngine.Rendering.Universal;
 using Mirror;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
+using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -44,7 +45,6 @@ namespace PixelChroma
         public event Action<Color> OnEyedropperPreview;
         public event Action<Color> OnEyedropperPicked;
         public Func<Color> PaintColorProvider;
-        public Func<int> MaxBrushSizeProvider;
 
         protected InputAction moveAction;
         protected InputAction togglePaintAction;
@@ -52,10 +52,12 @@ namespace PixelChroma
         protected InputAction zoomModifierAction;
         protected CinemachineCamera cinemachineCamera;
         protected bool isPaintMode;
+
         private Rigidbody2D _rb;
         private PixelPerfectCamera _pixelPerfectCamera;
         private int _originalPPU;
         private bool _isEyedropperActive;
+        private bool _eyedropperLocked;
         private Color _eyedropperColor;
         private Texture2D _eyedropperCapture;
         private Coroutine _eyedropperCoroutine;
@@ -86,12 +88,14 @@ namespace PixelChroma
             togglePaintAction?.Disable();
             eyedropperAction?.Disable();
             zoomModifierAction?.Disable();
+
             StopEyedropperCapture();
             if (_eyedropperCapture != null)
             {
                 Destroy(_eyedropperCapture);
                 _eyedropperCapture = null;
             }
+
             OnLocalPlayerStopped();
         }
 
@@ -198,9 +202,9 @@ namespace PixelChroma
                 return;
             }
 
-            if (isPaintMode && paintCanvas != null)
+            if (isPaintMode && paintCanvas != null && _boundPicker != null)
             {
-                int max = MaxBrushSizeProvider?.Invoke() ?? 20;
+                int max = _boundPicker.MaxBrushSize;
                 int current = paintCanvas.BrushSize;
                 int next = scroll > 0 ? current + 1 : current - 1;
                 next = Mathf.Clamp(next, 1, max);
@@ -219,7 +223,10 @@ namespace PixelChroma
         {
             bool spaceHeld = eyedropperAction.IsPressed();
 
-            if (spaceHeld && !_isEyedropperActive)
+            if (!spaceHeld)
+                _eyedropperLocked = false;
+
+            if (spaceHeld && !_isEyedropperActive && !_eyedropperLocked)
             {
                 _isEyedropperActive = true;
                 OnEyedropperStateChanged?.Invoke(true);
@@ -229,8 +236,8 @@ namespace PixelChroma
             {
                 StopEyedropperCapture();
                 _isEyedropperActive = false;
-                OnEyedropperStateChanged?.Invoke(false);
                 OnEyedropperPicked?.Invoke(_eyedropperColor);
+                OnEyedropperStateChanged?.Invoke(false);
             }
 
             if (_isEyedropperActive && Mouse.current != null
@@ -238,8 +245,9 @@ namespace PixelChroma
             {
                 StopEyedropperCapture();
                 _isEyedropperActive = false;
-                OnEyedropperStateChanged?.Invoke(false);
+                _eyedropperLocked = true;
                 OnEyedropperPicked?.Invoke(_eyedropperColor);
+                OnEyedropperStateChanged?.Invoke(false);
             }
         }
 
@@ -296,15 +304,52 @@ namespace PixelChroma
                 paintCanvas.PaintAt(pixel.x, pixel.y, color);
         }
 
-        protected void ClearPaintEvents()
+        private IPaintHUD _boundHUD;
+        private UIColorPicker _boundPicker;
+
+        protected void BindPaintHUD(IPaintHUD hud)
         {
+            if (hud == null) return;
+
+            _boundHUD = hud;
+            _boundPicker = hud.ColorPicker;
+
+            OnPaintModeChanged += hud.SetPaintMode;
+
+            if (_boundPicker != null)
+            {
+                PaintColorProvider = () => _boundPicker.SelectedColor;
+                OnBrushSizeScrolled += _boundPicker.SetBrushSize;
+                OnEyedropperStateChanged += _boundPicker.SetEyedropperActive;
+                OnEyedropperPreview += _boundPicker.SetEyedropperPreview;
+                OnEyedropperPicked += _boundPicker.SetColor;
+                _boundPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
+
+                if (paintCanvas != null)
+                    paintCanvas.BrushSize = _boundPicker.BrushSize;
+            }
+        }
+
+        protected void UnbindPaintHUD()
+        {
+            if (_boundPicker != null)
+                _boundPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
+
             OnPaintModeChanged = null;
             OnBrushSizeScrolled = null;
             OnEyedropperStateChanged = null;
             OnEyedropperPreview = null;
             OnEyedropperPicked = null;
             PaintColorProvider = null;
-            MaxBrushSizeProvider = null;
+
+            _boundHUD = null;
+            _boundPicker = null;
+        }
+
+        private void OnUIBrushSizeChanged(int size)
+        {
+            if (paintCanvas != null)
+                paintCanvas.BrushSize = size;
         }
     }
 }

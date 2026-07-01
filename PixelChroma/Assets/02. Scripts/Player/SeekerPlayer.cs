@@ -10,8 +10,6 @@ namespace PixelChroma
         [Header("Seeker Settings")]
         public float catchRadius = 1.5f;
 
-        private UIInGameHUD _hud;
-
         protected override void OnLocalPlayerStarted()
         {
             moveSpeed = 4f;
@@ -20,38 +18,13 @@ namespace PixelChroma
 
         protected override void OnLocalPlayerStopped()
         {
-            if (_hud != null && _hud.ColorPicker != null)
-                _hud.ColorPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
-
-            ClearPaintEvents();
+            UnbindPaintHUD();
         }
 
         private async UniTaskVoid ShowHUDAsync()
         {
-            _hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
-            if (_hud == null) return;
-
-            OnPaintModeChanged += _hud.SetPaintMode;
-
-            if (_hud.ColorPicker != null)
-            {
-                PaintColorProvider = () => _hud.ColorPicker.SelectedColor;
-                MaxBrushSizeProvider = () => _hud.ColorPicker.MaxBrushSize > 0 ? _hud.ColorPicker.MaxBrushSize : 20;
-                OnBrushSizeScrolled += _hud.ColorPicker.SetBrushSize;
-                OnEyedropperStateChanged += _hud.ColorPicker.SetEyedropperActive;
-                OnEyedropperPreview += _hud.ColorPicker.SetEyedropperPreview;
-                OnEyedropperPicked += _hud.ColorPicker.SetColor;
-                _hud.ColorPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
-
-                if (paintCanvas != null)
-                    paintCanvas.BrushSize = _hud.ColorPicker.BrushSize;
-            }
-        }
-
-        private void OnUIBrushSizeChanged(int size)
-        {
-            if (paintCanvas != null)
-                paintCanvas.BrushSize = size;
+            var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
+            BindPaintHUD(hud);
         }
 
         private void OnTriggerEnter2D(Collider2D other)

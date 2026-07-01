@@ -8,6 +8,8 @@ namespace PixelChroma.UI
 {
     public class UIColorPicker : MonoBehaviour
     {
+        private const int DefaultMaxBrushSize = 20;
+
         [Header("SV Rectangle")]
         [SerializeField] private RectTransform svArea;
         [SerializeField] private RawImage svImage;
@@ -37,7 +39,7 @@ namespace PixelChroma.UI
 
         public Color SelectedColor => Color.HSVToRGB(_hue, _saturation, _value);
         public int BrushSize => brushSizeSlider != null ? (int)brushSizeSlider.value : 1;
-        public int MaxBrushSize => maxBrushSize;
+        public int MaxBrushSize => maxBrushSize > 0 ? maxBrushSize : DefaultMaxBrushSize;
 
         public event Action<Color> OnColorChanged;
         public event Action<int> OnBrushSizeChanged;
