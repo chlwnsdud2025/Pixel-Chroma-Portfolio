@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using Steamworks;
 using UnityEngine;
 using Mirror;
+using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -19,9 +21,14 @@ namespace PixelChroma
         public const string StatusLobby = "Lobby";
         public const string StatusInGame = "InGame";
 
+        [Header("Map List")]
+        [SerializeField] private List<MapEntry> availableMaps = new();
+
         public CSteamID CurrentLobbyId { get; private set; }
         public string CurrentRoomCode { get; private set; }
         public bool IsHost { get; private set; }
+        public RoomOption CurrentRoomOption { get; private set; } = new();
+        public List<MapEntry> AvailableMaps => availableMaps;
         private bool isHostingPublic = false;
 
         public event Action<bool> OnLobbyEntered;
@@ -60,19 +67,21 @@ namespace PixelChroma
         }
 
         // ── 1. 방 만들기 ─────────────────────────
-        public void CreateLobby(bool isPublic, int maxPlayers)
+        public void CreateLobby(RoomOption option)
         {
-            isHostingPublic = isPublic;
+            CurrentRoomOption = option.Clone();
+            isHostingPublic = option.isPublic;
 
 #if UNITY_EDITOR
             IsHost = true;
             CurrentRoomCode = GenerateCode();
-            Debug.Log($"[LobbyManager] 에디터 방 생성 완료 (localhost) | 코드: {CurrentRoomCode}");
+            Debug.Log($"[LobbyManager] 에디터 방 생성 완료 (localhost) | 코드: {CurrentRoomCode} | 모드: {option.gameMode} | 공개: {option.isPublic}");
 
             NetworkManager.singleton.StartHost();
             OnLobbyEntered?.Invoke(true);
 #else
-            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, maxPlayers);
+            var lobbyType = option.isPublic ? ELobbyType.k_ELobbyTypePublic : ELobbyType.k_ELobbyTypeFriendsOnly;
+            SteamMatchmaking.CreateLobby(lobbyType, option.maxPlayers);
 #endif
         }
 
