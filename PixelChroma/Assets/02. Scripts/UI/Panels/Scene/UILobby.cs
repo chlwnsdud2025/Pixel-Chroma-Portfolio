@@ -23,7 +23,10 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text readyCountText;
 
         [Header("친구 초대")]
-        [SerializeField] private Button inviteFriendButton; // ← Unity Inspector에서 버튼 연결
+        [SerializeField] private Button inviteFriendButton;
+
+        [Header("Countdown UI")]
+        [SerializeField] private TMP_Text countdownText; // 👈 카운트다운 텍스트 추가됨
 
         [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
@@ -42,6 +45,9 @@ namespace PixelChroma.UI
             if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
             if (inviteFriendButton != null) inviteFriendButton.onClick.AddListener(OnClickInviteFriend);
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
+
+            // 초기화 시 카운트다운 텍스트 끄기
+            if (countdownText != null) countdownText.gameObject.SetActive(false);
         }
 
         public void SetPaintMode(bool active)
@@ -55,17 +61,17 @@ namespace PixelChroma.UI
             LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
             LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
 
+            // 👈 카운트다운 이벤트 구독
+            ChromaNetworkManager.OnCountdownTick += UpdateCountdownUI;
+
             if (startGameButton != null)
             {
                 startGameButton.gameObject.SetActive(NetworkServer.active);
                 startGameButton.interactable = false;
             }
 
-            // 초대 버튼은 호스트만 보이게 설정 (선택사항 — 모두 보이게 하려면 이 블록 제거)
             if (inviteFriendButton != null)
                 inviteFriendButton.gameObject.SetActive(NetworkServer.active);
-
-
         }
 
         private void OnDisable()
@@ -74,6 +80,9 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.OnMembersChanged -= RefreshMemberList;
 
             LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
+
+            // 👈 카운트다운 이벤트 구독 해제
+            ChromaNetworkManager.OnCountdownTick -= UpdateCountdownUI;
         }
 
         protected override UniTask OnShow()
@@ -83,6 +92,16 @@ namespace PixelChroma.UI
             RefreshReadyUI();
 
             return UniTask.CompletedTask;
+        }
+
+        // ── 카운트다운 UI 업데이트 ─────────────────────────────
+        private void UpdateCountdownUI(int remainingSeconds)
+        {
+            if (countdownText != null)
+            {
+                countdownText.gameObject.SetActive(true);
+                countdownText.text = $"게임 시작까지... {remainingSeconds}";
+            }
         }
 
         // ── Ready UI ─────────────────────────────────────────
@@ -174,12 +193,9 @@ namespace PixelChroma.UI
 #if UNITY_EDITOR
             Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
 #else
-            // 1. 현재 우리가 속해있는 방(로비)의 ID가 정상적인지 확인합니다.
             if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
             {
                 Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");
-                
-                // [핵심] 스팀 오버레이의 '친구 초대 다이얼로그'를 강제로 화면에 띄웁니다!
                 SteamFriends.ActivateGameOverlayInviteDialog(LobbyManager.Instance.CurrentLobbyId);
             }
             else
@@ -188,5 +204,5 @@ namespace PixelChroma.UI
             }
 #endif
         }
-    }
-}
+    } // <-- 클래스를 닫는 중괄호
+} // <-- 네임스페이스를 닫는 중괄호 (이 부분이 누락되거나 초과되어 발생한 에러였습니다!)
