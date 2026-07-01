@@ -18,7 +18,7 @@ namespace PixelChroma
         [SerializeField] private float fireRange = 5f;        // 물총 최대 사거리
         [SerializeField] private float aoeRadius = 2f;        // 물풍선(물총) 폭발/지워짐 범위
         [SerializeField] private LayerMask runnerLayer;       // Runner를 감지할 물리 레이어
-        [SerializeField] private GameObject waterSplashPrefab;// 💦 물 튀기는 폭발 이펙트 프리팹 (옵션)
+        [SerializeField] private GameObject waterSplashPrefab;// 물 튀기는 폭발 이펙트 프리팹 (옵션)
 
         // 다른 클라이언트들에게 내 팔이 어디를 조준하고 있는지 보여주기 위한 동기화 변수
         [SyncVar(hook = nameof(OnAimAngleChanged))]
@@ -149,14 +149,14 @@ namespace PixelChroma
                 }
             }
 
-            // 💡 빗맞추더라도 폭발 이펙트는 모든 화면에 보이도록 호출
+            // 빗맞추더라도 폭발 이펙트는 모든 화면에 보이도록 호출
             RpcPlayFireEffect(targetPos);
         }
 
         [ClientRpc]
         private void RpcPlayFireEffect(Vector2 effectPos)
         {
-            // 💡 코드로 임시 물풍선 폭발 원형 이펙트를 그려줍니다!
+            // 코드로 임시 물풍선 폭발 원형 이펙트를 그려줍니다!
             ShowSplashEffect(effectPos, aoeRadius);
 
             if (waterSplashPrefab != null)
@@ -164,7 +164,6 @@ namespace PixelChroma
                 Instantiate(waterSplashPrefab, effectPos, Quaternion.identity);
             }
 
-            Debug.Log($"[Seeker] {effectPos} 위치에 물총 폭발! (범위: {aoeRadius})");
         }
 
         // ── 임시 시각 효과 (VFX) 로직 ──────────────────────────────────────
@@ -244,6 +243,11 @@ namespace PixelChroma
         private void RpcOnRunnerCaught(uint runnerNetId)
         {
             Debug.Log($"[Seeker] Runner(netId:{runnerNetId}) caught!");
+        }
+
+        protected override CursorType GetDefaultCursorType()
+        {
+            return CursorType.Crosshair; 
         }
     }
 }

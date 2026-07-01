@@ -10,11 +10,11 @@ namespace PixelChroma.UI
     {
         private const int DefaultMaxBrushSize = 20;
 
-        [Header("Tools (New)")]
-        [SerializeField] private Button eraserButton;     // 인스펙터에서 지우개 버튼 연결
-        [SerializeField] private Button eyedropperButton; // 인스펙터에서 스포이드 버튼 연결
-        [SerializeField] private Color activeToolColor = new Color(0.8f, 0.8f, 0.8f); // 켜졌을 때 버튼 색상
-        [SerializeField] private Color inactiveToolColor = Color.white;               // 꺼졌을 때 버튼 색상
+        [Header("Tools")]
+        [SerializeField] private Button eraserButton;
+        [SerializeField] private Button eyedropperButton;
+        [SerializeField] private Color activeToolColor = new Color(0.8f, 0.8f, 0.8f);
+        [SerializeField] private Color inactiveToolColor = Color.white;
 
         [Header("SV Rectangle")]
         [SerializeField] private RectTransform svArea;
@@ -43,7 +43,6 @@ namespace PixelChroma.UI
         private float _saturation = 1f;
         private float _value = 1f;
 
-        // 💡 툴 상태 속성
         public bool IsEraserMode { get; private set; }
         public bool IsEyedropperMode { get; private set; }
 
@@ -53,7 +52,8 @@ namespace PixelChroma.UI
 
         public event Action<Color> OnColorChanged;
         public event Action<int> OnBrushSizeChanged;
-        public event Action<bool> OnEyedropperModeChanged; // 스포이드 상태 변경 이벤트 추가
+        public event Action<bool> OnEyedropperModeChanged;
+        public event Action<bool> OnEraserModeChanged; // 💡 지우개 이벤트 추가!
 
         private void Awake()
         {
@@ -68,18 +68,18 @@ namespace PixelChroma.UI
             SetupBrushSizeSliders();
             SetColor(Color.white);
 
-            // 버튼 리스너 등록
             if (eraserButton != null) eraserButton.onClick.AddListener(ToggleEraser);
             if (eyedropperButton != null) eyedropperButton.onClick.AddListener(ToggleEyedropper);
         }
 
-        // ── 툴 토글 로직 ──────────────────────────────────────
-
         private void ToggleEraser()
         {
             IsEraserMode = !IsEraserMode;
-            if (IsEraserMode) SetEyedropper(false); // 지우개를 켜면 스포이드는 끔
+            if (IsEraserMode) SetEyedropper(false);
             UpdateToolButtons();
+
+            // 💡 PlayerBase에 지우개 모드가 바뀌었다고 알림
+            OnEraserModeChanged?.Invoke(IsEraserMode);
         }
 
         private void ToggleEyedropper()
@@ -90,13 +90,17 @@ namespace PixelChroma.UI
         public void SetEyedropper(bool active)
         {
             IsEyedropperMode = active;
-            if (IsEyedropperMode) IsEraserMode = false; // 스포이드를 켜면 지우개는 끔
+            if (IsEyedropperMode)
+            {
+                IsEraserMode = false;
+                OnEraserModeChanged?.Invoke(false); // 스포이드 켜지면 지우개 끄기 알림
+            }
 
             if (eyedropperOutline != null) eyedropperOutline.enabled = active;
             if (!active && eyedropperPreviewColor != null) eyedropperPreviewColor.color = SelectedColor;
 
             UpdateToolButtons();
-            OnEyedropperModeChanged?.Invoke(active); // PlayerBase에 알림
+            OnEyedropperModeChanged?.Invoke(active);
         }
 
         private void UpdateToolButtons()
@@ -108,14 +112,12 @@ namespace PixelChroma.UI
                 eyedropperButton.image.color = IsEyedropperMode ? activeToolColor : inactiveToolColor;
         }
 
-        // ── 기존 마우스 드래그 및 색상 세팅 로직 ───────────────────────
-
         private void CancelToolsIfColorPicked()
         {
-            // 유저가 직접 팔레트에서 새로운 색상을 클릭/드래그하면 자동으로 브러시(그리기) 모드로 돌아감
             if (IsEraserMode || IsEyedropperMode)
             {
                 IsEraserMode = false;
+                OnEraserModeChanged?.Invoke(false);
                 SetEyedropper(false);
             }
         }
@@ -150,7 +152,7 @@ namespace PixelChroma.UI
                     svArea, eventData.position, eventData.pressEventCamera, out var localPoint))
                 return;
 
-            CancelToolsIfColorPicked(); // 💡 색을 바꾸면 툴 취소
+            CancelToolsIfColorPicked();
 
             var rect = svArea.rect;
             _saturation = Mathf.Clamp01((localPoint.x - rect.x) / rect.width);
@@ -166,7 +168,7 @@ namespace PixelChroma.UI
                     hueBarArea, eventData.position, eventData.pressEventCamera, out var localPoint))
                 return;
 
-            CancelToolsIfColorPicked(); // 💡 색을 바꾸면 툴 취소
+            CancelToolsIfColorPicked();
 
             var rect = hueBarArea.rect;
             _hue = Mathf.Clamp01((localPoint.x - rect.x) / rect.width);
@@ -200,7 +202,6 @@ namespace PixelChroma.UI
             UpdateHueSelectorPosition();
             UpdateDisplay();
 
-            // 색상이 외부(스포이드 등)에서 세팅될 때 UI 색상 반영
             if (!IsEyedropperMode && eyedropperPreviewColor != null)
                 eyedropperPreviewColor.color = color;
         }
@@ -259,7 +260,7 @@ namespace PixelChroma.UI
                 brushSizeLabel.text = $"{(int)brushSizeSlider.value}px";
         }
 
-        public void SetEyedropperActive(bool active) { SetEyedropper(active); } // 호환성 유지
+        public void SetEyedropperActive(bool active) { SetEyedropper(active); }
 
         public void SetEyedropperPreview(Color color)
         {
