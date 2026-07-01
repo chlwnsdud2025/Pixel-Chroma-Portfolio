@@ -78,6 +78,8 @@ namespace PixelChroma
 
             SetupCinemachineFollow();
             OnLocalPlayerStarted();
+
+            UpdateCursorIcon(); // 시작 시 커서 업데이트
         }
 
         protected virtual void OnLocalPlayerStarted() { }
@@ -217,6 +219,41 @@ namespace PixelChroma
         {
             isPaintMode = !isPaintMode;
             OnPaintModeChanged?.Invoke(isPaintMode);
+            UpdateCursorIcon();
+        }
+
+        // 💡 자식 클래스(Seeker, Runner 등)가 자신의 평상시 커서를 지정할 수 있게 가상함수로 뺌
+        protected virtual CursorType GetDefaultCursorType()
+        {
+            return CursorType.Default; // 기본은 평범한 마우스
+        }
+
+        protected void UpdateCursorIcon()
+        {
+            if (!isLocalPlayer || CursorManager.Instance == null) return;
+
+            if (!isPaintMode)
+            {
+                // 페인트 모드가 아닐 때는 자식 클래스가 정해준 기본 커서(조준선 or 마우스) 적용
+                CursorManager.Instance.SetCursorType(GetDefaultCursorType());
+            }
+            else
+            {
+                if (_isEyedropperActive || (_boundPicker != null && _boundPicker.IsEyedropperMode))
+                {
+                    CursorManager.Instance.SetCursorType(CursorType.Eyedropper);
+                }
+                else if (_boundPicker != null && _boundPicker.IsEraserMode)
+                {
+                    float scale = 1f + (_boundPicker.BrushSize * 0.1f);
+                    CursorManager.Instance.SetCursorType(CursorType.Eraser, scale);
+                }
+                else
+                {
+                    float scale = 1f + ((_boundPicker != null ? _boundPicker.BrushSize : 1) * 0.1f);
+                    CursorManager.Instance.SetCursorType(CursorType.Brush, scale);
+                }
+            }
         }
 
         private void HandleEyedropper()
@@ -224,30 +261,25 @@ namespace PixelChroma
             bool spaceHeld = eyedropperAction.IsPressed();
             if (!spaceHeld) _eyedropperLocked = false;
 
-            // 스페이스바를 누르면 UI 스포이드 상태도 강제로 켬
             if (spaceHeld && !_isEyedropperActive && !_eyedropperLocked)
             {
                 _boundPicker?.SetEyedropper(true);
             }
-            // 스페이스바를 뗐는데 UI 스포이드 버튼이 안 눌려져 있다면 끔
             else if (!spaceHeld && _isEyedropperActive && (_boundPicker == null || !_boundPicker.IsEyedropperMode))
             {
                 _boundPicker?.SetEyedropper(false);
             }
 
-            // 스포이드 모드일 때 맵 클릭하면 색상 확정 후 모드 종료
             if (_isEyedropperActive && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             {
-                // UI 영역 클릭이면 무시
                 if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
-                _boundPicker?.SetEyedropper(false); // UI 버튼도 자동으로 꺼짐
+                _boundPicker?.SetEyedropper(false);
                 _eyedropperLocked = true;
                 OnEyedropperPicked?.Invoke(_eyedropperColor);
             }
         }
 
-        // 💡 UI에서 스포이드 버튼을 눌렀을 때 호출됨
         private void HandleUIEyedropperToggle(bool isActive)
         {
             if (isActive && !_isEyedropperActive)
@@ -262,6 +294,12 @@ namespace PixelChroma
                 _isEyedropperActive = false;
                 OnEyedropperStateChanged?.Invoke(false);
             }
+            UpdateCursorIcon();
+        }
+
+        private void HandleUIEraserToggle(bool isActive)
+        {
+            UpdateCursorIcon();
         }
 
         private IEnumerator EyedropperCaptureLoop()
@@ -298,10 +336,9 @@ namespace PixelChroma
             }
         }
 
-        // 💡 그리기 로직에 지우개 모드 판정 추가
         private void HandlePainting()
         {
-            if (_isEyedropperActive) return; // 스포이드 모드일 땐 칠하지 않음
+            if (_isEyedropperActive) return;
             if (paintCanvas == null || Mouse.current == null) return;
             if (!Mouse.current.leftButton.isPressed) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -313,12 +350,10 @@ namespace PixelChroma
             Vector2Int pixel = paintCanvas.WorldToPixel(worldPos);
             if (paintCanvas.IsInBounds(pixel.x, pixel.y))
             {
-                // 지우개 버튼이 켜져 있으면 EraseAt 호출
                 if (_boundPicker != null && _boundPicker.IsEraserMode)
                 {
                     paintCanvas.EraseAt(pixel.x, pixel.y);
                 }
-                // 일반 상태면 색칠(PaintAt) 호출
                 else
                 {
                     Color color = PaintColorProvider?.Invoke() ?? Color.white;
@@ -347,12 +382,14 @@ namespace PixelChroma
                 OnEyedropperPicked += _boundPicker.SetColor;
                 _boundPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
 
-                // UI 스포이드 토글 연동
                 _boundPicker.OnEyedropperModeChanged += HandleUIEyedropperToggle;
+                _boundPicker.OnEraserModeChanged += HandleUIEraserToggle;
 
                 if (paintCanvas != null)
                     paintCanvas.BrushSize = _boundPicker.BrushSize;
             }
+
+            UpdateCursorIcon();
         }
 
         protected void UnbindPaintHUD()
@@ -361,6 +398,7 @@ namespace PixelChroma
             {
                 _boundPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
                 _boundPicker.OnEyedropperModeChanged -= HandleUIEyedropperToggle;
+                _boundPicker.OnEraserModeChanged -= HandleUIEraserToggle;
             }
 
             OnPaintModeChanged = null;
@@ -378,6 +416,8 @@ namespace PixelChroma
         {
             if (paintCanvas != null)
                 paintCanvas.BrushSize = size;
+
+            UpdateCursorIcon();
         }
     }
 }

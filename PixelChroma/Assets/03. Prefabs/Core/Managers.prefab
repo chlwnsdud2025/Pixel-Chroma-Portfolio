@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 8122087677613383399}
   - component: {fileID: 3812511012292489898}
   - component: {fileID: 2780021119583314537}
+  - component: {fileID: 376871433658932499}
+  - component: {fileID: 2186067133236573743}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -57,4 +59,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ead41d39495552441a571547a2610095, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.GameManager
-  initialLoading: {fileID: 0}
+--- !u!114 &376871433658932499
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1692573125789801173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d6e4a844a0b32440b791a292893edd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.InGameManager
+--- !u!114 &2186067133236573743
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1692573125789801173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eaf848b8e2f864245963bdb2b97fa78e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.CursorManager
+  cursorRect: {fileID: 0}
+  cursorImage: {fileID: 0}
+  defaultCursor: {fileID: -6013763467187495452, guid: 62a131e36cdb54d4480ecc07f9417f69, type: 3}
+  defaultPivot: {x: 0, y: 1}
+  brushCursor: {fileID: -3333363871344499262, guid: 9d980bd7d118cab4aa7684825ee9b3db, type: 3}
+  brushPivot: {x: 0, y: 1}
+  eraserCursor: {fileID: 8717142316669161084, guid: 0e66b5745865b5145a1f64fb09bdfc66, type: 3}
+  eraserPivot: {x: 0, y: 1}
+  eyedropperCursor: {fileID: 6553623301594141052, guid: 24e85411731215e42af644a78131f20b, type: 3}
+  eyedropperPivot: {x: 0, y: 1}
+  crosshairCursor: {fileID: -744224916669823452, guid: fc92001ad7679b34c994797f3e779030, type: 3}
+  crosshairPivot: {x: 0.5, y: 0.5}
