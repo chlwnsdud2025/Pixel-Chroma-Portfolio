@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Rendering.Universal;
@@ -10,6 +11,12 @@ namespace PixelChroma
 {
     public abstract class PlayerBase : NetworkBehaviour
     {
+        protected const string ActionMapName = "PlayerControll";
+        protected const string MoveActionName = "Move";
+        protected const string TogglePaintActionName = "TogglePaint";
+        protected const string EyedropperActionName = "Eyedropper";
+        protected const string ZoomModifierActionName = "ZoomModifier";
+
         protected static readonly int MoveX = Animator.StringToHash("MoveX");
         protected static readonly int MoveY = Animator.StringToHash("MoveY");
         protected static readonly int IsMoving = Animator.StringToHash("IsMoving");
@@ -33,23 +40,39 @@ namespace PixelChroma
 
         public event Action<bool> OnPaintModeChanged;
         public event Action<int> OnBrushSizeScrolled;
+        public event Action<bool> OnEyedropperStateChanged;
+        public event Action<Color> OnEyedropperPreview;
+        public event Action<Color> OnEyedropperPicked;
         public Func<Color> PaintColorProvider;
         public Func<int> MaxBrushSizeProvider;
 
         protected InputAction moveAction;
+        protected InputAction togglePaintAction;
+        protected InputAction eyedropperAction;
+        protected InputAction zoomModifierAction;
         protected CinemachineCamera cinemachineCamera;
         protected bool isPaintMode;
         private Rigidbody2D _rb;
         private PixelPerfectCamera _pixelPerfectCamera;
         private int _originalPPU;
+        private bool _isEyedropperActive;
+        private Color _eyedropperColor;
+        private Texture2D _eyedropperCapture;
+        private Coroutine _eyedropperCoroutine;
 
         public override void OnStartLocalPlayer()
         {
             _rb = GetComponent<Rigidbody2D>();
 
-            var map = inputActions.FindActionMap("PlayerControll");
-            moveAction = map.FindAction("Move");
+            var map = inputActions.FindActionMap(ActionMapName);
+            moveAction = map.FindAction(MoveActionName);
+            togglePaintAction = map.FindAction(TogglePaintActionName);
+            eyedropperAction = map.FindAction(EyedropperActionName);
+            zoomModifierAction = map.FindAction(ZoomModifierActionName);
             moveAction.Enable();
+            togglePaintAction.Enable();
+            eyedropperAction.Enable();
+            zoomModifierAction.Enable();
 
             SetupCinemachineFollow();
             OnLocalPlayerStarted();
@@ -60,6 +83,15 @@ namespace PixelChroma
         public override void OnStopLocalPlayer()
         {
             moveAction?.Disable();
+            togglePaintAction?.Disable();
+            eyedropperAction?.Disable();
+            zoomModifierAction?.Disable();
+            StopEyedropperCapture();
+            if (_eyedropperCapture != null)
+            {
+                Destroy(_eyedropperCapture);
+                _eyedropperCapture = null;
+            }
             OnLocalPlayerStopped();
         }
 
@@ -84,13 +116,16 @@ namespace PixelChroma
         {
             if (!isLocalPlayer) return;
 
-            if (Keyboard.current != null && Keyboard.current[Key.F].wasPressedThisFrame)
+            if (togglePaintAction.WasPressedThisFrame())
                 TogglePaintMode();
 
             HandleScrollWheel();
 
             if (isPaintMode)
+            {
+                HandleEyedropper();
                 HandlePainting();
+            }
 
             UpdateAnimation();
         }
@@ -133,10 +168,7 @@ namespace PixelChroma
             float scroll = Mouse.current.scroll.y.ReadValue();
             if (Mathf.Approximately(scroll, 0f)) return;
 
-            bool altHeld = Keyboard.current != null &&
-                           (Keyboard.current[Key.LeftAlt].isPressed || Keyboard.current[Key.RightAlt].isPressed);
-
-            if (altHeld)
+            if (zoomModifierAction.IsPressed())
             {
                 int current = _pixelPerfectCamera.assetsPPU;
                 int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
@@ -152,8 +184,7 @@ namespace PixelChroma
 
         protected bool IsAltHeld()
         {
-            return Keyboard.current != null &&
-                   (Keyboard.current[Key.LeftAlt].isPressed || Keyboard.current[Key.RightAlt].isPressed);
+            return zoomModifierAction.IsPressed();
         }
 
         private void HandleScrollWheel()
@@ -184,8 +215,71 @@ namespace PixelChroma
             OnPaintModeChanged?.Invoke(isPaintMode);
         }
 
+        private void HandleEyedropper()
+        {
+            bool spaceHeld = eyedropperAction.IsPressed();
+
+            if (spaceHeld && !_isEyedropperActive)
+            {
+                _isEyedropperActive = true;
+                OnEyedropperStateChanged?.Invoke(true);
+                _eyedropperCoroutine = StartCoroutine(EyedropperCaptureLoop());
+            }
+            else if (!spaceHeld && _isEyedropperActive)
+            {
+                StopEyedropperCapture();
+                _isEyedropperActive = false;
+                OnEyedropperStateChanged?.Invoke(false);
+                OnEyedropperPicked?.Invoke(_eyedropperColor);
+            }
+
+            if (_isEyedropperActive && Mouse.current != null
+                && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                StopEyedropperCapture();
+                _isEyedropperActive = false;
+                OnEyedropperStateChanged?.Invoke(false);
+                OnEyedropperPicked?.Invoke(_eyedropperColor);
+            }
+        }
+
+        private IEnumerator EyedropperCaptureLoop()
+        {
+            if (_eyedropperCapture == null)
+                _eyedropperCapture = new Texture2D(1, 1, TextureFormat.RGB24, false);
+
+            while (true)
+            {
+                yield return new WaitForEndOfFrame();
+
+                if (Mouse.current == null) continue;
+
+                Vector2 screenPos = Mouse.current.position.ReadValue();
+                int x = (int)screenPos.x;
+                int y = (int)screenPos.y;
+
+                if (x >= 0 && x < Screen.width && y >= 0 && y < Screen.height)
+                {
+                    _eyedropperCapture.ReadPixels(new Rect(x, y, 1, 1), 0, 0);
+                    _eyedropperCapture.Apply();
+                    _eyedropperColor = _eyedropperCapture.GetPixel(0, 0);
+                    OnEyedropperPreview?.Invoke(_eyedropperColor);
+                }
+            }
+        }
+
+        private void StopEyedropperCapture()
+        {
+            if (_eyedropperCoroutine != null)
+            {
+                StopCoroutine(_eyedropperCoroutine);
+                _eyedropperCoroutine = null;
+            }
+        }
+
         private void HandlePainting()
         {
+            if (_isEyedropperActive) return;
             if (paintCanvas == null || Mouse.current == null) return;
             if (!Mouse.current.leftButton.isPressed) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
@@ -206,6 +300,9 @@ namespace PixelChroma
         {
             OnPaintModeChanged = null;
             OnBrushSizeScrolled = null;
+            OnEyedropperStateChanged = null;
+            OnEyedropperPreview = null;
+            OnEyedropperPicked = null;
             PaintColorProvider = null;
             MaxBrushSizeProvider = null;
         }
