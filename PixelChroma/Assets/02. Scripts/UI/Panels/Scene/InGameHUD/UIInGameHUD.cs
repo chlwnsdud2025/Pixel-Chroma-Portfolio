@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace PixelChroma.UI
 {
-    public class UIInGameHUD : UIScene
+    public class UIInGameHUD : UIScene, IPaintHUD
     {
         [SerializeField] private GameObject paintModeRoot;
         [SerializeField] private UIColorPicker colorPicker;

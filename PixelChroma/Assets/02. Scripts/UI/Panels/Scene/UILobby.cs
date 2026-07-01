@@ -9,7 +9,7 @@ using Mirror;
 
 namespace PixelChroma.UI
 {
-    public class UILobby : UIScene
+    public class UILobby : UIScene, IPaintHUD
     {
         [Header("Room Info")]
         [SerializeField] private TMP_Text roomCodeText;
