@@ -8,19 +8,11 @@ namespace PixelChroma.UI
     public class UITitle : UIScene
     {
         [Header("Main Menu Buttons & Inputs")]
-        [SerializeField] private Button openRoomSettingsButton; // (수정) 방 만들기 버튼 (누르면 패널 열림)
+        [SerializeField] private Button openRoomSettingsButton;
         [SerializeField] private Button quickJoinButton;
         [SerializeField] private TMP_InputField roomCodeInput;
         [SerializeField] private Button joinButton;
         [SerializeField] private TMP_Text statusText;
-
-        [Header("Room Settings Panel")]
-        [SerializeField] private GameObject roomSettingsPanel;  // (추가) 방 설정 팝업 패널 전체
-        [SerializeField] private Toggle publicToggle;
-        [SerializeField] private Slider maxPlayerSlider;
-        [SerializeField] private TMP_Text maxPlayerText;
-        [SerializeField] private Button confirmCreateButton;    // (추가) 패널 안의 최종 생성 버튼
-        [SerializeField] private Button closeSettingsButton;    // (추가) 패널 안의 닫기/취소 버튼
 
         public override void Initialize()
         {
@@ -30,20 +22,9 @@ namespace PixelChroma.UI
             if (quickJoinButton != null) quickJoinButton.onClick.AddListener(OnClickQuickJoin);
             if (joinButton != null) joinButton.onClick.AddListener(OnClickJoin);
 
-            if (confirmCreateButton != null) confirmCreateButton.onClick.AddListener(OnClickConfirmCreate);
-            if (closeSettingsButton != null) closeSettingsButton.onClick.AddListener(OnClickCloseSettings);
-
             roomCodeInput.characterLimit = 6;
             roomCodeInput.onValueChanged.AddListener(v =>
                 roomCodeInput.SetTextWithoutNotify(v.ToUpper()));
-
-            if (maxPlayerSlider != null)
-            {
-                maxPlayerSlider.onValueChanged.AddListener(v =>
-                    maxPlayerText.text = $"최대 인원: {v}명");
-            }
-
-            if (roomSettingsPanel != null) roomSettingsPanel.SetActive(false);
 
             SetStatus("");
         }
@@ -51,8 +32,7 @@ namespace PixelChroma.UI
         public override void OnBeforeShow()
         {
             base.OnBeforeShow();
-            SetStatus(""); // 화면이 다시 켜질 때마다 남아있는 에러 텍스트 싹 비우기
-
+            SetStatus("");
             SetInteractable(true);
         }
 
@@ -67,38 +47,32 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.OnLobbyEntered -= HandleLobbyEntered;
         }
 
-        // ── 버튼 핸들러 ────────────────────────────────────────
-
-        // 1. 방 설정 패널 열기
         private void OnClickOpenSettings()
         {
-            if (roomSettingsPanel != null)
-            {
-                roomSettingsPanel.SetActive(true);
-                // 패널 열 때 현재 슬라이더 값으로 텍스트 갱신
-                if (maxPlayerSlider != null && maxPlayerText != null)
-                    maxPlayerText.text = $"최대 인원: {maxPlayerSlider.value}명";
-            }
+            ShowRoomSettingPopup().Forget();
         }
 
-        // 2. 방 설정 패널 닫기
-        private void OnClickCloseSettings()
+        private async UniTaskVoid ShowRoomSettingPopup()
         {
-            if (roomSettingsPanel != null) roomSettingsPanel.SetActive(false);
+            var popup = await UIManager.Instance.ShowPopup<UIRoomSetting>();
+            if (popup == null) return;
+
+            popup.Setup(LobbyManager.Instance.CurrentRoomOption);
+            popup.SetMaps(LobbyManager.Instance.AvailableMaps);
+            popup.OnCreate -= OnRoomSettingCreate;
+            popup.OnCreate += OnRoomSettingCreate;
         }
 
-        // 3. 진짜 방 생성 시작 (패널 내부 버튼)
-        private void OnClickConfirmCreate()
+        private void OnRoomSettingCreate(RoomOption option)
         {
+            var popup = UIManager.Instance.GetPanel<UIRoomSetting>();
+            if (popup != null) popup.OnCreate -= OnRoomSettingCreate;
+
             SetInteractable(false);
             SetStatus("방 생성 중...");
 
-            // 임시: Toggle 값 대신 무조건 공개방으로 강제
-            bool isPublic = true;
-            int maxPlayers = maxPlayerSlider != null ? (int)maxPlayerSlider.value : 8;
-
-            LobbyManager.Instance.CreateLobby(isPublic, maxPlayers);
-            if (roomSettingsPanel != null) roomSettingsPanel.SetActive(false);
+            LobbyManager.Instance.CreateLobby(option);
+            UIManager.Instance.HidePopup().Forget();
         }
 
         private void OnClickQuickJoin()
@@ -123,8 +97,6 @@ namespace PixelChroma.UI
             LobbyManager.Instance.JoinLobbyByCode(code);
         }
 
-        // ── 콜백 ───────────────────────────────────────────────
-
         private void HandleLobbyEntered(bool success)
         {
             if (success)
@@ -148,7 +120,5 @@ namespace PixelChroma.UI
         {
             if (statusText != null) statusText.text = message;
         }
-
-
     }
 }

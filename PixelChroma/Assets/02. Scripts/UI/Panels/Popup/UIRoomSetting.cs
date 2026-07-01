@@ -1,0 +1,273 @@
+﻿using System;
+using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace PixelChroma.UI
+{
+    public class UIRoomSetting : UIPopup
+    {
+        [Header("Game Mode")]
+        [SerializeField] private Button basicModeButton;
+        [SerializeField] private Button infectionModeButton;
+
+        [Header("Max Players")]
+        [SerializeField] private Button maxPlayersMinusButton;
+        [SerializeField] private Button maxPlayersPlusButton;
+        [SerializeField] private TMP_Text maxPlayersText;
+
+        [Header("Seeker Count")]
+        [SerializeField] private Button seekerCountMinusButton;
+        [SerializeField] private Button seekerCountPlusButton;
+        [SerializeField] private TMP_Text seekerCountText;
+
+        [Header("Hide Time")]
+        [SerializeField] private Slider hideTimeSlider;
+        [SerializeField] private TMP_Text hideTimeText;
+
+        [Header("Seek Time")]
+        [SerializeField] private Slider seekTimeSlider;
+        [SerializeField] private TMP_Text seekTimeText;
+
+        [Header("Public / Private")]
+        [SerializeField] private Button publicButton;
+        [SerializeField] private Button privateButton;
+
+        [Header("Map Selection")]
+        [SerializeField] private Image mapPreviewImage;
+        [SerializeField] private Transform mapListContent;
+        [SerializeField] private GameObject mapItemPrefab;
+
+        [Header("Create")]
+        [SerializeField] private Button createButton;
+
+        private RoomOption _option;
+        private List<MapEntry> _maps = new();
+        private int _selectedMapIndex = -1;
+
+        public RoomOption CurrentOption => _option;
+        public event Action<RoomOption> OnCreate;
+
+        public override void Initialize()
+        {
+            base.Initialize();
+
+            if (basicModeButton != null) basicModeButton.onClick.AddListener(() => SetGameMode(GameMode.Basic));
+            if (infectionModeButton != null) infectionModeButton.onClick.AddListener(() => SetGameMode(GameMode.Infection));
+
+            if (maxPlayersMinusButton != null) maxPlayersMinusButton.onClick.AddListener(() => AdjustMaxPlayers(-1));
+            if (maxPlayersPlusButton != null) maxPlayersPlusButton.onClick.AddListener(() => AdjustMaxPlayers(1));
+
+            if (seekerCountMinusButton != null) seekerCountMinusButton.onClick.AddListener(() => AdjustSeekerCount(-1));
+            if (seekerCountPlusButton != null) seekerCountPlusButton.onClick.AddListener(() => AdjustSeekerCount(1));
+
+            if (publicButton != null) publicButton.onClick.AddListener(() => SetPublic(true));
+            if (privateButton != null) privateButton.onClick.AddListener(() => SetPublic(false));
+
+            if (hideTimeSlider != null)
+            {
+                hideTimeSlider.minValue = RoomOption.MinHideTime;
+                hideTimeSlider.maxValue = RoomOption.MaxHideTime;
+                hideTimeSlider.wholeNumbers = true;
+                hideTimeSlider.onValueChanged.AddListener(OnHideTimeChanged);
+            }
+
+            if (seekTimeSlider != null)
+            {
+                seekTimeSlider.minValue = RoomOption.MinSeekTime;
+                seekTimeSlider.maxValue = RoomOption.MaxSeekTime;
+                seekTimeSlider.wholeNumbers = true;
+                seekTimeSlider.onValueChanged.AddListener(OnSeekTimeChanged);
+            }
+
+            if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
+        }
+
+        public void Setup(RoomOption option)
+        {
+            _option = option?.Clone() ?? new RoomOption();
+            RefreshAllUI();
+        }
+
+        public void SetMaps(List<MapEntry> maps)
+        {
+            _maps = maps ?? new List<MapEntry>();
+            RebuildMapList();
+
+            if (_maps.Count > 0)
+            {
+                int idx = string.IsNullOrEmpty(_option.mapName)
+                    ? 0
+                    : _maps.FindIndex(m => m.name == _option.mapName);
+                SelectMap(Mathf.Max(0, idx));
+            }
+        }
+
+        protected override UniTask OnShow()
+        {
+            ResetToDefaults();
+            return UniTask.CompletedTask;
+        }
+
+        public void ResetToDefaults()
+        {
+            _option = new RoomOption();
+            RefreshAllUI();
+        }
+
+        private void SetPublic(bool isPublic)
+        {
+            _option.isPublic = isPublic;
+            RefreshPublicUI();
+        }
+
+        private void SetGameMode(GameMode mode)
+        {
+            _option.gameMode = mode;
+            RefreshGameModeUI();
+        }
+
+        private void AdjustMaxPlayers(int delta)
+        {
+            _option.maxPlayers = Mathf.Clamp(
+                _option.maxPlayers + delta,
+                RoomOption.MinPlayers,
+                RoomOption.MaxPlayersLimit);
+
+            int maxSeeker = _option.maxPlayers - 1;
+            if (_option.seekerCount > maxSeeker)
+                _option.seekerCount = Mathf.Max(RoomOption.MinSeekerCount, maxSeeker);
+
+            RefreshPlayerCountUI();
+        }
+
+        private void AdjustSeekerCount(int delta)
+        {
+            int maxSeeker = Mathf.Min(RoomOption.MaxSeekerCount, _option.maxPlayers - 1);
+            _option.seekerCount = Mathf.Clamp(
+                _option.seekerCount + delta,
+                RoomOption.MinSeekerCount,
+                maxSeeker);
+
+            RefreshPlayerCountUI();
+        }
+
+        private void OnHideTimeChanged(float value)
+        {
+            _option.hideTime = value;
+            RefreshTimeUI();
+        }
+
+        private void OnSeekTimeChanged(float value)
+        {
+            _option.seekTime = value;
+            RefreshTimeUI();
+        }
+
+        private void SelectMap(int index)
+        {
+            if (index < 0 || index >= _maps.Count) return;
+
+            _selectedMapIndex = index;
+            _option.mapName = _maps[index].name;
+
+            if (mapPreviewImage != null && _maps[index].preview != null)
+                mapPreviewImage.sprite = _maps[index].preview;
+
+            RefreshMapListHighlight();
+        }
+
+        private void OnClickCreate()
+        {
+            OnCreate?.Invoke(_option);
+        }
+
+        private void RefreshAllUI()
+        {
+            RefreshPublicUI();
+            RefreshGameModeUI();
+            RefreshPlayerCountUI();
+            RefreshTimeUI();
+
+            if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
+            if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
+        }
+
+        private void RefreshPublicUI()
+        {
+            SetButtonSelected(publicButton, _option.isPublic);
+            SetButtonSelected(privateButton, !_option.isPublic);
+        }
+
+        private void RefreshGameModeUI()
+        {
+            SetButtonSelected(basicModeButton, _option.gameMode == GameMode.Basic);
+            SetButtonSelected(infectionModeButton, _option.gameMode == GameMode.Infection);
+        }
+
+        private void RefreshPlayerCountUI()
+        {
+            if (maxPlayersText != null) maxPlayersText.text = _option.maxPlayers.ToString();
+            if (seekerCountText != null) seekerCountText.text = _option.seekerCount.ToString();
+        }
+
+        private void RefreshTimeUI()
+        {
+            if (hideTimeText != null) hideTimeText.text = _option.hideTime.ToString("0");
+            if (seekTimeText != null) seekTimeText.text = _option.seekTime.ToString("0");
+        }
+
+        private void RebuildMapList()
+        {
+            if (mapListContent == null || mapItemPrefab == null) return;
+
+            for (int i = mapListContent.childCount - 1; i >= 0; i--)
+                Destroy(mapListContent.GetChild(i).gameObject);
+
+            for (int i = 0; i < _maps.Count; i++)
+            {
+                var go = Instantiate(mapItemPrefab, mapListContent);
+                var text = go.GetComponentInChildren<TMP_Text>();
+                if (text != null) text.text = _maps[i].name;
+
+                int index = i;
+                var button = go.GetComponent<Button>();
+                if (button != null) button.onClick.AddListener(() => SelectMap(index));
+            }
+        }
+
+        private void RefreshMapListHighlight()
+        {
+            if (mapListContent == null) return;
+
+            for (int i = 0; i < mapListContent.childCount; i++)
+            {
+                var button = mapListContent.GetChild(i).GetComponent<Button>();
+                if (button == null) continue;
+
+                var colors = button.colors;
+                colors.normalColor = (i == _selectedMapIndex)
+                    ? new Color(0.4f, 0.4f, 0.4f)
+                    : new Color(0.2f, 0.2f, 0.2f);
+                button.colors = colors;
+            }
+        }
+
+        private static void SetButtonSelected(Button button, bool selected)
+        {
+            if (button == null) return;
+            var outline = button.GetComponent<Outline>();
+            if (outline != null) outline.enabled = selected;
+        }
+    }
+
+    [Serializable]
+    public class MapEntry
+    {
+        public string name;
+        public string sceneName;
+        public Sprite preview;
+    }
+}
