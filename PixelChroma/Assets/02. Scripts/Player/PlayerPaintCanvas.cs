@@ -254,6 +254,24 @@ namespace PixelChroma
             return px >= 0 && px < _texWidth && py >= 0 && py < _texHeight;
         }
 
+        public Color GetPixelColor(int px, int py)
+        {
+            if (_runtimeTextures == null || _runtimeTextures.Length == 0) return Color.white;
+            if (!IsInBounds(px, py)) return Color.white;
+
+            var current = targetRenderer.sprite;
+            if (current != null && _spriteMap != null)
+            {
+                for (int i = 0; i < _runtimeSprites.Length; i++)
+                {
+                    if (_runtimeSprites[i] == current || _spriteMap.ContainsKey(current) && _spriteMap[current] == _runtimeSprites[i])
+                        return _runtimeTextures[i].GetPixel(px, py);
+                }
+            }
+
+            return _runtimeTextures[0].GetPixel(px, py);
+        }
+
 #if UNITY_EDITOR
         [ContextMenu("Animator에서 스프라이트 자동 수집")]
         private void CollectSpritesFromAnimator()

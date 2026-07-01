@@ -21,6 +21,10 @@ namespace PixelChroma.UI
         [SerializeField] private Image colorPreview;
         [SerializeField] private TMP_Text hexLabel;
 
+        [Header("Eyedropper")]
+        [SerializeField] private Outline eyedropperOutline;
+        [SerializeField] private Image eyedropperPreviewColor;
+
         [Header("Brush Size")]
         [SerializeField] private Slider brushSizeSlider;
         [SerializeField] private TMP_Text brushSizeLabel;
@@ -198,6 +202,21 @@ namespace PixelChroma.UI
         {
             if (brushSizeLabel != null)
                 brushSizeLabel.text = $"{(int)brushSizeSlider.value}px";
+        }
+
+        public void SetEyedropperActive(bool active)
+        {
+            if (eyedropperOutline != null)
+                eyedropperOutline.enabled = active;
+
+            if (!active && eyedropperPreviewColor != null)
+                eyedropperPreviewColor.color = SelectedColor;
+        }
+
+        public void SetEyedropperPreview(Color color)
+        {
+            if (eyedropperPreviewColor != null)
+                eyedropperPreviewColor.color = color;
         }
 
         private void OnDestroy()

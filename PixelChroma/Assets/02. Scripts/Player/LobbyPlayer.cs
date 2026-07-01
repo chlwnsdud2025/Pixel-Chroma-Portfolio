@@ -19,6 +19,9 @@ namespace PixelChroma
                 PaintColorProvider = () => _lobby.ColorPicker.SelectedColor;
                 MaxBrushSizeProvider = () => _lobby.ColorPicker.MaxBrushSize > 0 ? _lobby.ColorPicker.MaxBrushSize : 20;
                 OnBrushSizeScrolled += _lobby.ColorPicker.SetBrushSize;
+                OnEyedropperStateChanged += _lobby.ColorPicker.SetEyedropperActive;
+                OnEyedropperPreview += _lobby.ColorPicker.SetEyedropperPreview;
+                OnEyedropperPicked += _lobby.ColorPicker.SetColor;
                 _lobby.ColorPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
 
                 if (paintCanvas != null)

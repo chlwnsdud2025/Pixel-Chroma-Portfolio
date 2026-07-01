@@ -37,6 +37,9 @@ namespace PixelChroma
                 PaintColorProvider = () => _hud.ColorPicker.SelectedColor;
                 MaxBrushSizeProvider = () => _hud.ColorPicker.MaxBrushSize > 0 ? _hud.ColorPicker.MaxBrushSize : 20;
                 OnBrushSizeScrolled += _hud.ColorPicker.SetBrushSize;
+                OnEyedropperStateChanged += _hud.ColorPicker.SetEyedropperActive;
+                OnEyedropperPreview += _hud.ColorPicker.SetEyedropperPreview;
+                OnEyedropperPicked += _hud.ColorPicker.SetColor;
                 _hud.ColorPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
 
                 if (paintCanvas != null)
