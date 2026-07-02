@@ -8,6 +8,14 @@ namespace PixelChroma.UI
 {
     public class UIColorPicker : MonoBehaviour
     {
+        private const int DefaultMaxBrushSize = 20;
+
+        [Header("Tools")]
+        [SerializeField] private Button eraserButton;
+        [SerializeField] private Button eyedropperButton;
+        [SerializeField] private Color activeToolColor = new Color(0.8f, 0.8f, 0.8f);
+        [SerializeField] private Color inactiveToolColor = Color.white;
+
         [Header("SV Rectangle")]
         [SerializeField] private RectTransform svArea;
         [SerializeField] private RawImage svImage;
@@ -35,12 +43,17 @@ namespace PixelChroma.UI
         private float _saturation = 1f;
         private float _value = 1f;
 
+        public bool IsEraserMode { get; private set; }
+        public bool IsEyedropperMode { get; private set; }
+
         public Color SelectedColor => Color.HSVToRGB(_hue, _saturation, _value);
         public int BrushSize => brushSizeSlider != null ? (int)brushSizeSlider.value : 1;
-        public int MaxBrushSize => maxBrushSize;
+        public int MaxBrushSize => maxBrushSize > 0 ? maxBrushSize : DefaultMaxBrushSize;
 
         public event Action<Color> OnColorChanged;
         public event Action<int> OnBrushSizeChanged;
+        public event Action<bool> OnEyedropperModeChanged;
+        public event Action<bool> OnEraserModeChanged; // 💡 지우개 이벤트 추가!
 
         private void Awake()
         {
@@ -54,12 +67,64 @@ namespace PixelChroma.UI
             SetupHueDrag();
             SetupBrushSizeSliders();
             SetColor(Color.white);
+
+            if (eraserButton != null) eraserButton.onClick.AddListener(ToggleEraser);
+            if (eyedropperButton != null) eyedropperButton.onClick.AddListener(ToggleEyedropper);
+        }
+
+        private void ToggleEraser()
+        {
+            IsEraserMode = !IsEraserMode;
+            if (IsEraserMode) SetEyedropper(false);
+            UpdateToolButtons();
+
+            // 💡 PlayerBase에 지우개 모드가 바뀌었다고 알림
+            OnEraserModeChanged?.Invoke(IsEraserMode);
+        }
+
+        private void ToggleEyedropper()
+        {
+            SetEyedropper(!IsEyedropperMode);
+        }
+
+        public void SetEyedropper(bool active)
+        {
+            IsEyedropperMode = active;
+            if (IsEyedropperMode)
+            {
+                IsEraserMode = false;
+                OnEraserModeChanged?.Invoke(false); // 스포이드 켜지면 지우개 끄기 알림
+            }
+
+            if (eyedropperOutline != null) eyedropperOutline.enabled = active;
+            if (!active && eyedropperPreviewColor != null) eyedropperPreviewColor.color = SelectedColor;
+
+            UpdateToolButtons();
+            OnEyedropperModeChanged?.Invoke(active);
+        }
+
+        private void UpdateToolButtons()
+        {
+            if (eraserButton != null)
+                eraserButton.image.color = IsEraserMode ? activeToolColor : inactiveToolColor;
+
+            if (eyedropperButton != null)
+                eyedropperButton.image.color = IsEyedropperMode ? activeToolColor : inactiveToolColor;
+        }
+
+        private void CancelToolsIfColorPicked()
+        {
+            if (IsEraserMode || IsEyedropperMode)
+            {
+                IsEraserMode = false;
+                OnEraserModeChanged?.Invoke(false);
+                SetEyedropper(false);
+            }
         }
 
         private void SetupSVDrag()
         {
             var trigger = svArea.gameObject.AddComponent<EventTrigger>();
-
             var pointerDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
             pointerDown.callback.AddListener(data => OnSVInput((PointerEventData)data));
             trigger.triggers.Add(pointerDown);
@@ -72,7 +137,6 @@ namespace PixelChroma.UI
         private void SetupHueDrag()
         {
             var trigger = hueBarArea.gameObject.AddComponent<EventTrigger>();
-
             var pointerDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
             pointerDown.callback.AddListener(data => OnHueInput((PointerEventData)data));
             trigger.triggers.Add(pointerDown);
@@ -88,6 +152,8 @@ namespace PixelChroma.UI
                     svArea, eventData.position, eventData.pressEventCamera, out var localPoint))
                 return;
 
+            CancelToolsIfColorPicked();
+
             var rect = svArea.rect;
             _saturation = Mathf.Clamp01((localPoint.x - rect.x) / rect.width);
             _value = Mathf.Clamp01((localPoint.y - rect.y) / rect.height);
@@ -102,6 +168,8 @@ namespace PixelChroma.UI
                     hueBarArea, eventData.position, eventData.pressEventCamera, out var localPoint))
                 return;
 
+            CancelToolsIfColorPicked();
+
             var rect = hueBarArea.rect;
             _hue = Mathf.Clamp01((localPoint.x - rect.x) / rect.width);
 
@@ -115,10 +183,7 @@ namespace PixelChroma.UI
             var rect = svArea.rect;
             svSelector.anchorMin = Vector2.zero;
             svSelector.anchorMax = Vector2.zero;
-            svSelector.anchoredPosition = new Vector2(
-                rect.width * _saturation,
-                rect.height * _value
-            );
+            svSelector.anchoredPosition = new Vector2(rect.width * _saturation, rect.height * _value);
         }
 
         private void UpdateHueSelectorPosition()
@@ -126,27 +191,25 @@ namespace PixelChroma.UI
             var rect = hueBarArea.rect;
             hueSelector.anchorMin = new Vector2(0, 0);
             hueSelector.anchorMax = new Vector2(0, 1);
-            hueSelector.anchoredPosition = new Vector2(
-                rect.width * _hue,
-                0
-            );
+            hueSelector.anchoredPosition = new Vector2(rect.width * _hue, 0);
         }
 
         public void SetColor(Color color)
         {
             Color.RGBToHSV(color, out _hue, out _saturation, out _value);
-
             RegenerateSVTexture();
             UpdateSVSelectorPosition();
             UpdateHueSelectorPosition();
             UpdateDisplay();
+
+            if (!IsEyedropperMode && eyedropperPreviewColor != null)
+                eyedropperPreviewColor.color = color;
         }
 
         private void RegenerateSVTexture()
         {
             int w = _svTexture.width;
             int h = _svTexture.height;
-
             for (int y = 0; y < h; y++)
             {
                 float v = (float)y / (h - 1);
@@ -156,7 +219,6 @@ namespace PixelChroma.UI
                     _svTexture.SetPixel(x, y, Color.HSVToRGB(_hue, s, v));
                 }
             }
-
             _svTexture.Apply();
             svImage.texture = _svTexture;
         }
@@ -165,19 +227,13 @@ namespace PixelChroma.UI
         {
             var color = SelectedColor;
             colorPreview.color = color;
-
-            if (hexLabel != null)
-            {
-                hexLabel.text = $"#{ColorUtility.ToHtmlStringRGB(color)}";
-            }
-
+            if (hexLabel != null) hexLabel.text = $"#{ColorUtility.ToHtmlStringRGB(color)}";
             OnColorChanged?.Invoke(color);
         }
 
         private void SetupBrushSizeSliders()
         {
             if (brushSizeSlider == null) return;
-
             brushSizeSlider.wholeNumbers = true;
             brushSizeSlider.minValue = 1;
             brushSizeSlider.maxValue = maxBrushSize;
@@ -204,14 +260,7 @@ namespace PixelChroma.UI
                 brushSizeLabel.text = $"{(int)brushSizeSlider.value}px";
         }
 
-        public void SetEyedropperActive(bool active)
-        {
-            if (eyedropperOutline != null)
-                eyedropperOutline.enabled = active;
-
-            if (!active && eyedropperPreviewColor != null)
-                eyedropperPreviewColor.color = SelectedColor;
-        }
+        public void SetEyedropperActive(bool active) { SetEyedropper(active); }
 
         public void SetEyedropperPreview(Color color)
         {

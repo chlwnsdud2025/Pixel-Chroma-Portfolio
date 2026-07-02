@@ -134,10 +134,27 @@ namespace PixelChroma
 
                 GameObject prefab = role == PlayerRole.Seeker ? seekerPrefab : runnerPrefab;
 
-                Transform startPos = GetStartPosition();
-                playerInstance = startPos != null
-                    ? Instantiate(prefab, startPos.position, startPos.rotation)
-                    : Instantiate(prefab);
+                Vector3 spawnPos = Vector3.zero;
+                Quaternion spawnRot = Quaternion.identity;
+
+                if (InGameManager.Instance != null)
+                {
+                    // InGameManager가 살아있다면 맵에 등록된 스폰 포인트를 가져옵니다.
+                    spawnPos = InGameManager.Instance.GetSpawnPosition(role);
+                }
+                else
+                {
+                    // 만약 매니저를 찾지 못하는 예외 상황이면 기존 Mirror 방식을 백업으로 씁니다.
+                    Transform startPos = GetStartPosition();
+                    if (startPos != null)
+                    {
+                        spawnPos = startPos.position;
+                        spawnRot = startPos.rotation;
+                    }
+                }
+
+                // 받아온 좌표를 기반으로 플레이어 생성
+                playerInstance = Instantiate(prefab, spawnPos, spawnRot);
 
                 var playerBase = playerInstance.GetComponent<PlayerBase>();
                 if (playerBase != null)
@@ -173,6 +190,11 @@ namespace PixelChroma
         public override void OnClientDisconnect()
         {
             base.OnClientDisconnect();
+
+            if (InGameManager.Instance != null)
+            {
+                InGameManager.Instance.ClearSpawnPoints();
+            }
 
             if (GameManager.Instance == null) return;
 

@@ -6,6 +6,7 @@ using UnityEngine.Rendering.Universal;
 using Mirror;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
+using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -44,7 +45,6 @@ namespace PixelChroma
         public event Action<Color> OnEyedropperPreview;
         public event Action<Color> OnEyedropperPicked;
         public Func<Color> PaintColorProvider;
-        public Func<int> MaxBrushSizeProvider;
 
         protected InputAction moveAction;
         protected InputAction togglePaintAction;
@@ -52,10 +52,12 @@ namespace PixelChroma
         protected InputAction zoomModifierAction;
         protected CinemachineCamera cinemachineCamera;
         protected bool isPaintMode;
+
         private Rigidbody2D _rb;
         private PixelPerfectCamera _pixelPerfectCamera;
         private int _originalPPU;
         private bool _isEyedropperActive;
+        private bool _eyedropperLocked;
         private Color _eyedropperColor;
         private Texture2D _eyedropperCapture;
         private Coroutine _eyedropperCoroutine;
@@ -76,6 +78,8 @@ namespace PixelChroma
 
             SetupCinemachineFollow();
             OnLocalPlayerStarted();
+
+            UpdateCursorIcon(); // 시작 시 커서 업데이트
         }
 
         protected virtual void OnLocalPlayerStarted() { }
@@ -86,12 +90,14 @@ namespace PixelChroma
             togglePaintAction?.Disable();
             eyedropperAction?.Disable();
             zoomModifierAction?.Disable();
+
             StopEyedropperCapture();
             if (_eyedropperCapture != null)
             {
                 Destroy(_eyedropperCapture);
                 _eyedropperCapture = null;
             }
+
             OnLocalPlayerStopped();
         }
 
@@ -198,9 +204,9 @@ namespace PixelChroma
                 return;
             }
 
-            if (isPaintMode && paintCanvas != null)
+            if (isPaintMode && paintCanvas != null && _boundPicker != null)
             {
-                int max = MaxBrushSizeProvider?.Invoke() ?? 20;
+                int max = _boundPicker.MaxBrushSize;
                 int current = paintCanvas.BrushSize;
                 int next = scroll > 0 ? current + 1 : current - 1;
                 next = Mathf.Clamp(next, 1, max);
@@ -213,34 +219,87 @@ namespace PixelChroma
         {
             isPaintMode = !isPaintMode;
             OnPaintModeChanged?.Invoke(isPaintMode);
+            UpdateCursorIcon();
+        }
+
+        // 💡 자식 클래스(Seeker, Runner 등)가 자신의 평상시 커서를 지정할 수 있게 가상함수로 뺌
+        protected virtual CursorType GetDefaultCursorType()
+        {
+            return CursorType.Default; // 기본은 평범한 마우스
+        }
+
+        protected void UpdateCursorIcon()
+        {
+            if (!isLocalPlayer || CursorManager.Instance == null) return;
+
+            if (!isPaintMode)
+            {
+                // 페인트 모드가 아닐 때는 자식 클래스가 정해준 기본 커서(조준선 or 마우스) 적용
+                CursorManager.Instance.SetCursorType(GetDefaultCursorType());
+            }
+            else
+            {
+                if (_isEyedropperActive || (_boundPicker != null && _boundPicker.IsEyedropperMode))
+                {
+                    CursorManager.Instance.SetCursorType(CursorType.Eyedropper);
+                }
+                else if (_boundPicker != null && _boundPicker.IsEraserMode)
+                {
+                    float scale = 1f + (_boundPicker.BrushSize * 0.1f);
+                    CursorManager.Instance.SetCursorType(CursorType.Eraser, scale);
+                }
+                else
+                {
+                    float scale = 1f + ((_boundPicker != null ? _boundPicker.BrushSize : 1) * 0.1f);
+                    CursorManager.Instance.SetCursorType(CursorType.Brush, scale);
+                }
+            }
         }
 
         private void HandleEyedropper()
         {
             bool spaceHeld = eyedropperAction.IsPressed();
+            if (!spaceHeld) _eyedropperLocked = false;
 
-            if (spaceHeld && !_isEyedropperActive)
+            if (spaceHeld && !_isEyedropperActive && !_eyedropperLocked)
+            {
+                _boundPicker?.SetEyedropper(true);
+            }
+            else if (!spaceHeld && _isEyedropperActive && (_boundPicker == null || !_boundPicker.IsEyedropperMode))
+            {
+                _boundPicker?.SetEyedropper(false);
+            }
+
+            if (_isEyedropperActive && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+                _boundPicker?.SetEyedropper(false);
+                _eyedropperLocked = true;
+                OnEyedropperPicked?.Invoke(_eyedropperColor);
+            }
+        }
+
+        private void HandleUIEyedropperToggle(bool isActive)
+        {
+            if (isActive && !_isEyedropperActive)
             {
                 _isEyedropperActive = true;
-                OnEyedropperStateChanged?.Invoke(true);
                 _eyedropperCoroutine = StartCoroutine(EyedropperCaptureLoop());
+                OnEyedropperStateChanged?.Invoke(true);
             }
-            else if (!spaceHeld && _isEyedropperActive)
+            else if (!isActive && _isEyedropperActive)
             {
                 StopEyedropperCapture();
                 _isEyedropperActive = false;
                 OnEyedropperStateChanged?.Invoke(false);
-                OnEyedropperPicked?.Invoke(_eyedropperColor);
             }
+            UpdateCursorIcon();
+        }
 
-            if (_isEyedropperActive && Mouse.current != null
-                && Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                StopEyedropperCapture();
-                _isEyedropperActive = false;
-                OnEyedropperStateChanged?.Invoke(false);
-                OnEyedropperPicked?.Invoke(_eyedropperColor);
-            }
+        private void HandleUIEraserToggle(bool isActive)
+        {
+            UpdateCursorIcon();
         }
 
         private IEnumerator EyedropperCaptureLoop()
@@ -282,29 +341,83 @@ namespace PixelChroma
             if (_isEyedropperActive) return;
             if (paintCanvas == null || Mouse.current == null) return;
             if (!Mouse.current.leftButton.isPressed) return;
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-                return;
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             Vector2 screenPos = Mouse.current.position.ReadValue();
             Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
             worldPos.z = 0;
 
-            Color color = PaintColorProvider?.Invoke() ?? Color.white;
-
             Vector2Int pixel = paintCanvas.WorldToPixel(worldPos);
             if (paintCanvas.IsInBounds(pixel.x, pixel.y))
-                paintCanvas.PaintAt(pixel.x, pixel.y, color);
+            {
+                if (_boundPicker != null && _boundPicker.IsEraserMode)
+                {
+                    paintCanvas.EraseAt(pixel.x, pixel.y);
+                }
+                else
+                {
+                    Color color = PaintColorProvider?.Invoke() ?? Color.white;
+                    paintCanvas.PaintAt(pixel.x, pixel.y, color);
+                }
+            }
         }
 
-        protected void ClearPaintEvents()
+        private IPaintHUD _boundHUD;
+        protected UIColorPicker _boundPicker;
+
+        protected void BindPaintHUD(IPaintHUD hud)
         {
+            if (hud == null) return;
+
+            _boundHUD = hud;
+            _boundPicker = hud.ColorPicker;
+
+            OnPaintModeChanged += hud.SetPaintMode;
+
+            if (_boundPicker != null)
+            {
+                PaintColorProvider = () => _boundPicker.SelectedColor;
+                OnBrushSizeScrolled += _boundPicker.SetBrushSize;
+                OnEyedropperPreview += _boundPicker.SetEyedropperPreview;
+                OnEyedropperPicked += _boundPicker.SetColor;
+                _boundPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
+
+                _boundPicker.OnEyedropperModeChanged += HandleUIEyedropperToggle;
+                _boundPicker.OnEraserModeChanged += HandleUIEraserToggle;
+
+                if (paintCanvas != null)
+                    paintCanvas.BrushSize = _boundPicker.BrushSize;
+            }
+
+            UpdateCursorIcon();
+        }
+
+        protected void UnbindPaintHUD()
+        {
+            if (_boundPicker != null)
+            {
+                _boundPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
+                _boundPicker.OnEyedropperModeChanged -= HandleUIEyedropperToggle;
+                _boundPicker.OnEraserModeChanged -= HandleUIEraserToggle;
+            }
+
             OnPaintModeChanged = null;
             OnBrushSizeScrolled = null;
             OnEyedropperStateChanged = null;
             OnEyedropperPreview = null;
             OnEyedropperPicked = null;
             PaintColorProvider = null;
-            MaxBrushSizeProvider = null;
+
+            _boundHUD = null;
+            _boundPicker = null;
+        }
+
+        private void OnUIBrushSizeChanged(int size)
+        {
+            if (paintCanvas != null)
+                paintCanvas.BrushSize = size;
+
+            UpdateCursorIcon();
         }
     }
 }
