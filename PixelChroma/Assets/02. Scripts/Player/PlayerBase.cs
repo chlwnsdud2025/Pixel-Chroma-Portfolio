@@ -222,7 +222,7 @@ namespace PixelChroma
             UpdateCursorIcon();
         }
 
-        // 💡 자식 클래스(Seeker, Runner 등)가 자신의 평상시 커서를 지정할 수 있게 가상함수로 뺌
+        // 자식 클래스(Seeker, Runner 등)가 자신의 평상시 커서를 지정할 수 있게 가상함수로 뺌
         protected virtual CursorType GetDefaultCursorType()
         {
             return CursorType.Default; // 기본은 평범한 마우스

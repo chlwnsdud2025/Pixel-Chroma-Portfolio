@@ -3,11 +3,15 @@ using Mirror;
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
 using UnityEngine.InputSystem;
+using System.Collections.Generic; // 💡 List 사용을 위해 추가
 
 namespace PixelChroma
 {
     public class RunnerPlayer : PlayerBase
     {
+        // 💡 씬에 존재하는 모든 도망자를 담아둘 전역(Static) 리스트
+        public static readonly List<RunnerPlayer> AllRunners = new();
+
         [Header("Runner Settings")]
         [Tooltip("캐릭터의 이동 속도를 설정합니다.")]
         public float runnerMoveSpeed = 5f;
@@ -15,14 +19,33 @@ namespace PixelChroma
         [Header("Free Cam Settings")]
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         public float freeCamSpeed = 15f;
+        private bool _isSpectating = false;
 
         private bool _isFrozen = false;
         private GameObject _freeCamTarget;
 
+        // 관전 대상을 순회하기 위한 인덱스
+        private int _spectateRunnerIndex = -1;
+        private int _spectateSeekerIndex = -1;
+
+        // ── 💡 네트워크 스폰 시 명부(캐싱 리스트)에 등록/해제 ────────────────
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            if (!AllRunners.Contains(this)) AllRunners.Add(this);
+        }
+
+        public override void OnStopClient()
+        {
+            base.OnStopClient();
+            AllRunners.Remove(this);
+        }
+        // ──────────────────────────────────────────────────────────────────
+
         protected override void OnLocalPlayerStarted()
         {
             moveSpeed = runnerMoveSpeed;
-            ShowHUDAsync().Forget();
+            ShowHUDAsync().Forget(); // HUD 정상 호출
 
             _freeCamTarget = new GameObject("FreeCamTarget");
             _freeCamTarget.transform.position = transform.position;
@@ -42,10 +65,25 @@ namespace PixelChroma
 
             if (!isLocalPlayer) return;
 
-            // 단축키 'F'를 누르면 고정 모드 토글! (원하시는 키로 변경 가능)
-            if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame)
+            if (Keyboard.current != null)
             {
-                ToggleFreezeMode();
+                // P키: 자유 시점 토글
+                if (Keyboard.current.pKey.wasPressedThisFrame)
+                {
+                    ToggleFreezeMode();
+                }
+
+                // O키: 다른 러너(도망자) 관전
+                if (Keyboard.current.oKey.wasPressedThisFrame)
+                {
+                    CycleSpectateRunner();
+                }
+
+                // I키: 술래 관전
+                if (Keyboard.current.iKey.wasPressedThisFrame)
+                {
+                    CycleSpectateSeeker();
+                }
             }
         }
 
@@ -55,8 +93,7 @@ namespace PixelChroma
 
             if (_isFrozen)
             {
-                // [고정 모드 ON]
-                // 가짜 타겟을 현재 내 위치로 불러온 뒤, 카메라가 가짜 타겟을 따라가게 덮어씌움
+                // [고정 모드 ON] 가짜 타겟을 현재 내 위치로 불러온 뒤, 카메라가 따라가게 덮어씌움
                 _freeCamTarget.transform.position = transform.position;
                 if (cinemachineCamera != null)
                 {
@@ -71,14 +108,57 @@ namespace PixelChroma
             }
             else
             {
-                // [고정 모드 OFF]
-                // 카메라가 다시 내 캐릭터를 따라가도록 원상 복구
+                // [고정 모드 OFF] 카메라가 다시 내 캐릭터를 따라가도록 원상 복구
                 if (cinemachineCamera != null)
                 {
                     cinemachineCamera.Follow = transform;
                 }
             }
         }
+
+        // ── 관전(Spectate) 기능 ──────────────────────────────────────
+        private void CycleSpectateRunner()
+        {
+            if (AllRunners.Count == 0) return;
+
+            if (_spectateRunnerIndex >= AllRunners.Count)
+                _spectateRunnerIndex = -1;
+
+            _spectateRunnerIndex = (_spectateRunnerIndex + 1) % AllRunners.Count;
+
+            var target = AllRunners[_spectateRunnerIndex];
+            if (target != null)
+                SetSpectateTarget(target.transform);
+        }
+
+        private void CycleSpectateSeeker()
+        {
+            // SeekerPlayer의 캐싱 리스트를 참조
+            if (SeekerPlayer.AllSeekers.Count == 0) return;
+
+            if (_spectateSeekerIndex >= SeekerPlayer.AllSeekers.Count)
+                _spectateSeekerIndex = -1;
+
+            _spectateSeekerIndex = (_spectateSeekerIndex + 1) % SeekerPlayer.AllSeekers.Count;
+
+            var target = SeekerPlayer.AllSeekers[_spectateSeekerIndex];
+            if (target != null)
+                SetSpectateTarget(target.transform);
+        }
+
+        private void SetSpectateTarget(Transform targetTransform)
+        {
+            if (targetTransform == null || cinemachineCamera == null) return;
+
+            _isFrozen = true;
+            _isSpectating = true;
+
+            if (GetComponent<Rigidbody2D>() != null)
+                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+
+            cinemachineCamera.Follow = targetTransform;
+        }
+        // ──────────────────────────────────────────────────────────────────
 
         protected override void HandleMovement()
         {
@@ -88,17 +168,36 @@ namespace PixelChroma
 
             if (_isFrozen)
             {
-                // 고정 모드일 때는 캐릭터 대신 "가짜 타겟(카메라)"만 이동시킴
                 GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
 
-                if (_freeCamTarget != null)
+                if (input.sqrMagnitude > 0.01f)
                 {
-                    _freeCamTarget.transform.position += (Vector3)input * freeCamSpeed * Time.fixedDeltaTime;
+                    // 다른 대상을 관전 중(`_isSpectating`)이었다면 WASD를 누르는 즉시 나 자신에게 복귀!
+                    if (_isSpectating)
+                    {
+                        _isFrozen = false;
+                        _isSpectating = false;
+
+                        if (cinemachineCamera != null)
+                        {
+                            cinemachineCamera.Follow = transform; // 카메라 타겟을 다시 나에게로
+                        }
+
+                        // 복귀함과 동시에 딜레이 없이 바로 내 캐릭터가 걷도록 이동 함수 실행
+                        base.HandleMovement();
+                    }
+                    else
+                    {
+                        // 관전이 아닌 P키를 눌러 들어온 순수 고정 모드일 때는 기존 기획대로 카메라 맵 구경 지원
+                        if (_freeCamTarget != null)
+                        {
+                            _freeCamTarget.transform.position += (Vector3)input * freeCamSpeed * Time.fixedDeltaTime;
+                        }
+                    }
                 }
             }
             else
             {
-                // 평소에는 정상적으로 내 캐릭터 이동
                 base.HandleMovement();
             }
         }
@@ -125,35 +224,26 @@ namespace PixelChroma
             BindPaintHUD(hud);
         }
 
-        // ── 피격 및 지워짐 로직 (동기화 100% 보장 버전) ──────────────────────
+        // ── 피격 및 지워짐 로직──────────────────────
 
-        
-        //서버에서만 실행됩니다. 오차가 없는 서버의 절대 좌표를 기준으로 픽셀을 미리 계산합니다.
         [Server]
         public void ServerTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
         {
             if (paintCanvas == null) return;
 
-            // 1. 서버의 "단일 진실(Single Source of Truth)" 위치를 기준으로 픽셀 중앙점을 계산합니다.
             Vector2Int centerPixel = paintCanvas.WorldToPixel(hitWorldPos);
-
-            // 2. 픽셀 반경도 서버에서 미리 계산합니다.
             float lossyScale = transform.lossyScale.x;
             float localAoeRadius = aoeRadius / lossyScale;
             int pixelRadius = Mathf.RoundToInt(localAoeRadius * paintCanvas.PixelsPerUnit);
 
-            // 3. 변환이 완벽하게 끝난 '순수 픽셀 데이터(int)'만 클라이언트들에게 전송합니다!
             RpcTakeEraseDamageByPixel(centerPixel, pixelRadius);
         }
 
-        //모든 클라이언트에서 실행됩니다. 서버가 지정해준 픽셀만 무조건 똑같이 지웁니다.
         [ClientRpc]
         public void RpcTakeEraseDamageByPixel(Vector2Int centerPixel, int pixelRadius)
         {
             if (paintCanvas == null) return;
 
-            // 이미 서버가 계산해준 정확한 centerPixel과 pixelRadius를 그대로 사용하므로 
-            // 클라이언트 간 픽셀 오차가 0%가 됩니다!
             for (int x = -pixelRadius; x <= pixelRadius; x++)
             {
                 for (int y = -pixelRadius; y <= pixelRadius; y++)
@@ -183,6 +273,7 @@ namespace PixelChroma
         {
             if (paintCanvas == null) return;
 
+            // "1픽셀이라도 남아있으면 생존" 판정 
             bool isAlive = paintCanvas.HasAnyPaintedPixels();
 
             if (!isAlive)

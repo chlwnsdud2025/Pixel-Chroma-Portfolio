@@ -30,6 +30,8 @@ namespace PixelChroma
 
         private SpriteRenderer[] _weaponRenderers;
 
+        public static readonly System.Collections.Generic.List<SeekerPlayer> AllSeekers = new();
+
         protected override void OnLocalPlayerStarted()
         {
             moveSpeed = 4f;
@@ -305,6 +307,18 @@ namespace PixelChroma
         protected override CursorType GetDefaultCursorType()
         {
             return CursorType.Crosshair;
+        }
+
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            if (!AllSeekers.Contains(this)) AllSeekers.Add(this);
+        }
+
+        public override void OnStopClient()
+        {
+            base.OnStopClient();
+            AllSeekers.Remove(this);
         }
     }
 }
