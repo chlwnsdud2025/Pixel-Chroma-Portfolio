@@ -9,7 +9,7 @@ namespace PixelChroma
 {
     public class LobbyManager : MonoSingleton<LobbyManager>
     {
-        private const int CodeLength = 6;
+        public const int CodeLength = 6;
         private const string CodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
         public const string GameKey = "GameID";
@@ -140,6 +140,24 @@ namespace PixelChroma
             OnLobbyEntered?.Invoke(true);
         }
 
+        public void NotifyClientConnected()
+        {
+            Debug.Log($"[LobbyManager] 클라이언트 연결 성공 | 코드: {CurrentRoomCode}");
+            OnLobbyEntered?.Invoke(true);
+        }
+
+        public void NotifyClientDisconnected()
+        {
+            if (_waitingForConnection)
+            {
+                _waitingForConnection = false;
+                Debug.LogWarning("[LobbyManager] 클라이언트 연결 실패");
+                OnLobbyEntered?.Invoke(false);
+            }
+        }
+
+        private bool _waitingForConnection;
+
         // ── 2. 코드로 참가 ─────────────────────────
         public void JoinLobbyByCode(string code)
         {
@@ -155,11 +173,11 @@ namespace PixelChroma
 
             IsHost = false;
             CurrentRoomCode = code;
+            _waitingForConnection = true;
             Debug.Log($"[LobbyManager] 에디터 로컬 접속 시도 (localhost) | 입력한 코드: {code}");
 
             NetworkManager.singleton.networkAddress = "localhost";
             NetworkManager.singleton.StartClient();
-            OnLobbyEntered?.Invoke(true);
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(CodeKey, code, ELobbyComparison.k_ELobbyComparisonEqual);
@@ -175,8 +193,19 @@ namespace PixelChroma
         public void JoinQuickMatch()
         {
 #if UNITY_EDITOR
-            Debug.LogWarning("[LobbyManager] 에디터에서는 빠른 참가가 불가합니다. 코드로 참가(localhost)를 이용하세요.");
-            OnLobbyEntered?.Invoke(false);
+            if (NetworkServer.active)
+            {
+                Debug.LogWarning("[LobbyManager] 이미 당신의 에디터에서 서버가 실행 중입니다! 중복 입장을 거부합니다.");
+                OnLobbyEntered?.Invoke(false);
+                return;
+            }
+
+            IsHost = false;
+            _waitingForConnection = true;
+            Debug.Log("[LobbyManager] 에디터 빠른 참가 시도 (localhost)");
+
+            NetworkManager.singleton.networkAddress = "localhost";
+            NetworkManager.singleton.StartClient();
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(IsPublicKey, "True", ELobbyComparison.k_ELobbyComparisonEqual);
