@@ -119,15 +119,16 @@ namespace PixelChroma.UI
             popup.Setup(LobbyManager.Instance.CurrentRoomOption, true);
             popup.SetMaps(LobbyManager.Instance.AvailableMaps);
 
-            popup.OnCreate -= OnRoomSettingUpdated;
-            popup.OnCreate += OnRoomSettingUpdated;
+            popup.OnSettingsApplied -= OnRoomSettingUpdated;
+            popup.OnSettingsApplied += OnRoomSettingUpdated;
         }
 
         private void OnRoomSettingUpdated(RoomOption option)
         {
             var popup = UIManager.Instance.GetPanel<UIRoomSetting>();
-            if (popup != null) popup.OnCreate -= OnRoomSettingUpdated;
+            //if (popup != null) popup.OnCreate -= OnRoomSettingUpdated;
 
+            if (popup != null) popup.OnSettingsApplied -= OnRoomSettingUpdated;
             LobbyManager.Instance.UpdateLobbySettings(option);
 
             UIManager.Instance.HidePopup().Forget();

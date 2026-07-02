@@ -44,65 +44,6 @@ namespace PixelChroma.UI
         {
             LobbyManager.Instance.OnLobbyEntered -= HandleQuickJoinResult;
 
-        private void OnDisable()
-        {
-            if (LobbyManager.Instance != null)
-                LobbyManager.Instance.OnLobbyEntered -= HandleLobbyEntered;
-        }
-
-        private void OnClickOpenSettings()
-        {
-            ShowRoomSettingPopup().Forget();
-        }
-
-        private async UniTaskVoid ShowRoomSettingPopup()
-        {
-            var popup = await UIManager.Instance.ShowPopup<UIRoomSetting>();
-            if (popup == null) return;
-
-            popup.Setup(LobbyManager.Instance.CurrentRoomOption, false);
-            popup.SetMaps(LobbyManager.Instance.AvailableMaps);
-
-            popup.OnCreate -= OnRoomSettingCreate;
-            popup.OnCreate += OnRoomSettingCreate;
-        }
-
-        private void OnRoomSettingCreate(RoomOption option)
-        {
-            var popup = UIManager.Instance.GetPanel<UIRoomSetting>();
-            if (popup != null) popup.OnCreate -= OnRoomSettingCreate;
-
-            SetInteractable(false);
-            SetStatus("방 생성 중...");
-
-            LobbyManager.Instance.CreateLobby(option);
-            UIManager.Instance.HidePopup().Forget();
-        }
-
-        private void OnClickQuickJoin()
-        {
-            SetInteractable(false);
-            SetStatus("공개방 찾는 중...");
-            LobbyManager.Instance.JoinQuickMatch();
-        }
-
-        private void OnClickJoin()
-        {
-            string code = roomCodeInput.text.Trim();
-
-            if (code.Length != 6)
-            {
-                SetStatus("6자리 코드를 입력해주세요.");
-                return;
-            }
-
-            SetInteractable(false);
-            SetStatus("방 입장 중...");
-            LobbyManager.Instance.JoinLobbyByCode(code);
-        }
-
-        private void HandleLobbyEntered(bool success)
-        {
             if (success)
             {
                 GameManager.Instance.EnterLobby().Forget();
@@ -110,6 +51,21 @@ namespace PixelChroma.UI
             }
 
             SetStatus("공개방을 찾을 수 없습니다.");
+            SetInteractable(true);
+        }
+
+        // 💡 [추가] 방 생성 결과를 처리하는 핸들러
+        private void HandleCreateRoomResult(bool success)
+        {
+            LobbyManager.Instance.OnLobbyEntered -= HandleCreateRoomResult;
+
+            if (success)
+            {
+                GameManager.Instance.EnterLobby().Forget();
+                return;
+            }
+
+            SetStatus("방 생성에 실패했습니다.");
             SetInteractable(true);
         }
 
@@ -160,10 +116,41 @@ namespace PixelChroma.UI
             LobbyManager.Instance.JoinQuickMatch();
         }
 
+        // ── 💡 방 생성 로직 연동 (팝업 호출 및 이벤트 구독) ───────────────────
         private void OnClickCreateRoom()
         {
-            UIManager.Instance.ShowPopup<UIRoomSetting>().Forget();
+            ShowRoomSettingPopup().Forget();
         }
+
+        private async UniTaskVoid ShowRoomSettingPopup()
+        {
+            var popup = await UIManager.Instance.ShowPopup<UIRoomSetting>();
+            if (popup == null) return;
+
+            // 메인메뉴(방 생성 모드)이므로 isEditMode = false 로 넘겨줍니다.
+            popup.Setup(LobbyManager.Instance.CurrentRoomOption, false);
+            popup.SetMaps(LobbyManager.Instance.AvailableMaps);
+
+            // 앞서 수정한 이벤트 이름 'OnSettingsApplied'를 안전하게 구독합니다.
+            popup.OnSettingsApplied -= OnRoomSettingCreate;
+            popup.OnSettingsApplied += OnRoomSettingCreate;
+        }
+
+        private void OnRoomSettingCreate(RoomOption option)
+        {
+            var popup = UIManager.Instance.GetPanel<UIRoomSetting>();
+            if (popup != null) popup.OnSettingsApplied -= OnRoomSettingCreate;
+
+            SetInteractable(false);
+            SetStatus("방 생성 중...");
+
+            // 방 생성 완료 시 로비 씬으로 넘어가도록 결과 핸들러를 구독합니다.
+            LobbyManager.Instance.OnLobbyEntered += HandleCreateRoomResult;
+
+            LobbyManager.Instance.CreateLobby(option);
+            UIManager.Instance.HidePopup().Forget();
+        }
+        // ──────────────────────────────────────────────────────────────────
 
         private void OnClickFindRoom()
         {

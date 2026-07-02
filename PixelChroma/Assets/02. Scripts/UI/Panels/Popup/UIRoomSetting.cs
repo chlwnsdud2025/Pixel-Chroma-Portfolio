@@ -50,7 +50,7 @@ namespace PixelChroma.UI
         private bool _isEditMode = false;
 
         public RoomOption CurrentOption => _option;
-
+        public event Action<RoomOption> OnSettingsApplied;
         public override void Initialize()
         {
             base.Initialize();
@@ -196,8 +196,7 @@ namespace PixelChroma.UI
 
         private void OnClickCreate()
         {
-            if (createButton != null) createButton.interactable = false;
-            LobbyManager.Instance.CreateLobby(_option);
+            OnSettingsApplied?.Invoke(_option);
         }
 
         private void HandleLobbyEntered(bool success)
