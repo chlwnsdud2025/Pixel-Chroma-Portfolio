@@ -17,6 +17,8 @@ namespace PixelChroma.UI
         [SerializeField] private Button copyCodeButton;
         [SerializeField] private Button leaveButton;
 
+        [SerializeField] private Button roomSettingsButton;
+
         [Header("Ready & Start")]
         [SerializeField] private Button readyButton;
         [SerializeField] private Button startGameButton;
@@ -44,6 +46,10 @@ namespace PixelChroma.UI
             if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
             if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
             if (inviteFriendButton != null) inviteFriendButton.onClick.AddListener(OnClickInviteFriend);
+
+            // 💡 설정 열기 버튼 이벤트 등록
+            if (roomSettingsButton != null) roomSettingsButton.onClick.AddListener(OnClickRoomSettings);
+
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
         }
 
@@ -58,7 +64,6 @@ namespace PixelChroma.UI
             LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
             LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
 
-            // 💡 [수정] 이벤트 명과 헷갈리지 않도록 함수 명을 Handle~ 로 변경하여 안전하게 구독합니다.
             ChromaNetworkManager.OnCountdownTick += HandleCountdownTick;
             ChromaNetworkManager.OnCountdownEnd += HandleCountdownEnd;
 
@@ -71,6 +76,10 @@ namespace PixelChroma.UI
                 startGameButton.interactable = false;
             }
 
+            // 💡 호스트(방장)에게만 방 설정 변경 버튼과 초대 버튼이 보이게 합니다.
+            if (roomSettingsButton != null)
+                roomSettingsButton.gameObject.SetActive(NetworkServer.active);
+
             if (inviteFriendButton != null)
                 inviteFriendButton.gameObject.SetActive(NetworkServer.active);
         }
@@ -82,7 +91,6 @@ namespace PixelChroma.UI
 
             LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
 
-            // 💡 [수정] 구독 해제
             ChromaNetworkManager.OnCountdownTick -= HandleCountdownTick;
             ChromaNetworkManager.OnCountdownEnd -= HandleCountdownEnd;
         }
@@ -95,6 +103,37 @@ namespace PixelChroma.UI
 
             return UniTask.CompletedTask;
         }
+
+        // ── 방 설정 관리 (로비용) ──────────────────────────────────────────
+
+        private void OnClickRoomSettings()
+        {
+            ShowRoomSettingPopup().Forget();
+        }
+
+        private async UniTaskVoid ShowRoomSettingPopup()
+        {
+            var popup = await UIManager.Instance.ShowPopup<UIRoomSetting>();
+            if (popup == null) return;
+
+            popup.Setup(LobbyManager.Instance.CurrentRoomOption, true);
+            popup.SetMaps(LobbyManager.Instance.AvailableMaps);
+
+            popup.OnCreate -= OnRoomSettingUpdated;
+            popup.OnCreate += OnRoomSettingUpdated;
+        }
+
+        private void OnRoomSettingUpdated(RoomOption option)
+        {
+            var popup = UIManager.Instance.GetPanel<UIRoomSetting>();
+            if (popup != null) popup.OnCreate -= OnRoomSettingUpdated;
+
+            LobbyManager.Instance.UpdateLobbySettings(option);
+
+            UIManager.Instance.HidePopup().Forget();
+            Debug.Log("[UILobby] 방 설정이 업데이트되었습니다!");
+        }
+
 
         // ── Ready UI ─────────────────────────────────────────
 
@@ -135,7 +174,9 @@ namespace PixelChroma.UI
             {
                 ChromaNetworkManager manager = NetworkManager.singleton as ChromaNetworkManager;
                 LobbyManager.Instance.ChangeLobbyStatusToInGame();
-                manager?.StartGame();
+
+                // 수정한 방 설정 옵션을 인자로 넘겨 게임을 시작합니다!
+                manager?.StartGameWithOption(LobbyManager.Instance.CurrentRoomOption);
             }
         }
 
@@ -146,7 +187,6 @@ namespace PixelChroma.UI
             if (timerText == null) return;
 
             timerText.gameObject.SetActive(true);
-            // 텍스트를 조금 더 친절하게 표시하도록 수정할 수 있습니다.
             timerText.text = $"게임 시작까지... {remainingSeconds}";
         }
 
@@ -201,7 +241,7 @@ namespace PixelChroma.UI
         {
 #if UNITY_EDITOR
             Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
-#else            
+#else
             if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
             {
                 Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");

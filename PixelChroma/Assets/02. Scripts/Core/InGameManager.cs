@@ -3,17 +3,13 @@ using UnityEngine;
 
 namespace PixelChroma
 {
+    // 💡 다시 평화로운 MonoSingleton으로 돌아왔습니다!
     public class InGameManager : MonoSingleton<InGameManager>
     {
-        // 맵이 로드되면서 동적으로 수집할 스폰 포인트 보관소
         private Transform _enemySpawnPoint;
         private readonly List<Transform> _playerSpawnPoints = new();
-
         private int _currentPlayerSpawnIndex = 0;
 
-        /// <summary>
-        /// 씬에 생성된 맵 내부의 스폰 포인트들이 InGameManager에게 자신을 등록할 때 호출합니다.
-        /// </summary>
         public void RegisterSpawnPoint(PlayerRole role, Transform spawnTransform)
         {
             if (role == PlayerRole.Seeker)
@@ -31,9 +27,6 @@ namespace PixelChroma
             }
         }
 
-        /// <summary>
-        /// 게임 한 판이 끝나고 로비나 메인메뉴로 나갈 때, 이전 맵의 찌꺼기 참조를 청소합니다.
-        /// </summary>
         public void ClearSpawnPoints()
         {
             _enemySpawnPoint = null;
@@ -42,12 +35,8 @@ namespace PixelChroma
             Debug.Log("[InGameManager] 이전 판의 스폰 포인트 데이터가 초기화되었습니다.");
         }
 
-        /// <summary>
-        /// 네트워크 매니저가 플레이어 배치용 좌표를 요구할 때 호출합니다.
-        /// </summary>
         public Vector3 GetSpawnPosition(PlayerRole role)
         {
-            // 1. 술래(Enemy) 스폰 연산
             if (role == PlayerRole.Seeker)
             {
                 if (_enemySpawnPoint != null)
@@ -59,7 +48,6 @@ namespace PixelChroma
                 return Vector3.zero;
             }
 
-            // 2. 도망자(Player) 골고루 무작위 분산 스폰 연산 (라운드 로빈)
             if (_playerSpawnPoints == null || _playerSpawnPoints.Count == 0)
             {
                 Debug.LogWarning("[InGameManager] 등록된 Player 스폰 포인트가 없습니다! Vector3.zero를 반환합니다.");

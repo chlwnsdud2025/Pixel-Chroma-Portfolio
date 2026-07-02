@@ -57,8 +57,9 @@ namespace PixelChroma.UI
             var popup = await UIManager.Instance.ShowPopup<UIRoomSetting>();
             if (popup == null) return;
 
-            popup.Setup(LobbyManager.Instance.CurrentRoomOption);
+            popup.Setup(LobbyManager.Instance.CurrentRoomOption, false);
             popup.SetMaps(LobbyManager.Instance.AvailableMaps);
+
             popup.OnCreate -= OnRoomSettingCreate;
             popup.OnCreate += OnRoomSettingCreate;
         }

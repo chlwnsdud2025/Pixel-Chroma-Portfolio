@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using TMPro;
@@ -42,10 +42,12 @@ namespace PixelChroma.UI
 
         [Header("Create")]
         [SerializeField] private Button createButton;
+        [SerializeField] private TMP_Text createButtonText;
 
         private RoomOption _option;
         private List<MapEntry> _maps = new();
         private int _selectedMapIndex = -1;
+        private bool _isEditMode = false;
 
         public RoomOption CurrentOption => _option;
         public event Action<RoomOption> OnCreate;
@@ -85,10 +87,18 @@ namespace PixelChroma.UI
             if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
         }
 
-        public void Setup(RoomOption option)
+        public void Setup(RoomOption option, bool isEditMode = false)
         {
             _option = option?.Clone() ?? new RoomOption();
+            _isEditMode = isEditMode;
+
             RefreshAllUI();
+
+            // 💡 수정 모드일 때와 생성 모드일 때 하단 버튼의 글자를 동적으로 바꿉니다!
+            if (createButtonText != null)
+            {
+                createButtonText.text = _isEditMode ? "변경" : "생성";
+            }
         }
 
         public void SetMaps(List<MapEntry> maps)
@@ -107,7 +117,7 @@ namespace PixelChroma.UI
 
         protected override UniTask OnShow()
         {
-            ResetToDefaults();
+            //ResetToDefaults();
             return UniTask.CompletedTask;
         }
 
