@@ -286,16 +286,6 @@ MonoBehaviour:
   moveSpeed: 8
   maxPPU: 64
   zoomStepPPU: 2
-  defaultCursor: {fileID: 2800000, guid: fc92001ad7679b34c994797f3e779030, type: 3}
-  brushCursor: {fileID: 2800000, guid: fc92001ad7679b34c994797f3e779030, type: 3}
-  eraserCursor: {fileID: 2800000, guid: fc92001ad7679b34c994797f3e779030, type: 3}
-  eyedropperCursor: {fileID: 2800000, guid: fc92001ad7679b34c994797f3e779030, type: 3}
-  crosshairCursor: {fileID: 2800000, guid: b13ac2f4d9d7dca4a8aac96972f93c27, type: 3}
-  defaultHotspot: {x: 0, y: 0}
-  brushHotspot: {x: 0, y: 0}
-  eraserHotspot: {x: 0, y: 0}
-  eyedropperHotspot: {x: 0, y: 0}
-  crosshairHotspot: {x: 16, y: 16}
   role: 2
   catchRadius: 0.75
   weaponPivot: {fileID: 3992759080059206177}
@@ -305,6 +295,9 @@ MonoBehaviour:
   runnerLayer:
     serializedVersion: 2
     m_Bits: 256
+  obstacleLayer:
+    serializedVersion: 2
+    m_Bits: 2048
   waterSplashPrefab: {fileID: 7511292617098089931, guid: 0818940c27f4a47478f9a7637c4feddf, type: 3}
 --- !u!114 &-5294142182456280051
 MonoBehaviour:

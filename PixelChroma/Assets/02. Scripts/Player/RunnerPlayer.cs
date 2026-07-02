@@ -2,6 +2,7 @@ using UnityEngine;
 using Mirror;
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
+using UnityEngine.InputSystem;
 
 namespace PixelChroma
 {
@@ -11,15 +12,111 @@ namespace PixelChroma
         [Tooltip("캐릭터의 이동 속도를 설정합니다.")]
         public float runnerMoveSpeed = 5f;
 
+        [Header("Free Cam Settings")]
+        [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
+        public float freeCamSpeed = 15f;
+
+        private bool _isFrozen = false;
+        private GameObject _freeCamTarget;
+
         protected override void OnLocalPlayerStarted()
         {
-            moveSpeed = runnerMoveSpeed; // 도망자는 보통 술래보다 같거나 살짝 빠릅니다.
+            moveSpeed = runnerMoveSpeed;
             ShowHUDAsync().Forget();
+
+            _freeCamTarget = new GameObject("FreeCamTarget");
+            _freeCamTarget.transform.position = transform.position;
         }
 
         protected override void OnLocalPlayerStopped()
         {
             UnbindPaintHUD();
+
+            if (_freeCamTarget != null)
+                Destroy(_freeCamTarget);
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            if (!isLocalPlayer) return;
+
+            // 단축키 'F'를 누르면 고정 모드 토글! (원하시는 키로 변경 가능)
+            if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame)
+            {
+                ToggleFreezeMode();
+            }
+        }
+
+        public void ToggleFreezeMode()
+        {
+            _isFrozen = !_isFrozen;
+
+            if (_isFrozen)
+            {
+                // [고정 모드 ON]
+                // 가짜 타겟을 현재 내 위치로 불러온 뒤, 카메라가 가짜 타겟을 따라가게 덮어씌움
+                _freeCamTarget.transform.position = transform.position;
+                if (cinemachineCamera != null)
+                {
+                    cinemachineCamera.Follow = _freeCamTarget.transform;
+                }
+
+                // 캐릭터는 즉시 정지
+                if (GetComponent<Rigidbody2D>() != null)
+                {
+                    GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+                }
+            }
+            else
+            {
+                // [고정 모드 OFF]
+                // 카메라가 다시 내 캐릭터를 따라가도록 원상 복구
+                if (cinemachineCamera != null)
+                {
+                    cinemachineCamera.Follow = transform;
+                }
+            }
+        }
+
+        protected override void HandleMovement()
+        {
+            if (GetComponent<Rigidbody2D>() == null) return;
+
+            Vector2 input = moveAction.ReadValue<Vector2>();
+
+            if (_isFrozen)
+            {
+                // 고정 모드일 때는 캐릭터 대신 "가짜 타겟(카메라)"만 이동시킴
+                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+
+                if (_freeCamTarget != null)
+                {
+                    _freeCamTarget.transform.position += (Vector3)input * freeCamSpeed * Time.fixedDeltaTime;
+                }
+            }
+            else
+            {
+                // 평소에는 정상적으로 내 캐릭터 이동
+                base.HandleMovement();
+            }
+        }
+
+        protected override void UpdateAnimation()
+        {
+            if (animator == null) return;
+
+            // 고정 모드면 입력값을 강제로 (0,0)으로 만들어서 애니메이터에 전달
+            Vector2 input = _isFrozen ? Vector2.zero : moveAction.ReadValue<Vector2>();
+            bool moving = input.sqrMagnitude > 0.01f;
+
+            animator.SetBool(IsMoving, moving);
+            if (moving)
+            {
+                animator.SetFloat(MoveX, input.x);
+                animator.SetFloat(MoveY, input.y);
+            }
         }
 
         private async UniTaskVoid ShowHUDAsync()
@@ -28,49 +125,54 @@ namespace PixelChroma
             BindPaintHUD(hud);
         }
 
-        // ── 피격 및 지워짐 로직 ──────────────────────────────────────
+        // ── 피격 및 지워짐 로직 (동기화 100% 보장 버전) ──────────────────────
 
-        [ClientRpc]
-        public void RpcTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
+        
+        //서버에서만 실행됩니다. 오차가 없는 서버의 절대 좌표를 기준으로 픽셀을 미리 계산합니다.
+        [Server]
+        public void ServerTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
         {
             if (paintCanvas == null) return;
 
-            // 1. 물총이 터진 월드 좌표를 내 캔버스의 픽셀 좌표로 변환합니다.
+            // 1. 서버의 "단일 진실(Single Source of Truth)" 위치를 기준으로 픽셀 중앙점을 계산합니다.
             Vector2Int centerPixel = paintCanvas.WorldToPixel(hitWorldPos);
 
-            // 💡 [핵심 수정] 캐릭터의 Transform Scale이 커졌을 경우를 대비한 오차 보정
-            // (월드 공간의 폭발이 캐릭터 로컬 공간에서는 몇 유닛인지 비율을 정확히 맞춥니다)
+            // 2. 픽셀 반경도 서버에서 미리 계산합니다.
             float lossyScale = transform.lossyScale.x;
             float localAoeRadius = aoeRadius / lossyScale;
-
-            // 2. 캔버스의 실제 PPU를 가져와 정확한 픽셀 반경을 계산합니다.
             int pixelRadius = Mathf.RoundToInt(localAoeRadius * paintCanvas.PixelsPerUnit);
 
-            // 3. 원형 범위 내의 픽셀을 "원본 색상"으로 조용히(Local) 되돌립니다.
+            // 3. 변환이 완벽하게 끝난 '순수 픽셀 데이터(int)'만 클라이언트들에게 전송합니다!
+            RpcTakeEraseDamageByPixel(centerPixel, pixelRadius);
+        }
+
+        //모든 클라이언트에서 실행됩니다. 서버가 지정해준 픽셀만 무조건 똑같이 지웁니다.
+        [ClientRpc]
+        public void RpcTakeEraseDamageByPixel(Vector2Int centerPixel, int pixelRadius)
+        {
+            if (paintCanvas == null) return;
+
+            // 이미 서버가 계산해준 정확한 centerPixel과 pixelRadius를 그대로 사용하므로 
+            // 클라이언트 간 픽셀 오차가 0%가 됩니다!
             for (int x = -pixelRadius; x <= pixelRadius; x++)
             {
                 for (int y = -pixelRadius; y <= pixelRadius; y++)
                 {
-                    // 수학적 원의 방정식 (x^2 + y^2 <= r^2) 검사
                     if (x * x + y * y <= pixelRadius * pixelRadius)
                     {
                         int px = centerPixel.x + x;
                         int py = centerPixel.y + y;
 
-                        // 캔버스 범위를 벗어나지 않는지 확인 후 원본 복구
                         if (paintCanvas.IsInBounds(px, py))
                         {
-                            // 칠하기 전 원본 픽셀로 복구!
                             paintCanvas.RestorePixelLocal(px, py);
                         }
                     }
                 }
             }
 
-            // 4. 복구된 픽셀 데이터를 한 번에 텍스처에 적용(Apply)하여 화면을 갱신합니다.
             paintCanvas.ApplyChanges();
 
-            // 5. 내 캐릭터라면 캔버스를 검사해 몸이 다 지워졌는지(체력 0) 판단합니다.
             if (isLocalPlayer)
             {
                 CheckIfCaught();
@@ -81,10 +183,8 @@ namespace PixelChroma
         {
             if (paintCanvas == null) return;
 
-            // 캔버스의 모든 픽셀을 검사해서 페인트가 1픽셀이라도 남아있는지 확인합니다.
             bool isAlive = paintCanvas.HasAnyPaintedPixels();
 
-            // 남아있는 덧칠 픽셀이 없다면(완전히 씻겨 나갔다면), 내가 잡혔음을 서버에 공식 선언합니다!
             if (!isAlive)
             {
                 CmdNotifyCaught();
@@ -94,11 +194,8 @@ namespace PixelChroma
         [Command]
         private void CmdNotifyCaught()
         {
-            // 서버에서 이 Runner가 공식적으로 잡혔음을 선언
             Debug.Log($"[Runner] {netId}번 플레이어의 색상이 모두 지워져 아웃되었습니다!");
-
-            // 추후 InGameManager에게 "Runner 1명 탈락!" 이벤트를 보내어
-            // 관전자 모드로 전환시키거나, 모든 러너가 잡혔을 경우 게임 종료 판정을 넣으시면 됩니다.
+            // TODO: 게임 매니저에 아웃 알림
         }
     }
 }

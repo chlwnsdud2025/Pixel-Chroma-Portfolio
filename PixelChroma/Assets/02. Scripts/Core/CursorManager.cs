@@ -37,13 +37,13 @@ namespace PixelChroma.UI
 
         private Canvas _parentCanvas;
 
+        [HideInInspector] public Vector2? overrideScreenPosition = null;
+
         private void InitCanvas()
         {
             if (cursorRect != null && _parentCanvas == null)
             {
                 _parentCanvas = cursorRect.GetComponentInParent<Canvas>();
-                // 💡 에러의 원인이었던 불필요한 DontDestroyOnLoad 로직 완벽 삭제!
-                // (이미 UIManager가 싱글톤으로 유지되고 있으므로 알아서 살아남습니다.)
             }
         }
 
@@ -59,9 +59,7 @@ namespace PixelChroma.UI
             if (_parentCanvas == null) InitCanvas();
             if (_parentCanvas == null || Mouse.current == null) return;
 
-            Vector2 mousePos = Mouse.current.position.ReadValue();
-
-            // 💡 [궁극의 수학 공식] 
+            Vector2 mousePos = overrideScreenPosition ?? Mouse.current.position.ReadValue();
             // 캔버스의 크기, 해상도, 렌더 모드(Overlay/Camera)에 상관없이 
             // 스크린 마우스 좌표를 캔버스 내부의 정확한 로컬 좌표로 100% 완벽하게 변환합니다.
             RectTransform canvasRect = _parentCanvas.GetComponent<RectTransform>();

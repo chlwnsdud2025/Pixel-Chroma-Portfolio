@@ -18,6 +18,7 @@ namespace PixelChroma
         [SerializeField] private float fireRange = 5f;        // 물총 최대 사거리
         [SerializeField] private float aoeRadius = 2f;        // 물풍선(물총) 폭발/지워짐 범위
         [SerializeField] private LayerMask runnerLayer;       // Runner를 감지할 물리 레이어
+        [SerializeField] private LayerMask obstacleLayer;     // 물총이 막힐 벽 Layer
         [SerializeField] private GameObject waterSplashPrefab;// 물 튀기는 폭발 이펙트 프리팹 (옵션)
 
         // 다른 클라이언트들에게 내 팔이 어디를 조준하고 있는지 보여주기 위한 동기화 변수
@@ -28,16 +29,45 @@ namespace PixelChroma
         private Camera _mainCam;
         private static Sprite _circleSprite; // 임시 원형 스프라이트 캐싱용
 
+
+        private SpriteRenderer[] _weaponRenderers;
         protected override void OnLocalPlayerStarted()
         {
             moveSpeed = 4f;
             _mainCam = Camera.main;
+
+            if (weaponPivot != null)
+            {
+                _weaponRenderers = weaponPivot.GetComponentsInChildren<SpriteRenderer>(true);
+            }
+
+            OnPaintModeChanged += HandleLocalPaintModeChanged;
             ShowHUDAsync().Forget();
         }
 
         protected override void OnLocalPlayerStopped()
         {
             UnbindPaintHUD();
+
+            OnPaintModeChanged -= HandleLocalPaintModeChanged;
+
+            if (CursorManager.Instance != null)
+                CursorManager.Instance.overrideScreenPosition = null;
+        }
+
+        private void HandleLocalPaintModeChanged(bool isPaint)
+        {
+            if (_weaponRenderers == null) return;
+
+            // 페인트 모드(isPaint)가 켜지면 무기를 끄고(!isPaint), 꺼지면 무기를 켭니다.
+            // 이 동작은 네트워크로 전송되지 않으므로 '나'에게만 안 보이게 됩니다!
+            foreach (var sr in _weaponRenderers)
+            {
+                if (sr != null)
+                {
+                    sr.enabled = !isPaint;
+                }
+            }
         }
 
         private async UniTaskVoid ShowHUDAsync()
@@ -65,9 +95,40 @@ namespace PixelChroma
             Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(mouseScreenPos);
             mouseWorldPos.z = 0;
 
-            Vector2 aimDirection = (mouseWorldPos - weaponPivot.position).normalized;
-            float angle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
+            Vector2 currentPos = weaponPivot.position;
+            Vector2 targetWorldPos = mouseWorldPos;
+            Vector2 aimDirection = (targetWorldPos - currentPos).normalized;
 
+            if (!isPaintMode)
+            {
+                float distanceToTarget = Vector2.Distance(currentPos, targetWorldPos);
+                float maxDist = Mathf.Min(distanceToTarget, fireRange);
+
+                // 💡 [조준선 벽 감지] 총구에서 조준점까지 레이저를 쏴서 벽이 있는지 검사합니다.
+                RaycastHit2D hit = Physics2D.Raycast(currentPos, aimDirection, maxDist, obstacleLayer);
+
+                if (hit.collider != null)
+                {
+                    // 벽에 막혔다면, 조준선을 벽 표면(hit.point)에 고정시킵니다!
+                    targetWorldPos = hit.point;
+                }
+                else
+                {
+                    // 벽이 없다면 기존처럼 최대 사거리까지만 뻗어나갑니다.
+                    targetWorldPos = currentPos + aimDirection * maxDist;
+                }
+
+                Vector3 clampedScreenPos = _mainCam.WorldToScreenPoint(targetWorldPos);
+                if (CursorManager.Instance != null)
+                    CursorManager.Instance.overrideScreenPosition = clampedScreenPos;
+            }
+            else
+            {
+                if (CursorManager.Instance != null)
+                    CursorManager.Instance.overrideScreenPosition = null;
+            }
+
+            float angle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
             ApplyAimRotation(angle);
 
             if (Mathf.Abs(_syncAimAngle - angle) > 5f)
@@ -118,11 +179,19 @@ namespace PixelChroma
 
                     Vector2 currentPos = weaponPivot != null ? weaponPivot.position : transform.position;
                     Vector2 targetPos = mouseWorldPos;
+                    Vector2 dir = (targetPos - currentPos).normalized;
 
-                    if (Vector2.Distance(currentPos, targetPos) > fireRange)
+                    float dist = Mathf.Min(Vector2.Distance(currentPos, targetPos), fireRange);
+
+                    // 클라이언트 측에서도 즉각적인 타격감을 위해 벽을 계산해서 쏴줍니다.
+                    RaycastHit2D hit = Physics2D.Raycast(currentPos, dir, dist, obstacleLayer);
+                    if (hit.collider != null)
                     {
-                        Vector2 dir = (targetPos - currentPos).normalized;
-                        targetPos = currentPos + dir * fireRange;
+                        targetPos = hit.point;
+                    }
+                    else
+                    {
+                        targetPos = currentPos + dir * dist;
                     }
 
                     _lastFireTime = Time.time;
@@ -135,8 +204,21 @@ namespace PixelChroma
         [Command]
         private void CmdFireWaterGun(Vector2 targetPos)
         {
-            if (Vector2.Distance(transform.position, targetPos) > fireRange * 1.2f) return;
+            Vector2 currentPos = weaponPivot != null ? weaponPivot.position : (Vector2)transform.position;
+            Vector2 dir = (targetPos - currentPos).normalized;
+            float dist = Vector2.Distance(currentPos, targetPos);
 
+            // 클라이언트가 보낸 거리가 최대 사거리를 넘으면 컷!
+            dist = Mathf.Min(dist, fireRange);
+
+            // 서버가 직접 레이캐스트를 쏴서 중간에 벽이 있는지 확인합니다.
+            RaycastHit2D hit = Physics2D.Raycast(currentPos, dir, dist, obstacleLayer);
+            if (hit.collider != null)
+            {
+                targetPos = hit.point; // 벽에 막혔다면 최종 폭발 위치를 벽 표면으로 강제 수정!
+            }
+
+            // 확정된 targetPos(폭발 지점)를 기준으로 Runner가 반경 안에 있는지 검사
             Collider2D[] hitColliders = Physics2D.OverlapCircleAll(targetPos, aoeRadius, runnerLayer);
 
             foreach (var col in hitColliders)
@@ -144,12 +226,10 @@ namespace PixelChroma
                 var runner = col.GetComponent<RunnerPlayer>();
                 if (runner != null)
                 {
-                    // 맞은 도망자의 캔버스를 지우도록 명령
-                    runner.RpcTakeEraseDamage(targetPos, aoeRadius);
+                    runner.ServerTakeEraseDamage(targetPos, aoeRadius);
                 }
             }
 
-            // 빗맞추더라도 폭발 이펙트는 모든 화면에 보이도록 호출
             RpcPlayFireEffect(targetPos);
         }
 

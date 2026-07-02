@@ -152,7 +152,7 @@ namespace PixelChroma
                 : Vector2.zero;
         }
 
-        private void UpdateAnimation()
+        protected virtual void UpdateAnimation()
         {
             if (animator == null) return;
 
