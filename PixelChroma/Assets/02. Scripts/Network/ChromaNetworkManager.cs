@@ -49,6 +49,14 @@ namespace PixelChroma
 #endif
         }
 
+        public override void OnClientConnect()
+        {
+            base.OnClientConnect();
+
+            if (LobbyManager.Instance != null && !NetworkServer.active)
+                LobbyManager.Instance.NotifyClientConnected();
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
@@ -190,6 +198,9 @@ namespace PixelChroma
         public override void OnClientDisconnect()
         {
             base.OnClientDisconnect();
+
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.NotifyClientDisconnected();
 
             if (InGameManager.Instance != null)
             {

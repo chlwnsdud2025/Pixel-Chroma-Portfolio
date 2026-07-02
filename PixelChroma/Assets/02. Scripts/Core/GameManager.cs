@@ -57,6 +57,7 @@ namespace PixelChroma
         {
             CurrentState = GameState.Lobby;
             EnsureEventSystem();
+            await UIManager.Instance.HideAllPopups();
             await UIManager.Instance.ShowScene<UILobby>();
         }
 

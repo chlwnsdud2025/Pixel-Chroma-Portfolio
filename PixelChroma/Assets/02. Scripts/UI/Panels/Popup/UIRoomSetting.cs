@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -48,7 +47,6 @@ namespace PixelChroma.UI
         private int _selectedMapIndex = -1;
 
         public RoomOption CurrentOption => _option;
-        public event Action<RoomOption> OnCreate;
 
         public override void Initialize()
         {
@@ -107,14 +105,19 @@ namespace PixelChroma.UI
 
         protected override UniTask OnShow()
         {
-            ResetToDefaults();
+            Setup(LobbyManager.Instance.CurrentRoomOption);
+            SetMaps(LobbyManager.Instance.AvailableMaps);
+            LobbyManager.Instance.OnLobbyEntered += HandleLobbyEntered;
+
             return UniTask.CompletedTask;
         }
 
-        public void ResetToDefaults()
+        protected override UniTask OnHide()
         {
-            _option = new RoomOption();
-            RefreshAllUI();
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.OnLobbyEntered -= HandleLobbyEntered;
+
+            return UniTask.CompletedTask;
         }
 
         private void SetPublic(bool isPublic)
@@ -181,7 +184,19 @@ namespace PixelChroma.UI
 
         private void OnClickCreate()
         {
-            OnCreate?.Invoke(_option);
+            if (createButton != null) createButton.interactable = false;
+            LobbyManager.Instance.CreateLobby(_option);
+        }
+
+        private void HandleLobbyEntered(bool success)
+        {
+            if (success)
+            {
+                GameManager.Instance.EnterLobby().Forget();
+                return;
+            }
+
+            if (createButton != null) createButton.interactable = true;
         }
 
         private void RefreshAllUI()
@@ -263,7 +278,7 @@ namespace PixelChroma.UI
         }
     }
 
-    [Serializable]
+    [System.Serializable]
     public class MapEntry
     {
         public string name;
