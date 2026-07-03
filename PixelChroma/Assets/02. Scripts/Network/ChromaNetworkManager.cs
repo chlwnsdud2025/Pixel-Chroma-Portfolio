@@ -99,7 +99,7 @@ namespace PixelChroma
         {
             if (CurrentTimeState == TimeState.HideTime || CurrentTimeState == TimeState.SeekTime)
             {
-                // 서버와 클라이언트 모두 각자 컴퓨터에서 타이머를 깎습니다 (UI가 부드럽게 흐르도록)
+                // 서버와 클라이언트 모두 각자 컴퓨터에서 타이머를 깎습니다
                 if (CurrentTimer > 0)
                     CurrentTimer -= Time.deltaTime;
 
@@ -110,6 +110,18 @@ namespace PixelChroma
                     {
                         float seekTime = CurrentRoomOption != null ? CurrentRoomOption.seekTime : 180f;
                         SetTimeState(TimeState.SeekTime, seekTime);
+
+                        // 찾는 시간이 시작되었으므로 술래들을 대기실에서 본진으로 텔레포트!
+                        if (InGameManager.Instance != null)
+                        {
+                            Vector3 seekerMainSpawn = InGameManager.Instance.GetSpawnPosition(PlayerRole.Seeker, false);
+
+                            // SeekerPlayer에 만들어둔 전역 리스트(AllSeekers)를 활용해 모두 텔레포트
+                            foreach (var seeker in SeekerPlayer.AllSeekers)
+                            {
+                                seeker.RpcTeleport(seekerMainSpawn);
+                            }
+                        }
                     }
                     else if (CurrentTimeState == TimeState.SeekTime)
                     {
@@ -221,7 +233,8 @@ namespace PixelChroma
 
                 if (InGameManager.Instance != null)
                 {
-                    spawnPos = InGameManager.Instance.GetSpawnPosition(role);
+                    bool isWaiting = (role == PlayerRole.Seeker);
+                    spawnPos = InGameManager.Instance.GetSpawnPosition(role, isWaiting);
                 }
                 else
                 {
