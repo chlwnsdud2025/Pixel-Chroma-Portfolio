@@ -12,12 +12,24 @@ namespace PixelChroma.UI
     public class UILobby : UIScene, IPaintHUD
     {
         [Header("Room Info")]
+        [SerializeField] private TMP_Text roomTitleText;
         [SerializeField] private TMP_Text roomCodeText;
         [SerializeField] private TMP_Text memberListText;
+        [SerializeField] private TMP_Text playerCountText;
         [SerializeField] private Button copyCodeButton;
         [SerializeField] private Button leaveButton;
 
         [SerializeField] private Button roomSettingsButton;
+
+        [Header("Show Code")]
+        [SerializeField] private Button showCodeButton;
+        [SerializeField] private Image showCodeIcon;
+        [SerializeField] private Sprite shownSprite;
+        [SerializeField] private Sprite hiddenSprite;
+        [SerializeField] private TMP_Text showCodeLabel;
+
+        // 기본값은 코드가 가려진(***) 상태입니다.
+        private bool _isCodeVisible;
 
         [Header("Ready & Start")]
         [SerializeField] private Button readyButton;
@@ -49,6 +61,8 @@ namespace PixelChroma.UI
 
             // 💡 설정 열기 버튼 이벤트 등록
             if (roomSettingsButton != null) roomSettingsButton.onClick.AddListener(OnClickRoomSettings);
+
+            if (showCodeButton != null) showCodeButton.onClick.AddListener(ToggleCodeVisibility);
 
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
         }
@@ -97,6 +111,10 @@ namespace PixelChroma.UI
 
         protected override UniTask OnShow()
         {
+            // 로비를 열 때마다 코드는 기본적으로 가려진(***) 상태로 표시합니다.
+            _isCodeVisible = false;
+            ApplyCodeVisibility();
+
             RefreshRoomCode();
             RefreshMemberList();
             RefreshReadyUI();
@@ -177,12 +195,45 @@ namespace PixelChroma.UI
 
         private void RefreshRoomCode()
         {
-            if (roomCodeText != null)
-                roomCodeText.text = $"방 코드: {LobbyManager.Instance.CurrentRoomCode}";
+            if (roomCodeText == null) return;
+
+            string code = LobbyManager.Instance.CurrentRoomCode;
+            string display = _isCodeVisible ? code : MaskCode(code);
+            roomCodeText.text = display;
+        }
+
+        // ── 코드 표시/숨김 토글 ─────────────────────────────────
+
+        private void ToggleCodeVisibility()
+        {
+            _isCodeVisible = !_isCodeVisible;
+            ApplyCodeVisibility();
+            RefreshRoomCode();
+        }
+
+        private void ApplyCodeVisibility()
+        {
+            var sprite = _isCodeVisible ? shownSprite : hiddenSprite;
+
+            if (showCodeIcon != null && sprite != null)
+            {
+                showCodeIcon.sprite = sprite;
+            }
+            else if (showCodeLabel != null)
+            {
+                showCodeLabel.text = _isCodeVisible ? "Hide" : "Show";
+            }
+        }
+
+        private static string MaskCode(string code)
+        {
+            return string.IsNullOrEmpty(code) ? string.Empty : new string('*', code.Length);
         }
 
         private void RefreshMemberList()
         {
+            RefreshPlayerCount();
+
             if (memberListText == null) return;
 
             int count = LobbyManager.Instance.GetMemberCount();
@@ -193,10 +244,28 @@ namespace PixelChroma.UI
                 CSteamID memberId = LobbyManager.Instance.GetMember(i);
                 string name = SteamFriends.GetFriendPersonaName(memberId);
                 bool isHost = i == 0;
+
+                // 방장의 닉네임으로 방 제목을 갱신합니다.
+                if (isHost && roomTitleText != null)
+                    roomTitleText.text = $"{name}의 방";
+
                 sb.AppendLine(isHost ? $"{name} (방장)" : name);
             }
 
             memberListText.text = sb.ToString();
+        }
+
+        // 현재 입장 인원 / 최대 인원 (예: 3 / 10)
+        private void RefreshPlayerCount()
+        {
+            if (playerCountText == null) return;
+
+            int current = LobbyManager.Instance.GetMemberCount();
+            int max = LobbyManager.Instance.CurrentRoomOption != null
+                ? LobbyManager.Instance.CurrentRoomOption.maxPlayers
+                : RoomOption.DefaultMaxPlayers;
+
+            playerCountText.text = $"{current} / {max}";
         }
 
         // ── 유틸 버튼 ────────────────────────────────────────
