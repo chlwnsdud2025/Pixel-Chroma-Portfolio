@@ -18,6 +18,7 @@ namespace PixelChroma
         [Header("Free Cam Settings")]
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         public float freeCamSpeed = 15f;
+
         [SyncVar] public bool isDead = false;
         private bool _isFrozen = false;
         private GameObject _freeCamTarget;
@@ -26,11 +27,11 @@ namespace PixelChroma
         private int _spectateRunnerIndex = -1;
         private int _spectateSeekerIndex = -1;
 
-        // ── 물에 젖음 및 상호작용 상태 ────────────────────────────────
+        // ── 물에 젖음 및 디버프 상태 ────────────────────────────────
         [Header("Status Effect")]
         [SyncVar(hook = nameof(OnWetStateChanged))]
         public bool isWet = false;
-        
+
         [SyncVar(hook = nameof(OnWetStackChanged))]
         public int wetStack = 0;
         private float _wetTimer = 0f;
@@ -41,7 +42,6 @@ namespace PixelChroma
         [Tooltip("아무리 많이 맞아도 최소한 보장되는 이동 속도 비율 (예: 0.3 = 기본 속도의 30% 유지)")]
         [SerializeField] private float minSpeedMultiplier = 0.3f;
 
-
         public bool IsSpectating => isDead;
 
         // ── 네트워크 스폰 시 명부(캐싱 리스트)에 등록/해제 ────────────────
@@ -49,12 +49,18 @@ namespace PixelChroma
         {
             base.OnStartClient();
             if (!AllRunners.Contains(this)) AllRunners.Add(this);
+
+            if (paintCanvas != null)
+                paintCanvas.OnEraseFadeCompleted += HandleEraseFadeCompleted;
         }
 
         public override void OnStopClient()
         {
             base.OnStopClient();
             AllRunners.Remove(this);
+
+            if (paintCanvas != null)
+                paintCanvas.OnEraseFadeCompleted -= HandleEraseFadeCompleted;
         }
         // ──────────────────────────────────────────────────────────────────
 
@@ -75,7 +81,7 @@ namespace PixelChroma
                 Destroy(_freeCamTarget);
         }
 
-        // 통합된 Update: 서버 타이머 처리 + 클라이언트 관전 이동 + 생존 시 단축키
+        // 통합된 Update: 서버 타이머 처리 + 클라이언트 입력 감지
         protected override void Update()
         {
             base.Update();
@@ -94,17 +100,15 @@ namespace PixelChroma
             // 내 로컬 플레이어가 아니면 아래 입력 로직 무시
             if (!isLocalPlayer) return;
 
-            // [생존 상태] 기존 단축키 로직
+            // [생존/관전 공통 단축키 로직]
             if (Keyboard.current != null)
             {
-                // P키: 자유 시점 토글
+                // P키: 살아있을 때만 자유 시점 토글 허용
                 if (!isDead && Keyboard.current.pKey.wasPressedThisFrame)
                     ToggleFreezeMode();
 
-                // O키: 다른 러너(도망자) 관전
+                // O키, I키: 죽었든 살았든 다른 유저 관전 허용
                 if (Keyboard.current.oKey.wasPressedThisFrame) CycleSpectateRunner();
-
-                // I키: 술래 관전
                 if (Keyboard.current.iKey.wasPressedThisFrame) CycleSpectateSeeker();
             }
         }
@@ -118,14 +122,14 @@ namespace PixelChroma
             _wetTimer = duration;
             wetStack++;
         }
+
         private void OnWetStackChanged(int oldVal, int newVal)
         {
             RecalculateMoveSpeed();
         }
+
         private void OnWetStateChanged(bool oldVal, bool newVal)
         {
-            
-
             RecalculateMoveSpeed();
         }
 
@@ -138,21 +142,15 @@ namespace PixelChroma
             }
             else
             {
-                // 감소할 속도 비율 계산 (예: 2스택 * 0.2 = 0.4 감소 -> 남은 속도 0.6)
                 float currentMultiplier = 1f - (wetStack * speedDebuffPerHit);
-
-                // 최소 한계선(minSpeedMultiplier) 이하로는 안 떨어지게 방어
                 currentMultiplier = Mathf.Max(currentMultiplier, minSpeedMultiplier);
-
-                // 최종 이동 속도 적용
                 moveSpeed = runnerMoveSpeed * currentMultiplier;
 
                 Debug.Log($"[디버프] 현재 {wetStack}중첩! 이동 속도가 {moveSpeed} 로 감소됨.");
             }
         }
 
-
-
+        // ── 피격 및 지워짐 로직 ──────────────────────────────────────────
 
         [Server]
         public void ServerTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
@@ -172,49 +170,35 @@ namespace PixelChroma
         {
             if (paintCanvas == null) return;
 
-            for (int x = -pixelRadius; x <= pixelRadius; x++)
-            {
-                for (int y = -pixelRadius; y <= pixelRadius; y++)
-                {
-                    if (x * x + y * y <= pixelRadius * pixelRadius)
-                    {
-                        int px = centerPixel.x + x;
-                        int py = centerPixel.y + y;
-
-                        if (paintCanvas.IsInBounds(px, py))
-                        {
-                            paintCanvas.RestorePixelLocal(px, py);
-                        }
-                    }
-                }
-            }
-
-            paintCanvas.ApplyChanges();
-
-            //if (isLocalPlayer)
-            //{
-            //    CheckIfCaught();
-            //}
+            // 맞은 영역이 서서히 지워집니다.
+            paintCanvas.EraseArea(centerPixel, pixelRadius);
         }
 
-        //private void CheckIfCaught()
-        //{
-        //    if (paintCanvas == null) return;
+        private void HandleEraseFadeCompleted()
+        {
+            if (isLocalPlayer)
+            {
+                // 💡 픽셀이 다 지워졌다고 죽는 로직은 어몽어스 킬 기획에 의해 비활성화합니다.
+                // CheckIfCaught(); 
+            }
+        }
 
-        //    // "1픽셀이라도 남아있으면 생존" 판정 
-        //    bool isAlive = paintCanvas.HasAnyPaintedPixels();
+        /* 💡 기존의 픽셀 0개 아웃 로직 (사용 안 함)
+        private void CheckIfCaught()
+        {
+            if (paintCanvas == null) return;
+            bool isAlive = paintCanvas.HasAnyPaintedPixels();
+            if (!isAlive) CmdNotifyCaught();
+        }
+        */
 
-        //    if (!isAlive)
-        //    {
-        //        CmdNotifyCaught();
-        //    }
-        //}
+        // ── 킬/사망 처리 및 관전 모드 전환 ────────────────────────────────
 
-        // 중복 선언되어 있던 킬/사망 처리 로직 하나로 병합 (Seeker가 호출할 수 있도록 requiresAuthority = false 필수)
+        // Seeker가 호출할 수 있도록 requiresAuthority = false 설정 필수!
         [Command(requiresAuthority = false)]
         public void CmdNotifyCaught()
         {
-            Debug.Log($"[Runner] {netId}번 플레이어 아웃! (픽셀 지워짐 또는 처형당함)");
+            Debug.Log($"[Runner] {netId}번 플레이어 아웃! (처형당함)");
             // TODO: 게임 매니저에 아웃 알림 연동
 
             RpcBecomeSpectator();
@@ -243,7 +227,7 @@ namespace PixelChroma
                 var vcam = FindObjectOfType<Unity.Cinemachine.CinemachineCamera>();
                 if (vcam != null) vcam.Follow = _freeCamTarget.transform;
 
-                Debug.Log("관전 모드 진입 완료!");
+                Debug.Log("사망: 영구 관전 모드 진입 완료!");
             }
         }
 
@@ -255,14 +239,12 @@ namespace PixelChroma
 
             if (_isFrozen)
             {
-                // [고정 모드 ON] 가짜 타겟을 현재 내 위치로 불러온 뒤, 카메라가 따라가게 덮어씌움
                 _freeCamTarget.transform.position = transform.position;
                 if (cinemachineCamera != null)
                 {
                     cinemachineCamera.Follow = _freeCamTarget.transform;
                 }
 
-                // 캐릭터는 즉시 정지
                 if (GetComponent<Rigidbody2D>() != null)
                 {
                     GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
@@ -270,7 +252,6 @@ namespace PixelChroma
             }
             else
             {
-                // [고정 모드 OFF] 카메라가 다시 내 캐릭터를 따라가도록 원상 복구
                 if (cinemachineCamera != null)
                 {
                     cinemachineCamera.Follow = transform;
@@ -294,7 +275,6 @@ namespace PixelChroma
 
         private void CycleSpectateSeeker()
         {
-            // SeekerPlayer의 캐싱 리스트를 참조
             if (SeekerPlayer.AllSeekers.Count == 0) return;
 
             if (_spectateSeekerIndex >= SeekerPlayer.AllSeekers.Count)
@@ -312,7 +292,6 @@ namespace PixelChroma
             if (targetTransform == null || cinemachineCamera == null) return;
 
             _isFrozen = true;
-            isDead = true;
 
             if (GetComponent<Rigidbody2D>() != null)
                 GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
@@ -320,47 +299,47 @@ namespace PixelChroma
             cinemachineCamera.Follow = targetTransform;
         }
 
+        // 💡 통합 및 최적화된 이동 로직 (생존/사망 공용)
         protected override void HandleMovement()
         {
             if (GetComponent<Rigidbody2D>() == null) return;
 
             Vector2 input = moveAction.ReadValue<Vector2>();
 
-            if (_isFrozen) // 생존 고정모드이거나, 죽었을 때
+            if (_isFrozen) // 고정 모드이거나 죽었을 때
             {
                 GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
 
                 if (input.sqrMagnitude > 0.01f)
                 {
-                    // 누군가를 관전 중이었다면 (O, I 키 사용)
+                    // 누군가를 관전 중이었다면 즉시 해제
                     if (_spectateRunnerIndex != -1 || _spectateSeekerIndex != -1)
                     {
-                        // 관전 타겟 해제
                         _spectateRunnerIndex = -1;
                         _spectateSeekerIndex = -1;
 
                         if (isDead)
                         {
-                            // 사망자: 내 시체 위치(FreeCamTarget)로 카메라 복귀
+                            // 죽은 유저: 내 시체 위치(FreeCamTarget)로 카메라만 복귀
                             if (cinemachineCamera != null) cinemachineCamera.Follow = _freeCamTarget.transform;
                         }
                         else
                         {
-                            // 생존자: 얼음 상태 해제하고 내 캐릭터로 복귀
+                            // 산 유저: 관전 모드 끄고 즉시 이동 재개
                             _isFrozen = false;
                             if (cinemachineCamera != null) cinemachineCamera.Follow = transform;
-                            base.HandleMovement(); // 즉시 이동 재개
+                            base.HandleMovement();
                         }
                     }
                     else
                     {
-                        // 기본 자유 카메라 이동 (생존자든 사망자든 동일하게 InputSystem 사용)
+                        // 기본 자유 카메라 이동 (WASD)
                         if (_freeCamTarget != null)
                             _freeCamTarget.transform.position += (Vector3)input * freeCamSpeed * Time.fixedDeltaTime;
                     }
                 }
             }
-            else
+            else // 평상시 이동
             {
                 base.HandleMovement();
             }
