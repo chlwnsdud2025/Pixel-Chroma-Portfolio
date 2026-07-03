@@ -42,7 +42,6 @@ namespace PixelChroma
         {
             moveSpeed = 4f;
             _mainCam = Camera.main;
-            _inGameHUD = FindObjectOfType<UIInGameHUD>();
             if (weaponPivot != null)
             {
                 _weaponRenderers = weaponPivot.GetComponentsInChildren<SpriteRenderer>(true);
@@ -79,7 +78,10 @@ namespace PixelChroma
             var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
             BindPaintHUD(hud);
 
+
             hud.SetKillButtonVisible(true);
+            hud.SetWaterGunUIVisible(true);
+            _inGameHUD = hud;
         }
 
         protected override void Update()
@@ -92,6 +94,16 @@ namespace PixelChroma
             HandleKillInput();
             HandleAiming();
             HandleShooting();
+            if (_inGameHUD != null)
+            {
+                float elapsed = Time.time - _lastFireTime;
+                float ratio = Mathf.Clamp01(elapsed / fireCooldown);
+
+                // 방금 쏘면 elapsed가 0이므로 ratio = 0 -> (1 - 0) = 1 (회색 꽉 참)
+                // 시간이 지나서 elapsed가 fireCooldown에 도달하면 ratio = 1 -> (1 - 1) = 0 (회색 다 벗겨짐)
+                _inGameHUD.UpdateWaterGunCooldown(1f - ratio);
+            }
+
         }
         //---------------------------------물에젖음 테스트 --------------------------
         private void CheckForKillableRunner()

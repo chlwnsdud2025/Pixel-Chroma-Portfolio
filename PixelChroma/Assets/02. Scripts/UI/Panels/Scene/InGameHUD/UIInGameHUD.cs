@@ -18,6 +18,10 @@ namespace PixelChroma.UI
         [Header("Interaction UI")]
         [SerializeField] private Button killButton;
 
+        [Header("Skill UI")]
+        [SerializeField] private GameObject waterGunRoot; // 물총 UI 전체 (술래에게만 보이게)
+        [SerializeField] private Image waterGunCooldownOverlay; // 회색으로 덮일 쿨타임 이미지
+
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -34,6 +38,9 @@ namespace PixelChroma.UI
                 killButton.gameObject.SetActive(false);
                 killButton.interactable = false;
             }
+
+            if (waterGunRoot != null)
+                waterGunRoot.SetActive(false);
         }
 
         // Seeker만 호출할 수 있도록 킬 버튼의 표시 여부를 끄고 켜는 함수를 추가합니다.
@@ -42,6 +49,23 @@ namespace PixelChroma.UI
             if (killButton != null)
             {
                 killButton.gameObject.SetActive(isVisible);
+            }
+        }
+
+        // 술래(Seeker) 화면에만 물총 UI를 띄우는 함수
+        public void SetWaterGunUIVisible(bool isVisible)
+        {
+            if (waterGunRoot != null)
+            {
+                waterGunRoot.SetActive(isVisible);
+            }
+        }
+
+        public void UpdateWaterGunCooldown(float fillAmount)
+        {
+            if (waterGunCooldownOverlay != null)
+            {
+                waterGunCooldownOverlay.fillAmount = fillAmount;
             }
         }
 
