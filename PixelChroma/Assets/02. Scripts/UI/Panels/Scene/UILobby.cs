@@ -108,31 +108,7 @@ namespace PixelChroma.UI
 
         private void OnClickRoomSettings()
         {
-            ShowRoomSettingPopup().Forget();
-        }
-
-        private async UniTaskVoid ShowRoomSettingPopup()
-        {
-            var popup = await UIManager.Instance.ShowPopup<UIRoomSetting>();
-            if (popup == null) return;
-
-            popup.Setup(LobbyManager.Instance.CurrentRoomOption, true);
-            popup.SetMaps(LobbyManager.Instance.AvailableMaps);
-
-            popup.OnSettingsApplied -= OnRoomSettingUpdated;
-            popup.OnSettingsApplied += OnRoomSettingUpdated;
-        }
-
-        private void OnRoomSettingUpdated(RoomOption option)
-        {
-            var popup = UIManager.Instance.GetPanel<UIRoomSetting>();
-            //if (popup != null) popup.OnCreate -= OnRoomSettingUpdated;
-
-            if (popup != null) popup.OnSettingsApplied -= OnRoomSettingUpdated;
-            LobbyManager.Instance.UpdateLobbySettings(option);
-
-            UIManager.Instance.HidePopup().Forget();
-            Debug.Log("[UILobby] 방 설정이 업데이트되었습니다!");
+            UIManager.Instance.ShowPopup<UIRoomSetting>().Forget();
         }
 
 
