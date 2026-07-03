@@ -33,12 +33,18 @@ namespace PixelChroma
         {
             base.OnStartClient();
             if (!AllRunners.Contains(this)) AllRunners.Add(this);
+
+            if (paintCanvas != null)
+                paintCanvas.OnEraseFadeCompleted += HandleEraseFadeCompleted;
         }
 
         public override void OnStopClient()
         {
             base.OnStopClient();
             AllRunners.Remove(this);
+
+            if (paintCanvas != null)
+                paintCanvas.OnEraseFadeCompleted -= HandleEraseFadeCompleted;
         }
         // ──────────────────────────────────────────────────────────────────
 
@@ -244,25 +250,13 @@ namespace PixelChroma
         {
             if (paintCanvas == null) return;
 
-            for (int x = -pixelRadius; x <= pixelRadius; x++)
-            {
-                for (int y = -pixelRadius; y <= pixelRadius; y++)
-                {
-                    if (x * x + y * y <= pixelRadius * pixelRadius)
-                    {
-                        int px = centerPixel.x + x;
-                        int py = centerPixel.y + y;
+            // 맞은 영역이 서서히 지워집니다. 아웃 판정은 페이드가 끝난 뒤
+            // OnEraseFadeCompleted 콜백(HandleEraseFadeCompleted)에서 수행됩니다.
+            paintCanvas.EraseArea(centerPixel, pixelRadius);
+        }
 
-                        if (paintCanvas.IsInBounds(px, py))
-                        {
-                            paintCanvas.RestorePixelLocal(px, py);
-                        }
-                    }
-                }
-            }
-
-            paintCanvas.ApplyChanges();
-
+        private void HandleEraseFadeCompleted()
+        {
             if (isLocalPlayer)
             {
                 CheckIfCaught();
