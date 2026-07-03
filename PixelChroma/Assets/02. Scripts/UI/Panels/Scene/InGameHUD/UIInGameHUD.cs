@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
@@ -13,6 +14,11 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text stateText;
         [SerializeField] private TMP_Text timerText;
 
+
+        [Header("Interaction UI")]
+        [SerializeField] private Button killButton;
+
+
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
@@ -21,14 +27,44 @@ namespace PixelChroma.UI
             base.Initialize();
             if (paintModeRoot != null)
                 paintModeRoot.SetActive(false);
+
+            if (killButton != null)
+            {
+                // 기본적으로 킬 버튼의 렌더링 자체를 꺼버립니다. (Runner에게 안 보이게 됨)
+                killButton.gameObject.SetActive(false);
+                killButton.interactable = false;
+            }
         }
 
-        // ── 💡 이벤트 구독 및 "최초 싱크 강제 맞춤" 로직 ──────────────────────
+        // Seeker만 호출할 수 있도록 킬 버튼의 표시 여부를 끄고 켜는 함수를 추가합니다.
+        public void SetKillButtonVisible(bool isVisible)
+        {
+            if (killButton != null)
+            {
+                killButton.gameObject.SetActive(isVisible);
+            }
+        }
+
+        public void SetKillButtonInteractable(bool isInteractable, UnityEngine.Events.UnityAction onClickAction = null)
+        {
+            if (killButton == null) return;
+
+            killButton.interactable = isInteractable;
+
+            // 버튼 클릭 이벤트 갱신
+            killButton.onClick.RemoveAllListeners();
+            if (isInteractable && onClickAction != null)
+            {
+                killButton.onClick.AddListener(onClickAction);
+            }
+        }
+
+        // ── 이벤트 구독 및 "최초 싱크 강제 맞춤" 로직 ──────────────────────
         private void OnEnable()
         {
             ChromaNetworkManager.OnTimeStateChanged += HandleTimeStateChanged;
 
-            // ⭐ [핵심 추가] HUD가 켜지는 순간, 이미 NetworkManager에서 흐르고 있는 최신 시간 정보를 강제로 긁어옵니다.
+            //  HUD가 켜지는 순간, 이미 NetworkManager에서 흐르고 있는 최신 시간 정보를 강제로 긁어옵니다.
             // 이렇게 하면 로딩이 늦어서 최초 전환 메시지를 놓친 클라이언트도 완벽하게 싱크가 맞춰집니다!
             var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
             if (netManager != null)
@@ -43,7 +79,7 @@ namespace PixelChroma.UI
         }
         // ─────────────────────────────────────────────────────────────────
 
-        // ⭐ [추가] 서버가 매 프레임 차감하고 있는 정밀한 남은 시간을 실시간으로 스크린에 반영합니다.
+        // 서버가 매 프레임 차감하고 있는 정밀한 남은 시간을 실시간으로 스크린에 반영합니다.
         private void Update()
         {
             var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
@@ -100,7 +136,7 @@ namespace PixelChroma.UI
             UpdateTimerText(remainingTime);
         }
 
-        // 💡 분리된 타이머 가독성 포맷팅 함수
+        // 분리된 타이머 가독성 포맷팅 함수
         private void UpdateTimerText(float remainingTime)
         {
             if (timerText != null)

@@ -3,13 +3,12 @@ using Mirror;
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
 using UnityEngine.InputSystem;
-using System.Collections.Generic; // 💡 List 사용을 위해 추가
+using System.Collections.Generic;
 
 namespace PixelChroma
 {
     public class RunnerPlayer : PlayerBase
     {
-        // 💡 씬에 존재하는 모든 도망자를 담아둘 전역(Static) 리스트
         public static readonly List<RunnerPlayer> AllRunners = new();
 
         [Header("Runner Settings")]
@@ -19,8 +18,7 @@ namespace PixelChroma
         [Header("Free Cam Settings")]
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         public float freeCamSpeed = 15f;
-        private bool _isSpectating = false;
-
+        [SyncVar] public bool isDead = false;
         private bool _isFrozen = false;
         private GameObject _freeCamTarget;
 
@@ -28,7 +26,25 @@ namespace PixelChroma
         private int _spectateRunnerIndex = -1;
         private int _spectateSeekerIndex = -1;
 
-        // ── 💡 네트워크 스폰 시 명부(캐싱 리스트)에 등록/해제 ────────────────
+        // ── 물에 젖음 및 상호작용 상태 ────────────────────────────────
+        [Header("Status Effect")]
+        [SyncVar(hook = nameof(OnWetStateChanged))]
+        public bool isWet = false;
+        
+        [SyncVar(hook = nameof(OnWetStackChanged))]
+        public int wetStack = 0;
+        private float _wetTimer = 0f;
+
+        [Header("Wet Debuff Settings")]
+        [Tooltip("물에 한 번 맞을 때마다 감소하는 이동 속도 비율 (예: 0.2 = 20% 감소)")]
+        [SerializeField] private float speedDebuffPerHit = 0.2f;
+        [Tooltip("아무리 많이 맞아도 최소한 보장되는 이동 속도 비율 (예: 0.3 = 기본 속도의 30% 유지)")]
+        [SerializeField] private float minSpeedMultiplier = 0.3f;
+
+
+        public bool IsSpectating => isDead;
+
+        // ── 네트워크 스폰 시 명부(캐싱 리스트)에 등록/해제 ────────────────
         public override void OnStartClient()
         {
             base.OnStartClient();
@@ -59,172 +75,84 @@ namespace PixelChroma
                 Destroy(_freeCamTarget);
         }
 
+        // 통합된 Update: 서버 타이머 처리 + 클라이언트 관전 이동 + 생존 시 단축키
         protected override void Update()
         {
             base.Update();
 
+            // [서버 전용] 젖은 상태 타이머 감소
+            if (isServer && isWet)
+            {
+                _wetTimer -= Time.deltaTime;
+                if (_wetTimer <= 0)
+                {
+                    isWet = false;
+                    wetStack = 0; // 마르면 중첩 초기화
+                }
+            }
+
+            // 내 로컬 플레이어가 아니면 아래 입력 로직 무시
             if (!isLocalPlayer) return;
 
+            // [생존 상태] 기존 단축키 로직
             if (Keyboard.current != null)
             {
                 // P키: 자유 시점 토글
-                if (Keyboard.current.pKey.wasPressedThisFrame)
-                {
+                if (!isDead && Keyboard.current.pKey.wasPressedThisFrame)
                     ToggleFreezeMode();
-                }
 
                 // O키: 다른 러너(도망자) 관전
-                if (Keyboard.current.oKey.wasPressedThisFrame)
-                {
-                    CycleSpectateRunner();
-                }
+                if (Keyboard.current.oKey.wasPressedThisFrame) CycleSpectateRunner();
 
                 // I키: 술래 관전
-                if (Keyboard.current.iKey.wasPressedThisFrame)
-                {
-                    CycleSpectateSeeker();
-                }
+                if (Keyboard.current.iKey.wasPressedThisFrame) CycleSpectateSeeker();
             }
         }
 
-        public void ToggleFreezeMode()
+        // ── 물총 피격 및 상태이상 로직 ──────────────────────────────────────
+
+        [Server]
+        public void ApplyWetState(float duration)
         {
-            _isFrozen = !_isFrozen;
+            isWet = true;
+            _wetTimer = duration;
+            wetStack++;
+        }
+        private void OnWetStackChanged(int oldVal, int newVal)
+        {
+            RecalculateMoveSpeed();
+        }
+        private void OnWetStateChanged(bool oldVal, bool newVal)
+        {
+            
 
-            if (_isFrozen)
+            RecalculateMoveSpeed();
+        }
+
+        // 현재 중첩(wetStack)에 비례해서 실제 이동속도를 깎아내는 함수
+        private void RecalculateMoveSpeed()
+        {
+            if (!isWet || wetStack == 0)
             {
-                // [고정 모드 ON] 가짜 타겟을 현재 내 위치로 불러온 뒤, 카메라가 따라가게 덮어씌움
-                _freeCamTarget.transform.position = transform.position;
-                if (cinemachineCamera != null)
-                {
-                    cinemachineCamera.Follow = _freeCamTarget.transform;
-                }
-
-                // 캐릭터는 즉시 정지
-                if (GetComponent<Rigidbody2D>() != null)
-                {
-                    GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
-                }
+                moveSpeed = runnerMoveSpeed; // 원래 속도로 복구
             }
             else
             {
-                // [고정 모드 OFF] 카메라가 다시 내 캐릭터를 따라가도록 원상 복구
-                if (cinemachineCamera != null)
-                {
-                    cinemachineCamera.Follow = transform;
-                }
+                // 감소할 속도 비율 계산 (예: 2스택 * 0.2 = 0.4 감소 -> 남은 속도 0.6)
+                float currentMultiplier = 1f - (wetStack * speedDebuffPerHit);
+
+                // 최소 한계선(minSpeedMultiplier) 이하로는 안 떨어지게 방어
+                currentMultiplier = Mathf.Max(currentMultiplier, minSpeedMultiplier);
+
+                // 최종 이동 속도 적용
+                moveSpeed = runnerMoveSpeed * currentMultiplier;
+
+                Debug.Log($"[디버프] 현재 {wetStack}중첩! 이동 속도가 {moveSpeed} 로 감소됨.");
             }
         }
 
-        // ── 관전(Spectate) 기능 ──────────────────────────────────────
-        private void CycleSpectateRunner()
-        {
-            if (AllRunners.Count == 0) return;
 
-            if (_spectateRunnerIndex >= AllRunners.Count)
-                _spectateRunnerIndex = -1;
 
-            _spectateRunnerIndex = (_spectateRunnerIndex + 1) % AllRunners.Count;
-
-            var target = AllRunners[_spectateRunnerIndex];
-            if (target != null)
-                SetSpectateTarget(target.transform);
-        }
-
-        private void CycleSpectateSeeker()
-        {
-            // SeekerPlayer의 캐싱 리스트를 참조
-            if (SeekerPlayer.AllSeekers.Count == 0) return;
-
-            if (_spectateSeekerIndex >= SeekerPlayer.AllSeekers.Count)
-                _spectateSeekerIndex = -1;
-
-            _spectateSeekerIndex = (_spectateSeekerIndex + 1) % SeekerPlayer.AllSeekers.Count;
-
-            var target = SeekerPlayer.AllSeekers[_spectateSeekerIndex];
-            if (target != null)
-                SetSpectateTarget(target.transform);
-        }
-
-        private void SetSpectateTarget(Transform targetTransform)
-        {
-            if (targetTransform == null || cinemachineCamera == null) return;
-
-            _isFrozen = true;
-            _isSpectating = true;
-
-            if (GetComponent<Rigidbody2D>() != null)
-                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
-
-            cinemachineCamera.Follow = targetTransform;
-        }
-        // ──────────────────────────────────────────────────────────────────
-
-        protected override void HandleMovement()
-        {
-            if (GetComponent<Rigidbody2D>() == null) return;
-
-            Vector2 input = moveAction.ReadValue<Vector2>();
-
-            if (_isFrozen)
-            {
-                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
-
-                if (input.sqrMagnitude > 0.01f)
-                {
-                    // 다른 대상을 관전 중(`_isSpectating`)이었다면 WASD를 누르는 즉시 나 자신에게 복귀!
-                    if (_isSpectating)
-                    {
-                        _isFrozen = false;
-                        _isSpectating = false;
-
-                        if (cinemachineCamera != null)
-                        {
-                            cinemachineCamera.Follow = transform; // 카메라 타겟을 다시 나에게로
-                        }
-
-                        // 복귀함과 동시에 딜레이 없이 바로 내 캐릭터가 걷도록 이동 함수 실행
-                        base.HandleMovement();
-                    }
-                    else
-                    {
-                        // 관전이 아닌 P키를 눌러 들어온 순수 고정 모드일 때는 기존 기획대로 카메라 맵 구경 지원
-                        if (_freeCamTarget != null)
-                        {
-                            _freeCamTarget.transform.position += (Vector3)input * freeCamSpeed * Time.fixedDeltaTime;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                base.HandleMovement();
-            }
-        }
-
-        protected override void UpdateAnimation()
-        {
-            if (animator == null) return;
-
-            // 고정 모드면 입력값을 강제로 (0,0)으로 만들어서 애니메이터에 전달
-            Vector2 input = _isFrozen ? Vector2.zero : moveAction.ReadValue<Vector2>();
-            bool moving = input.sqrMagnitude > 0.01f;
-
-            animator.SetBool(IsMoving, moving);
-            if (moving)
-            {
-                animator.SetFloat(MoveX, input.x);
-                animator.SetFloat(MoveY, input.y);
-            }
-        }
-
-        private async UniTaskVoid ShowHUDAsync()
-        {
-            var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
-            BindPaintHUD(hud);
-        }
-
-        // ── 피격 및 지워짐 로직──────────────────────
 
         [Server]
         public void ServerTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
@@ -263,30 +191,201 @@ namespace PixelChroma
 
             paintCanvas.ApplyChanges();
 
+            //if (isLocalPlayer)
+            //{
+            //    CheckIfCaught();
+            //}
+        }
+
+        //private void CheckIfCaught()
+        //{
+        //    if (paintCanvas == null) return;
+
+        //    // "1픽셀이라도 남아있으면 생존" 판정 
+        //    bool isAlive = paintCanvas.HasAnyPaintedPixels();
+
+        //    if (!isAlive)
+        //    {
+        //        CmdNotifyCaught();
+        //    }
+        //}
+
+        // 중복 선언되어 있던 킬/사망 처리 로직 하나로 병합 (Seeker가 호출할 수 있도록 requiresAuthority = false 필수)
+        [Command(requiresAuthority = false)]
+        public void CmdNotifyCaught()
+        {
+            Debug.Log($"[Runner] {netId}번 플레이어 아웃! (픽셀 지워짐 또는 처형당함)");
+            // TODO: 게임 매니저에 아웃 알림 연동
+
+            RpcBecomeSpectator();
+        }
+
+        [ClientRpc]
+        private void RpcBecomeSpectator()
+        {
+            isDead = true;
+            _isFrozen = true;
+
+            // 1. 캐릭터 숨기기 (렌더러, 콜라이더, 캔버스 끄기)
+            if (TryGetComponent<Collider2D>(out var col)) col.enabled = false;
+            foreach (var sr in GetComponentsInChildren<SpriteRenderer>(true)) sr.enabled = false;
+            if (paintCanvas != null) paintCanvas.gameObject.SetActive(false);
+
+            // 2. 당사자 화면에서만 자유 시점(관전) 세팅
             if (isLocalPlayer)
             {
-                CheckIfCaught();
+                if (_freeCamTarget == null)
+                {
+                    _freeCamTarget = new GameObject($"FreeCamTarget_{netId}");
+                    _freeCamTarget.transform.position = transform.position;
+                }
+
+                var vcam = FindObjectOfType<Unity.Cinemachine.CinemachineCamera>();
+                if (vcam != null) vcam.Follow = _freeCamTarget.transform;
+
+                Debug.Log("관전 모드 진입 완료!");
             }
         }
 
-        private void CheckIfCaught()
+        // ── 이동, 애니메이션, 카메라 제어 ───────────────────────────────────
+
+        public void ToggleFreezeMode()
         {
-            if (paintCanvas == null) return;
+            _isFrozen = !_isFrozen;
 
-            // "1픽셀이라도 남아있으면 생존" 판정 
-            bool isAlive = paintCanvas.HasAnyPaintedPixels();
-
-            if (!isAlive)
+            if (_isFrozen)
             {
-                CmdNotifyCaught();
+                // [고정 모드 ON] 가짜 타겟을 현재 내 위치로 불러온 뒤, 카메라가 따라가게 덮어씌움
+                _freeCamTarget.transform.position = transform.position;
+                if (cinemachineCamera != null)
+                {
+                    cinemachineCamera.Follow = _freeCamTarget.transform;
+                }
+
+                // 캐릭터는 즉시 정지
+                if (GetComponent<Rigidbody2D>() != null)
+                {
+                    GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+                }
+            }
+            else
+            {
+                // [고정 모드 OFF] 카메라가 다시 내 캐릭터를 따라가도록 원상 복구
+                if (cinemachineCamera != null)
+                {
+                    cinemachineCamera.Follow = transform;
+                }
             }
         }
 
-        [Command]
-        private void CmdNotifyCaught()
+        private void CycleSpectateRunner()
         {
-            Debug.Log($"[Runner] {netId}번 플레이어의 색상이 모두 지워져 아웃되었습니다!");
-            // TODO: 게임 매니저에 아웃 알림
+            if (AllRunners.Count == 0) return;
+
+            if (_spectateRunnerIndex >= AllRunners.Count)
+                _spectateRunnerIndex = -1;
+
+            _spectateRunnerIndex = (_spectateRunnerIndex + 1) % AllRunners.Count;
+
+            var target = AllRunners[_spectateRunnerIndex];
+            if (target != null)
+                SetSpectateTarget(target.transform);
+        }
+
+        private void CycleSpectateSeeker()
+        {
+            // SeekerPlayer의 캐싱 리스트를 참조
+            if (SeekerPlayer.AllSeekers.Count == 0) return;
+
+            if (_spectateSeekerIndex >= SeekerPlayer.AllSeekers.Count)
+                _spectateSeekerIndex = -1;
+
+            _spectateSeekerIndex = (_spectateSeekerIndex + 1) % SeekerPlayer.AllSeekers.Count;
+
+            var target = SeekerPlayer.AllSeekers[_spectateSeekerIndex];
+            if (target != null)
+                SetSpectateTarget(target.transform);
+        }
+
+        private void SetSpectateTarget(Transform targetTransform)
+        {
+            if (targetTransform == null || cinemachineCamera == null) return;
+
+            _isFrozen = true;
+            isDead = true;
+
+            if (GetComponent<Rigidbody2D>() != null)
+                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+
+            cinemachineCamera.Follow = targetTransform;
+        }
+
+        protected override void HandleMovement()
+        {
+            if (GetComponent<Rigidbody2D>() == null) return;
+
+            Vector2 input = moveAction.ReadValue<Vector2>();
+
+            if (_isFrozen) // 생존 고정모드이거나, 죽었을 때
+            {
+                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+
+                if (input.sqrMagnitude > 0.01f)
+                {
+                    // 누군가를 관전 중이었다면 (O, I 키 사용)
+                    if (_spectateRunnerIndex != -1 || _spectateSeekerIndex != -1)
+                    {
+                        // 관전 타겟 해제
+                        _spectateRunnerIndex = -1;
+                        _spectateSeekerIndex = -1;
+
+                        if (isDead)
+                        {
+                            // 사망자: 내 시체 위치(FreeCamTarget)로 카메라 복귀
+                            if (cinemachineCamera != null) cinemachineCamera.Follow = _freeCamTarget.transform;
+                        }
+                        else
+                        {
+                            // 생존자: 얼음 상태 해제하고 내 캐릭터로 복귀
+                            _isFrozen = false;
+                            if (cinemachineCamera != null) cinemachineCamera.Follow = transform;
+                            base.HandleMovement(); // 즉시 이동 재개
+                        }
+                    }
+                    else
+                    {
+                        // 기본 자유 카메라 이동 (생존자든 사망자든 동일하게 InputSystem 사용)
+                        if (_freeCamTarget != null)
+                            _freeCamTarget.transform.position += (Vector3)input * freeCamSpeed * Time.fixedDeltaTime;
+                    }
+                }
+            }
+            else
+            {
+                base.HandleMovement();
+            }
+        }
+
+        protected override void UpdateAnimation()
+        {
+            if (animator == null) return;
+
+            // 고정 모드면 입력값을 강제로 (0,0)으로 만들어서 애니메이터에 전달
+            Vector2 input = _isFrozen ? Vector2.zero : moveAction.ReadValue<Vector2>();
+            bool moving = input.sqrMagnitude > 0.01f;
+
+            animator.SetBool(IsMoving, moving);
+            if (moving)
+            {
+                animator.SetFloat(MoveX, input.x);
+                animator.SetFloat(MoveY, input.y);
+            }
+        }
+
+        private async UniTaskVoid ShowHUDAsync()
+        {
+            var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
+            BindPaintHUD(hud);
         }
     }
 }
