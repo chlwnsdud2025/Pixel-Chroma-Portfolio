@@ -403,5 +403,26 @@ namespace PixelChroma
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(transform.position, catchRadius);
         }
+
+        [ClientRpc]
+        public void RpcTeleport(Vector3 newPosition)
+        {
+            // 1. 위치 이동
+            transform.position = newPosition;
+
+            // 2. 이동하던 관성(Velocity) 초기화 
+            if (TryGetComponent<Rigidbody2D>(out var rb))
+            {
+                rb.linearVelocity = Vector2.zero;
+            }
+
+            // 💡 만약 카메라를 시네머신으로 쓴다면, 텔레포트 시 카메라가 쭈욱 따라오지 않고 즉시 순간이동 하도록 강제 업데이트
+            if (cinemachineCamera != null)
+            {
+                cinemachineCamera.PreviousStateIsValid = false;
+            }
+
+            Debug.Log("[Seeker] 본진으로 텔레포트 되었습니다!");
+        }
     }
 }
