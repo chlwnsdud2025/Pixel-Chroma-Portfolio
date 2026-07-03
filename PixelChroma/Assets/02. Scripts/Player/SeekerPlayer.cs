@@ -32,11 +32,17 @@ namespace PixelChroma
 
         public static readonly System.Collections.Generic.List<SeekerPlayer> AllSeekers = new();
 
+        private RunnerPlayer _targetRunnerToKill = null;
+        private UIInGameHUD _inGameHUD;
+
+        [SerializeField] private float wettimer = 5f;
+
+
         protected override void OnLocalPlayerStarted()
         {
             moveSpeed = 4f;
             _mainCam = Camera.main;
-
+            _inGameHUD = FindObjectOfType<UIInGameHUD>();
             if (weaponPivot != null)
             {
                 _weaponRenderers = weaponPivot.GetComponentsInChildren<SpriteRenderer>(true);
@@ -72,6 +78,8 @@ namespace PixelChroma
         {
             var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
             BindPaintHUD(hud);
+
+            hud.SetKillButtonVisible(true);
         }
 
         protected override void Update()
@@ -80,9 +88,76 @@ namespace PixelChroma
 
             if (!isLocalPlayer) return;
 
+            CheckForKillableRunner(); // 테스트
+            HandleKillInput();
             HandleAiming();
             HandleShooting();
         }
+        //---------------------------------물에젖음 테스트 --------------------------
+        private void CheckForKillableRunner()
+        {
+            _targetRunnerToKill = null;
+            float closestDist = catchRadius;
+
+            foreach (var runner in RunnerPlayer.AllRunners)
+            {
+                // 💡 젖어 있고, 아직 죽지 않은(관전 중이 아닌) 도망자만 필터링
+                if (runner != null && runner.isWet && !runner.IsSpectating)
+                {
+                    float dist = Vector2.Distance(transform.position, runner.transform.position);
+                    if (dist <= closestDist)
+                    {
+                        closestDist = dist;
+                        _targetRunnerToKill = runner;
+                    }
+                }
+            }
+
+            // HUD의 킬 버튼 켜기/끄기
+            if (_inGameHUD != null)
+            {
+                if (_targetRunnerToKill != null)
+                {
+                    _inGameHUD.SetKillButtonInteractable(true, ExecuteKill);
+                }
+                else
+                {
+                    _inGameHUD.SetKillButtonInteractable(false);
+                }
+            }
+        }
+
+        private void HandleKillInput()
+        {
+            // 단축키 (F키) 연동
+            if (Keyboard.current.eKey.wasPressedThisFrame && _targetRunnerToKill != null)
+            {
+                ExecuteKill();
+            }
+        }
+
+        private void ExecuteKill()
+        {
+            if (_targetRunnerToKill != null)
+            {
+                CmdExecuteKill(_targetRunnerToKill);
+                _targetRunnerToKill = null; // 킬 시도 후 타겟 초기화
+            }
+        }
+
+        // 서버에서 킬 확정 처리
+        [Command]
+        public void CmdExecuteKill(RunnerPlayer target)
+        {
+            if (target == null || !target.isWet) return;
+
+            float dist = Vector2.Distance(transform.position, target.transform.position);
+            if (dist <= catchRadius + 0.5f) // 약간의 핑 보정
+            {
+                target.CmdNotifyCaught(); // 도망자 사망 처리 호출
+            }
+        }
+        // ------------------------------------------------------------------------
 
         // ── 1. 마우스 조준 및 흔들림 방지(Override) 로직 ──────────────────────
         private void HandleAiming()
@@ -229,6 +304,8 @@ namespace PixelChroma
                 if (runner != null)
                 {
                     runner.ServerTakeEraseDamage(targetPos, aoeRadius);
+
+                    runner.ApplyWetState(wettimer);
                 }
             }
 
@@ -319,6 +396,33 @@ namespace PixelChroma
         {
             base.OnStopClient();
             AllSeekers.Remove(this);
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position, catchRadius);
+        }
+
+        [ClientRpc]
+        public void RpcTeleport(Vector3 newPosition)
+        {
+            // 1. 위치 이동
+            transform.position = newPosition;
+
+            // 2. 이동하던 관성(Velocity) 초기화 
+            if (TryGetComponent<Rigidbody2D>(out var rb))
+            {
+                rb.linearVelocity = Vector2.zero;
+            }
+
+            // 💡 만약 카메라를 시네머신으로 쓴다면, 텔레포트 시 카메라가 쭈욱 따라오지 않고 즉시 순간이동 하도록 강제 업데이트
+            if (cinemachineCamera != null)
+            {
+                cinemachineCamera.PreviousStateIsValid = false;
+            }
+
+            Debug.Log("[Seeker] 본진으로 텔레포트 되었습니다!");
         }
     }
 }
