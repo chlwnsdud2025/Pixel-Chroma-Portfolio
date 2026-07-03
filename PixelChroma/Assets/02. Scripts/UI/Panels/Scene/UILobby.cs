@@ -254,11 +254,7 @@ namespace PixelChroma.UI
                 // PlayerBase(공통 네트워크)에서 동기화된 커스텀 닉네임을 가져옵니다.
                 string name = playerBase != null ? playerBase.playerName : "Player";
 
-                // 준비 완료(Ready) 상태면 이름 옆에 초록색 체크마크 추가!
-                if (p.isReady)
-                {
-                    name += " <color=#00FF00>✔</color>";
-                }
+               
 
                 // 가장 처음 스폰된 사람(netId가 제일 낮은 사람)이 방장입니다.
                 bool isHost = (i == 0);
