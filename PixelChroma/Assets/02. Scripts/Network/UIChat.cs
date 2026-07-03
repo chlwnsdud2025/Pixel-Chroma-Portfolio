@@ -1,64 +1,120 @@
-using System.Collections.Generic;
 using Mirror;
 using PixelChroma.Network;
+using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI; // ScrollRect 사용을 위해 추가
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 namespace PixelChroma.UI
 {
     public class UIChat : UIPanel
     {
         [Header("Chat Settings")]
-        [SerializeField] private int maxMessages = 50; // 최대 유지할 채팅 개수
+        [SerializeField] private int maxMessages = 50;
 
         [Header("Chat UI Elements")]
+        [SerializeField] private GameObject chatPanel;
+        [SerializeField] private Button openChatButton;
+        [SerializeField] private Button closeChatButton;
+
         [SerializeField] private TMP_InputField chatInputField;
         [SerializeField] private Transform chatContentParent;
         [SerializeField] private GameObject chatTextPrefab;
-        [SerializeField] private ScrollRect scrollRect; // 채팅이 오면 맨 아래로 내리기 위함
+        [SerializeField] private ScrollRect scrollRect;
 
-        // 풀링을 위한 큐(Queue) 자료구조
+        public static event Action<bool> OnChatToggled;
+
         private Queue<TMP_Text> _chatMessagePool = new Queue<TMP_Text>();
 
         private void OnEnable()
         {
             PlayerChat.OnMessageReceived += HandleNewMessage;
             chatInputField.onSubmit.AddListener(OnChatSubmit);
+
+            if (openChatButton != null) openChatButton.onClick.AddListener(() => ToggleChat(!chatPanel.activeSelf));
+            if (closeChatButton != null) closeChatButton.onClick.AddListener(() => ToggleChat(false));
         }
 
         private void OnDisable()
         {
             PlayerChat.OnMessageReceived -= HandleNewMessage;
             chatInputField.onSubmit.RemoveListener(OnChatSubmit);
+
+            if (openChatButton != null) openChatButton.onClick.RemoveAllListeners();
+            if (closeChatButton != null) closeChatButton.onClick.RemoveAllListeners();
+        }
+
+        private void Start()
+        {
+            chatPanel.SetActive(false);
+        }
+
+        private void Update()
+        {
+            if (Keyboard.current == null) return;
+
+            // 1. T키로 채팅창 토글
+            if (Keyboard.current.tKey.wasPressedThisFrame)
+            {
+                // 텍스트를 입력 중일 때는 T를 눌러도 창이 꺼지지 않고 't'가 입력되도록 무시
+                if (chatInputField.isFocused) return;
+
+                ToggleChat(!chatPanel.activeSelf);
+            }
+
+            // 2. ESC키로 채팅창 닫기 (채팅 중단 및 빠져나가기)
+            if (Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                if (chatPanel.activeSelf)
+                {
+                    ToggleChat(false);
+                }
+            }
+        }
+
+        public void ToggleChat(bool isOpen)
+        {
+            chatPanel.SetActive(isOpen);
+
+            if (isOpen)
+            {
+                chatInputField.text = string.Empty;
+                Canvas.ForceUpdateCanvases();
+                chatInputField.Select();
+                chatInputField.ActivateInputField();
+            }
+            else
+            {
+                chatInputField.DeactivateInputField();
+            }
+
+            OnChatToggled?.Invoke(isOpen);
         }
 
         private void HandleNewMessage(string sender, string message)
         {
             TMP_Text chatText;
 
-            // 1. 최대 개수에 도달하지 않았다면 새로 생성
             if (_chatMessagePool.Count < maxMessages)
             {
                 GameObject newChat = Instantiate(chatTextPrefab, chatContentParent);
                 chatText = newChat.GetComponent<TMP_Text>();
             }
-            // 2. 최대 개수에 도달했다면 가장 오래된 텍스트 재활용
             else
             {
-                chatText = _chatMessagePool.Dequeue(); // 큐에서 가장 먼저 들어온(맨 위) 녀석을 뺌
-                chatText.transform.SetAsLastSibling(); // 하이라키 상에서 Content의 가장 아래쪽으로 이동시킴
+                chatText = _chatMessagePool.Dequeue();
+                chatText.transform.SetAsLastSibling();
             }
 
-            // 3. 텍스트 내용 갱신 및 큐에 다시 삽입
             chatText.text = $"<b>[{sender}]</b>: {message}";
             _chatMessagePool.Enqueue(chatText);
 
-            // 4. (선택) 새 채팅이 왔을 때 스크롤 맨 아래로 자동 이동
             if (scrollRect != null)
             {
-                Canvas.ForceUpdateCanvases(); // UI 레이아웃 크기를 강제로 즉시 갱신
-                scrollRect.verticalNormalizedPosition = 0f; // 스크롤바를 0(맨 아래)으로 설정
+                Canvas.ForceUpdateCanvases();
+                scrollRect.verticalNormalizedPosition = 0f;
             }
         }
 
@@ -66,13 +122,17 @@ namespace PixelChroma.UI
         {
             PlayerChat localPlayerChat = NetworkClient.localPlayer?.GetComponent<PlayerChat>();
 
-            if (localPlayerChat != null)
+            if (localPlayerChat != null && !string.IsNullOrWhiteSpace(message))
             {
                 localPlayerChat.SendChat(message);
             }
 
+            // --- 변경된 부분 ---
+            // 채팅을 보내고 창을 닫지 않습니다. 
+            // 대신 입력된 텍스트만 지우고 다시 입력할 수 있도록 포커스를 줍니다.
             chatInputField.text = string.Empty;
             chatInputField.ActivateInputField();
+            chatInputField.Select();
         }
     }
 }
