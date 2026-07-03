@@ -1,12 +1,13 @@
+using Mirror;
+using PixelChroma.UI;
 using System;
 using System.Collections;
+using TMPro;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.Rendering.Universal;
-using Mirror;
 using UnityEngine.InputSystem;
-using Unity.Cinemachine;
-using PixelChroma.UI;
+using UnityEngine.Rendering.Universal;
 
 namespace PixelChroma
 {
@@ -38,6 +39,12 @@ namespace PixelChroma
         [SerializeField] private int maxPPU = 64;
         [SerializeField] private int zoomStepPPU = 2;
 
+        [Header("Nickname UI")]
+        [SerializeField] private TMP_Text nicknameText;
+
+        [SyncVar(hook = nameof(OnPlayerNameChanged))]
+        public string playerName = "Player";
+
         [SyncVar]
         public PlayerRole role = PlayerRole.None;
 
@@ -64,6 +71,7 @@ namespace PixelChroma
         private Texture2D _eyedropperCapture;
         private Coroutine _eyedropperCoroutine;
 
+        // ── 💡 1. 로컬 플레이어 시작 시 닉네임 불러와서 전송 ──────────────────
         public override void OnStartLocalPlayer()
         {
             _rb = GetComponent<Rigidbody2D>();
@@ -84,7 +92,24 @@ namespace PixelChroma
             OnLocalPlayerStarted();
 
             UpdateCursorIcon(); // 시작 시 커서 업데이트
+
+            // 내 기기에 저장된 커스텀 닉네임이 있는지 확인 후 서버에 전달
+            string mySavedName = PlayerPrefs.GetString(PixelChroma.UI.UIMainMenuNickname.NicknamePrefsKey,
+                                 PixelChroma.UI.UIMainMenuNickname.GetDefaultSteamName());
+            CmdSetNickname(mySavedName);
         }
+
+        // 2. 닉네임 동기화 Command 함수
+        [Command]
+        private void CmdSetNickname(string nameToSet)
+        {
+            if (string.IsNullOrEmpty(nameToSet)) return;
+
+            // 서버에서 닉네임 변수를 갱신하면 SyncVar에 의해 모든 클라이언트에게 뿌려짐
+            playerName = nameToSet.Trim();
+            Debug.Log($"[NetworkServer] {netId}번 플레이어 닉네임 세팅 완료: {playerName}");
+        }
+        // ─────────────────────────────────────────────────────────────
 
         protected virtual void OnLocalPlayerStarted() { }
 
@@ -139,6 +164,11 @@ namespace PixelChroma
                 HandlePainting();
             }
 
+            if (isClient && nicknameText != null)
+            {
+                UpdateNicknameVisibility();
+            }
+
             UpdateAnimation();
         }
 
@@ -147,6 +177,12 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
             HandleMovement();
+        }
+
+        private void OnPlayerNameChanged(string oldName, string newName)
+        {
+            if (nicknameText != null)
+                nicknameText.text = newName;
         }
 
         protected virtual void HandleMovement()
@@ -229,10 +265,9 @@ namespace PixelChroma
             UpdateCursorIcon();
         }
 
-        // 자식 클래스(Seeker, Runner 등)가 자신의 평상시 커서를 지정할 수 있게 가상함수로 뺌
         protected virtual CursorType GetDefaultCursorType()
         {
-            return CursorType.Default; // 기본은 평범한 마우스
+            return CursorType.Default;
         }
 
         protected void UpdateCursorIcon()
@@ -241,7 +276,6 @@ namespace PixelChroma
 
             if (!isPaintMode)
             {
-                // 페인트 모드가 아닐 때는 자식 클래스가 정해준 기본 커서(조준선 or 마우스) 적용
                 CursorManager.Instance.SetCursorType(GetDefaultCursorType());
             }
             else
@@ -431,12 +465,58 @@ namespace PixelChroma
         {
             _isChatActive = isActive;
 
-            // 채팅창이 켜질 때, 움직이던 관성(Velocity)과 애니메이션을 강제로 정지시킵니다.
             if (_isChatActive)
             {
                 if (_rb != null) _rb.linearVelocity = Vector2.zero;
                 if (animator != null) animator.SetBool(IsMoving, false);
             }
+        }
+
+        private void UpdateNicknameVisibility()
+        {
+            if (NetworkClient.localPlayer == null) return;
+
+            PlayerBase localPlayer = NetworkClient.localPlayer.GetComponent<PlayerBase>();
+            if (localPlayer == null) return;
+
+            if (this == localPlayer)
+            {
+                nicknameText.enabled = true;
+                return;
+            }
+
+            if (localPlayer.role == PlayerRole.None || this.role == PlayerRole.None)
+            {
+                nicknameText.enabled = true;
+                return;
+            }
+
+            if (localPlayer is RunnerPlayer localRunner && localRunner.isDead)
+            {
+                nicknameText.enabled = true;
+                return;
+            }
+
+            PlayerRole localRole = localPlayer.role;
+            PlayerRole targetRole = this.role;
+
+            bool shouldShow = false;
+
+            if (localRole == PlayerRole.Seeker && targetRole == PlayerRole.Seeker)
+            {
+                shouldShow = true;
+            }
+            else if (localRole == PlayerRole.Runner && targetRole == PlayerRole.Runner)
+            {
+                bool isInfectionMode = false;
+                shouldShow = !isInfectionMode;
+            }
+            else
+            {
+                shouldShow = false;
+            }
+
+            nicknameText.enabled = shouldShow;
         }
     }
 }
