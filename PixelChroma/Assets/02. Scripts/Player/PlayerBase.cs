@@ -22,6 +22,8 @@ namespace PixelChroma
         protected static readonly int MoveY = Animator.StringToHash("MoveY");
         protected static readonly int IsMoving = Animator.StringToHash("IsMoving");
 
+        private bool _isChatActive = false;
+
         [Header("Input")]
         public InputActionAsset inputActions;
 
@@ -76,6 +78,8 @@ namespace PixelChroma
             eyedropperAction.Enable();
             zoomModifierAction.Enable();
 
+            UIChat.OnChatToggled += HandleChatToggled;
+
             SetupCinemachineFollow();
             OnLocalPlayerStarted();
 
@@ -90,7 +94,7 @@ namespace PixelChroma
             togglePaintAction?.Disable();
             eyedropperAction?.Disable();
             zoomModifierAction?.Disable();
-
+            UIChat.OnChatToggled -= HandleChatToggled;
             StopEyedropperCapture();
             if (_eyedropperCapture != null)
             {
@@ -122,6 +126,8 @@ namespace PixelChroma
         {
             if (!isLocalPlayer) return;
 
+            if (_isChatActive) return;
+
             if (togglePaintAction.WasPressedThisFrame())
                 TogglePaintMode();
 
@@ -139,6 +145,7 @@ namespace PixelChroma
         protected virtual void FixedUpdate()
         {
             if (!isLocalPlayer) return;
+            if (_isChatActive) return;
             HandleMovement();
         }
 
@@ -418,6 +425,18 @@ namespace PixelChroma
                 paintCanvas.BrushSize = size;
 
             UpdateCursorIcon();
+        }
+
+        private void HandleChatToggled(bool isActive)
+        {
+            _isChatActive = isActive;
+
+            // 채팅창이 켜질 때, 움직이던 관성(Velocity)과 애니메이션을 강제로 정지시킵니다.
+            if (_isChatActive)
+            {
+                if (_rb != null) _rb.linearVelocity = Vector2.zero;
+                if (animator != null) animator.SetBool(IsMoving, false);
+            }
         }
     }
 }
