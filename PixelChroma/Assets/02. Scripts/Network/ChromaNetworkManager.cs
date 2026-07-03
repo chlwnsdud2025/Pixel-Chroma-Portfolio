@@ -43,6 +43,8 @@ namespace PixelChroma
         private CancellationTokenSource _countdownCts;
 
         // 방장이 설정한 룰과 현재 진행 상태 관리
+        private MapRegistrySO MapRegistry => LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
+
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public float CurrentTimer { get; private set; } = 0f;
@@ -171,7 +173,8 @@ namespace PixelChroma
             _isCountingDown = false;
             _countdownCts = null;
 
-            ServerChangeScene(inGameScene);
+            string targetScene = ResolveMapScene();
+            ServerChangeScene(targetScene);
         }
 
         private void ApplyRolesToLobbyPlayers()
@@ -205,7 +208,7 @@ namespace PixelChroma
             {
                 playerInstance = Instantiate(lobbyPlayerPrefab);
             }
-            else if (currentScene == GetSceneName(inGameScene))
+            else if (IsInGameScene(currentScene))
             {
                 PlayerRole role = _assignedRoles.TryGetValue(conn.connectionId, out var assigned)
                     ? assigned
@@ -250,7 +253,7 @@ namespace PixelChroma
             base.OnClientSceneChanged();
 
             string currentScene = SceneManager.GetActiveScene().name;
-            if (currentScene == GetSceneName(inGameScene) && GameManager.Instance != null)
+            if (IsInGameScene(currentScene) && GameManager.Instance != null)
             {
                 GameManager.Instance.EnterInGame().Forget();
             }
@@ -260,7 +263,7 @@ namespace PixelChroma
         {
             base.OnServerSceneChanged(sceneName);
 
-            if (GetSceneName(sceneName) == GetSceneName(inGameScene))
+            if (IsInGameScene(GetSceneName(sceneName)))
             {
                 // 방장이 설정한 옵션이 있다면 그 시간을, 없다면 기본값(45초)을 적용
                 float hideTime = CurrentRoomOption != null ? CurrentRoomOption.hideTime : 45f;
@@ -313,6 +316,26 @@ namespace PixelChroma
                 PlayerRole role = (i < seekerCount) ? PlayerRole.Seeker : PlayerRole.Runner;
                 _assignedRoles[shuffled[i].connectionId] = role;
             }
+        }
+
+        private bool IsInGameScene(string sceneName)
+        {
+            if (sceneName == GetSceneName(inGameScene))
+                return true;
+
+            return MapRegistry != null && MapRegistry.ContainsScene(sceneName);
+        }
+
+        private string ResolveMapScene()
+        {
+            if (MapRegistry != null && CurrentRoomOption != null)
+            {
+                var mapData = MapRegistry.FindById(CurrentRoomOption.mapName);
+                if (mapData != null && !string.IsNullOrEmpty(mapData.sceneName))
+                    return mapData.sceneName;
+            }
+
+            return inGameScene;
         }
 
         private string GetSceneName(string scenePath)
