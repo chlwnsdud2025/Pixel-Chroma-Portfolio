@@ -47,7 +47,6 @@ namespace PixelChroma.UI
             if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
             if (inviteFriendButton != null) inviteFriendButton.onClick.AddListener(OnClickInviteFriend);
 
-            // 💡 설정 열기 버튼 이벤트 등록
             if (roomSettingsButton != null) roomSettingsButton.onClick.AddListener(OnClickRoomSettings);
 
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
@@ -64,6 +63,9 @@ namespace PixelChroma.UI
             LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
             LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
 
+            // 누군가 레디(Ready)를 누르면 명단 텍스트(체크마크)도 즉각 갱신하도록 이벤트 추가
+            LobbyPlayerState.OnLobbyPlayersChanged += RefreshMemberList;
+
             ChromaNetworkManager.OnCountdownTick += HandleCountdownTick;
             ChromaNetworkManager.OnCountdownEnd += HandleCountdownEnd;
 
@@ -76,12 +78,14 @@ namespace PixelChroma.UI
                 startGameButton.interactable = false;
             }
 
-            // 💡 호스트(방장)에게만 방 설정 변경 버튼과 초대 버튼이 보이게 합니다.
             if (roomSettingsButton != null)
                 roomSettingsButton.gameObject.SetActive(NetworkServer.active);
 
             if (inviteFriendButton != null)
                 inviteFriendButton.gameObject.SetActive(NetworkServer.active);
+
+            // 네트워크 닉네임(SyncVar)이 클라이언트에 도착하는 미세한 핑 딜레이를 잡기 위해, 로비 창에서는 0.5초마다 UI를 안전하게 덧칠해줍니다.
+            InvokeRepeating(nameof(RefreshMemberList), 0.5f, 0.5f);
         }
 
         private void OnDisable()
@@ -90,9 +94,12 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.OnMembersChanged -= RefreshMemberList;
 
             LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
+            LobbyPlayerState.OnLobbyPlayersChanged -= RefreshMemberList;
 
             ChromaNetworkManager.OnCountdownTick -= HandleCountdownTick;
             ChromaNetworkManager.OnCountdownEnd -= HandleCountdownEnd;
+
+            CancelInvoke(nameof(RefreshMemberList)); // 루프 종료
         }
 
         protected override UniTask OnShow()
@@ -110,7 +117,6 @@ namespace PixelChroma.UI
         {
             UIManager.Instance.ShowPopup<UIRoomSetting>().Forget();
         }
-
 
         // ── Ready UI ─────────────────────────────────────────
 
@@ -151,8 +157,6 @@ namespace PixelChroma.UI
             {
                 ChromaNetworkManager manager = NetworkManager.singleton as ChromaNetworkManager;
                 LobbyManager.Instance.ChangeLobbyStatusToInGame();
-
-                // 수정한 방 설정 옵션을 인자로 넘겨 게임을 시작합니다!
                 manager?.StartGameWithOption(LobbyManager.Instance.CurrentRoomOption);
             }
         }
@@ -181,19 +185,46 @@ namespace PixelChroma.UI
                 roomCodeText.text = $"방 코드: {LobbyManager.Instance.CurrentRoomCode}";
         }
 
+        // 스팀 API가 아닌 Mirror 네트워크 객체에서 커스텀 닉네임을 가져옵니다.
         private void RefreshMemberList()
         {
             if (memberListText == null) return;
 
-            int count = LobbyManager.Instance.GetMemberCount();
             var sb = new StringBuilder();
 
-            for (int i = 0; i < count; i++)
+            // 네트워크에 스폰된 로비 플레이어들을 netId 순(접속 순서)으로 정렬합니다.
+            var sortedPlayers = LobbyPlayerState.AllPlayers.OrderBy(p => p.netId).ToList();
+
+            for (int i = 0; i < sortedPlayers.Count; i++)
             {
-                CSteamID memberId = LobbyManager.Instance.GetMember(i);
-                string name = SteamFriends.GetFriendPersonaName(memberId);
-                bool isHost = i == 0;
+                var p = sortedPlayers[i];
+                var playerBase = p.GetComponent<PlayerBase>();
+
+                // PlayerBase(공통 네트워크)에서 동기화된 커스텀 닉네임을 가져옵니다.
+                string name = playerBase != null ? playerBase.playerName : "Player";
+
+                // 준비 완료(Ready) 상태면 이름 옆에 초록색 체크마크 추가!
+                if (p.isReady)
+                {
+                    name += " <color=#00FF00>✔</color>";
+                }
+
+                // 가장 처음 스폰된 사람(netId가 제일 낮은 사람)이 방장입니다.
+                bool isHost = (i == 0);
                 sb.AppendLine(isHost ? $"{name} (방장)" : name);
+            }
+
+            // 만약 서버 딜레이로 미러(Mirror) 객체가 아직 없다면 스팀 API 이름으로 임시 렌더링
+            if (sortedPlayers.Count == 0 && LobbyManager.Instance != null)
+            {
+                int count = LobbyManager.Instance.GetMemberCount();
+                for (int i = 0; i < count; i++)
+                {
+                    CSteamID memberId = LobbyManager.Instance.GetMember(i);
+                    string name = SteamFriends.GetFriendPersonaName(memberId);
+                    bool isHost = (i == 0);
+                    sb.AppendLine(isHost ? $"{name} (방장)" : name);
+                }
             }
 
             memberListText.text = sb.ToString();
@@ -218,7 +249,7 @@ namespace PixelChroma.UI
         {
 #if UNITY_EDITOR
             Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
-#else
+#else            
             if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
             {
                 Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");

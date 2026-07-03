@@ -40,8 +40,9 @@ namespace PixelChroma
         [SerializeField] private int zoomStepPPU = 2;
 
         [Header("Nickname UI")]
-        [SerializeField] private TMP_Text nicknameText;
+        [SerializeField] protected TMP_Text nicknameText; // 💡 로비 체크마크 가독성을 위해 protected로 승격
 
+        // 💡 NetworkManager에 의해 서버가 직접 제어하며, 변경 시 자동으로 모든 클라이언트 UI를 갱신합니다.
         [SyncVar(hook = nameof(OnPlayerNameChanged))]
         public string playerName = "Player";
 
@@ -71,7 +72,13 @@ namespace PixelChroma
         private Texture2D _eyedropperCapture;
         private Coroutine _eyedropperCoroutine;
 
-        // ── 💡 1. 로컬 플레이어 시작 시 닉네임 불러와서 전송 ──────────────────
+        // 💡 네트워크 클라이언트 스폰 시 SyncVar 최신 상태를 강제로 동기화합니다.
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            UpdateNicknameText();
+        }
+
         public override void OnStartLocalPlayer()
         {
             _rb = GetComponent<Rigidbody2D>();
@@ -91,25 +98,28 @@ namespace PixelChroma
             SetupCinemachineFollow();
             OnLocalPlayerStarted();
 
-            UpdateCursorIcon(); // 시작 시 커서 업데이트
+            UpdateCursorIcon();
 
-            // 내 기기에 저장된 커스텀 닉네임이 있는지 확인 후 서버에 전달
-            string mySavedName = PlayerPrefs.GetString(PixelChroma.UI.UIMainMenuNickname.NicknamePrefsKey,
-                                 PixelChroma.UI.UIMainMenuNickname.GetDefaultSteamName());
-            CmdSetNickname(mySavedName);
+            // 💡 [핵심 파이프라인] 게임 시작 직후, 방금 접속한 로컬 유저가 내 저장된 커스텀 이름을 매니저 명부에 "딱 한 번" 등록 요청합니다.
+            string mySavedName = PlayerPrefs.GetString("CustomPlayerNickname", GetDefaultSteamName());
+            CmdRegisterMyNameWithManager(mySavedName);
         }
 
-        // 2. 닉네임 동기화 Command 함수
+        // 💡 서버의 중앙 NetworkManager 명부에 내 닉네임을 신고하는 Command
         [Command]
-        private void CmdSetNickname(string nameToSet)
+        private void CmdRegisterMyNameWithManager(string nameToRegister)
         {
-            if (string.IsNullOrEmpty(nameToSet)) return;
+            if (string.IsNullOrEmpty(nameToRegister)) return;
 
-            // 서버에서 닉네임 변수를 갱신하면 SyncVar에 의해 모든 클라이언트에게 뿌려짐
-            playerName = nameToSet.Trim();
-            Debug.Log($"[NetworkServer] {netId}번 플레이어 닉네임 세팅 완료: {playerName}");
+            if (NetworkManager.singleton is ChromaNetworkManager netManager)
+            {
+                // 중앙 매니저 명부에 저장
+                netManager.RegisterNickname(connectionToClient.connectionId, nameToRegister.Trim());
+
+                // 현재 내 오브젝트의 SyncVar도 즉시 동기화
+                playerName = nameToRegister.Trim();
+            }
         }
-        // ─────────────────────────────────────────────────────────────
 
         protected virtual void OnLocalPlayerStarted() { }
 
@@ -181,8 +191,14 @@ namespace PixelChroma
 
         private void OnPlayerNameChanged(string oldName, string newName)
         {
+            UpdateNicknameText();
+        }
+
+        // 💡 자식 클래스(LobbyPlayer)에서 체크마크를 붙일 수 있도록 가상 함수화 및 기본 구현 분리
+        protected virtual void UpdateNicknameText()
+        {
             if (nicknameText != null)
-                nicknameText.text = newName;
+                nicknameText.text = playerName;
         }
 
         protected virtual void HandleMovement()
@@ -517,6 +533,19 @@ namespace PixelChroma
             }
 
             nicknameText.enabled = shouldShow;
+        }
+
+        public static string GetDefaultSteamName()
+        {
+            try
+            {
+                if (Steamworks.SteamAPI.IsSteamRunning())
+                {
+                    return Steamworks.SteamFriends.GetPersonaName();
+                }
+            }
+            catch (System.Exception) { }
+            return "PixelPlayer_" + UnityEngine.Random.Range(1000, 9999);
         }
     }
 }
