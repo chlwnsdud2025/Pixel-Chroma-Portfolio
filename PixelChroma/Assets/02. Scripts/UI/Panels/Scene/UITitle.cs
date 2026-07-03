@@ -14,6 +14,7 @@ namespace PixelChroma.UI
         [SerializeField] private Button createRoomButton;
         [SerializeField] private Button findRoomButton;
         [SerializeField] private Button joinRoomButton;
+        [SerializeField] private Button nicknameSettingButton;
 
         [Header("Status")]
         [SerializeField] private TMP_Text statusText;
@@ -30,6 +31,7 @@ namespace PixelChroma.UI
             if (createRoomButton != null) createRoomButton.onClick.AddListener(OnClickCreateRoom);
             if (findRoomButton != null) findRoomButton.onClick.AddListener(OnClickFindRoom);
             if (joinRoomButton != null) joinRoomButton.onClick.AddListener(OnClickJoinRoom);
+            if (nicknameSettingButton != null) nicknameSettingButton.onClick.AddListener(OnClickNicknameSetting);
 
             SetStatus(string.Empty);
         }
@@ -56,6 +58,7 @@ namespace PixelChroma.UI
             if (createRoomButton != null) createRoomButton.interactable = value;
             if (findRoomButton != null) findRoomButton.interactable = value;
             if (joinRoomButton != null) joinRoomButton.interactable = value;
+            if (nicknameSettingButton != null) nicknameSettingButton.interactable = value;
         }
 
         private void SetStatus(string message)
@@ -119,6 +122,10 @@ namespace PixelChroma.UI
         private void OnClickJoinRoom()
         {
             UIManager.Instance.ShowPopup<UIRoomCodeEntry>().Forget();
+        }
+        private void OnClickNicknameSetting()
+        {
+            UIManager.Instance.ShowPopup<UIMainMenuNickname>().Forget();
         }
     }
 }

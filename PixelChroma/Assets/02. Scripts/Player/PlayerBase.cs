@@ -1,12 +1,13 @@
+using Mirror;
+using PixelChroma.UI;
 using System;
 using System.Collections;
+using TMPro;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.Rendering.Universal;
-using Mirror;
 using UnityEngine.InputSystem;
-using Unity.Cinemachine;
-using PixelChroma.UI;
+using UnityEngine.Rendering.Universal;
 
 namespace PixelChroma
 {
@@ -38,6 +39,13 @@ namespace PixelChroma
         [SerializeField] private int maxPPU = 64;
         [SerializeField] private int zoomStepPPU = 2;
 
+        [Header("Nickname UI")]
+        [SerializeField] protected TMP_Text nicknameText; // 💡 로비 체크마크 가독성을 위해 protected로 승격
+
+        // 💡 NetworkManager에 의해 서버가 직접 제어하며, 변경 시 자동으로 모든 클라이언트 UI를 갱신합니다.
+        [SyncVar(hook = nameof(OnPlayerNameChanged))]
+        public string playerName = "Player";
+
         [SyncVar]
         public PlayerRole role = PlayerRole.None;
 
@@ -64,6 +72,13 @@ namespace PixelChroma
         private Texture2D _eyedropperCapture;
         private Coroutine _eyedropperCoroutine;
 
+        // 💡 네트워크 클라이언트 스폰 시 SyncVar 최신 상태를 강제로 동기화합니다.
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            UpdateNicknameText();
+        }
+
         public override void OnStartLocalPlayer()
         {
             _rb = GetComponent<Rigidbody2D>();
@@ -83,7 +98,27 @@ namespace PixelChroma
             SetupCinemachineFollow();
             OnLocalPlayerStarted();
 
-            UpdateCursorIcon(); // 시작 시 커서 업데이트
+            UpdateCursorIcon();
+
+            // 💡 [핵심 파이프라인] 게임 시작 직후, 방금 접속한 로컬 유저가 내 저장된 커스텀 이름을 매니저 명부에 "딱 한 번" 등록 요청합니다.
+            string mySavedName = PlayerPrefs.GetString("CustomPlayerNickname", GetDefaultSteamName());
+            CmdRegisterMyNameWithManager(mySavedName);
+        }
+
+        // 💡 서버의 중앙 NetworkManager 명부에 내 닉네임을 신고하는 Command
+        [Command]
+        private void CmdRegisterMyNameWithManager(string nameToRegister)
+        {
+            if (string.IsNullOrEmpty(nameToRegister)) return;
+
+            if (NetworkManager.singleton is ChromaNetworkManager netManager)
+            {
+                // 중앙 매니저 명부에 저장
+                netManager.RegisterNickname(connectionToClient.connectionId, nameToRegister.Trim());
+
+                // 현재 내 오브젝트의 SyncVar도 즉시 동기화
+                playerName = nameToRegister.Trim();
+            }
         }
 
         protected virtual void OnLocalPlayerStarted() { }
@@ -139,6 +174,11 @@ namespace PixelChroma
                 HandlePainting();
             }
 
+            if (isClient && nicknameText != null)
+            {
+                UpdateNicknameVisibility();
+            }
+
             UpdateAnimation();
         }
 
@@ -147,6 +187,18 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
             HandleMovement();
+        }
+
+        private void OnPlayerNameChanged(string oldName, string newName)
+        {
+            UpdateNicknameText();
+        }
+
+        // 💡 자식 클래스(LobbyPlayer)에서 체크마크를 붙일 수 있도록 가상 함수화 및 기본 구현 분리
+        protected virtual void UpdateNicknameText()
+        {
+            if (nicknameText != null)
+                nicknameText.text = playerName;
         }
 
         protected virtual void HandleMovement()
@@ -229,10 +281,9 @@ namespace PixelChroma
             UpdateCursorIcon();
         }
 
-        // 자식 클래스(Seeker, Runner 등)가 자신의 평상시 커서를 지정할 수 있게 가상함수로 뺌
         protected virtual CursorType GetDefaultCursorType()
         {
-            return CursorType.Default; // 기본은 평범한 마우스
+            return CursorType.Default;
         }
 
         protected void UpdateCursorIcon()
@@ -241,7 +292,6 @@ namespace PixelChroma
 
             if (!isPaintMode)
             {
-                // 페인트 모드가 아닐 때는 자식 클래스가 정해준 기본 커서(조준선 or 마우스) 적용
                 CursorManager.Instance.SetCursorType(GetDefaultCursorType());
             }
             else
@@ -431,12 +481,71 @@ namespace PixelChroma
         {
             _isChatActive = isActive;
 
-            // 채팅창이 켜질 때, 움직이던 관성(Velocity)과 애니메이션을 강제로 정지시킵니다.
             if (_isChatActive)
             {
                 if (_rb != null) _rb.linearVelocity = Vector2.zero;
                 if (animator != null) animator.SetBool(IsMoving, false);
             }
+        }
+
+        private void UpdateNicknameVisibility()
+        {
+            if (NetworkClient.localPlayer == null) return;
+
+            PlayerBase localPlayer = NetworkClient.localPlayer.GetComponent<PlayerBase>();
+            if (localPlayer == null) return;
+
+            if (this == localPlayer)
+            {
+                nicknameText.enabled = true;
+                return;
+            }
+
+            if (localPlayer.role == PlayerRole.None || this.role == PlayerRole.None)
+            {
+                nicknameText.enabled = true;
+                return;
+            }
+
+            if (localPlayer is RunnerPlayer localRunner && localRunner.isDead)
+            {
+                nicknameText.enabled = true;
+                return;
+            }
+
+            PlayerRole localRole = localPlayer.role;
+            PlayerRole targetRole = this.role;
+
+            bool shouldShow = false;
+
+            if (localRole == PlayerRole.Seeker && targetRole == PlayerRole.Seeker)
+            {
+                shouldShow = true;
+            }
+            else if (localRole == PlayerRole.Runner && targetRole == PlayerRole.Runner)
+            {
+                bool isInfectionMode = false;
+                shouldShow = !isInfectionMode;
+            }
+            else
+            {
+                shouldShow = false;
+            }
+
+            nicknameText.enabled = shouldShow;
+        }
+
+        public static string GetDefaultSteamName()
+        {
+            try
+            {
+                if (Steamworks.SteamAPI.IsSteamRunning())
+                {
+                    return Steamworks.SteamFriends.GetPersonaName();
+                }
+            }
+            catch (System.Exception) { }
+            return "PixelPlayer_" + UnityEngine.Random.Range(1000, 9999);
         }
     }
 }

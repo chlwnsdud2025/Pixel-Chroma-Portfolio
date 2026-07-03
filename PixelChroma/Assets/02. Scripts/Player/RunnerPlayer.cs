@@ -27,6 +27,8 @@ namespace PixelChroma
         private int _spectateRunnerIndex = -1;
         private int _spectateSeekerIndex = -1;
 
+        private UISpectatorPopup _spectatorPopup;
+
         // ── 물에 젖음 및 디버프 상태 ────────────────────────────────
         [Header("Status Effect")]
         [SyncVar(hook = nameof(OnWetStateChanged))]
@@ -41,6 +43,10 @@ namespace PixelChroma
         [SerializeField] private float speedDebuffPerHit = 0.2f;
         [Tooltip("아무리 많이 맞아도 최소한 보장되는 이동 속도 비율 (예: 0.3 = 기본 속도의 30% 유지)")]
         [SerializeField] private float minSpeedMultiplier = 0.3f;
+
+        [Header("Paint Mode Settings")]
+        [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
+        [SerializeField] private float paintModeSpeedMultiplier = 0.2f;
 
         public bool IsSpectating => isDead;
 
@@ -71,6 +77,8 @@ namespace PixelChroma
 
             _freeCamTarget = new GameObject("FreeCamTarget");
             _freeCamTarget.transform.position = transform.position;
+
+            OnPaintModeChanged += HandlePaintModeChanged;
         }
 
         protected override void OnLocalPlayerStopped()
@@ -133,23 +141,35 @@ namespace PixelChroma
             RecalculateMoveSpeed();
         }
 
+        private void HandlePaintModeChanged(bool isPaint)
+        {
+            RecalculateMoveSpeed();
+        }
+
+
+
         // 현재 중첩(wetStack)에 비례해서 실제 이동속도를 깎아내는 함수
         private void RecalculateMoveSpeed()
         {
-            if (!isWet || wetStack == 0)
-            {
-                moveSpeed = runnerMoveSpeed; // 원래 속도로 복구
-            }
-            else
+            float targetSpeed = runnerMoveSpeed; // 원래 속도에서 시작
+
+            // 1. 물에 젖었을 때 이속 감소 적용
+            if (isWet && wetStack > 0)
             {
                 float currentMultiplier = 1f - (wetStack * speedDebuffPerHit);
                 currentMultiplier = Mathf.Max(currentMultiplier, minSpeedMultiplier);
-                moveSpeed = runnerMoveSpeed * currentMultiplier;
-
-                Debug.Log($"[디버프] 현재 {wetStack}중첩! 이동 속도가 {moveSpeed} 로 감소됨.");
+                targetSpeed *= currentMultiplier;
             }
-        }
 
+            // 2. 페인트 모드일 때 정밀 조준을 위해 속도 대폭 감소 (물에 젖은 상태와 중첩됨)
+            if (isPaintMode)
+            {
+                targetSpeed *= paintModeSpeedMultiplier;
+            }
+
+            moveSpeed = targetSpeed;
+            // Debug.Log($"[디버프] 이동 속도 갱신됨: {moveSpeed} (젖음스택: {wetStack}, 페인트모드: {isPaintMode})");
+        }
         // ── 피격 및 지워짐 로직 ──────────────────────────────────────────
 
         [Server]
@@ -178,12 +198,12 @@ namespace PixelChroma
         {
             if (isLocalPlayer)
             {
-                // 💡 픽셀이 다 지워졌다고 죽는 로직은 어몽어스 킬 기획에 의해 비활성화합니다.
+                // 픽셀이 다 지워졌다고 죽는 로직은 어몽어스 킬 기획에 의해 비활성화합니다.
                 // CheckIfCaught(); 
             }
         }
 
-        /* 💡 기존의 픽셀 0개 아웃 로직 (사용 안 함)
+        /* 기존의 픽셀 0개 아웃 로직 (사용 안 함)
         private void CheckIfCaught()
         {
             if (paintCanvas == null) return;
@@ -227,7 +247,22 @@ namespace PixelChroma
                 var vcam = FindObjectOfType<Unity.Cinemachine.CinemachineCamera>();
                 if (vcam != null) vcam.Follow = _freeCamTarget.transform;
 
-                Debug.Log("사망: 영구 관전 모드 진입 완료!");
+                UpdateSpectatorUIAsync("자유 시점").Forget();
+            }
+        }
+
+        private async UniTaskVoid UpdateSpectatorUIAsync(string targetName)
+        {
+            // 팝업이 아직 화면에 없다면 새로 엽니다.
+            if (_spectatorPopup == null)
+            {
+                _spectatorPopup = await UIManager.Instance.ShowPopup<UISpectatorPopup>();
+            }
+
+            // 이름을 갱신합니다.
+            if (_spectatorPopup != null)
+            {
+                _spectatorPopup.SetTargetName(targetName);
             }
         }
 
@@ -263,14 +298,25 @@ namespace PixelChroma
         {
             if (AllRunners.Count == 0) return;
 
-            if (_spectateRunnerIndex >= AllRunners.Count)
-                _spectateRunnerIndex = -1;
+            int attemptCount = 0;
 
-            _spectateRunnerIndex = (_spectateRunnerIndex + 1) % AllRunners.Count;
+            // 무한 루프 방지: 전체 도망자 수만큼만 살아있는 유저를 찾습니다.
+            while (attemptCount < AllRunners.Count)
+            {
+                _spectateRunnerIndex = (_spectateRunnerIndex + 1) % AllRunners.Count;
+                var target = AllRunners[_spectateRunnerIndex];
 
-            var target = AllRunners[_spectateRunnerIndex];
-            if (target != null)
-                SetSpectateTarget(target.transform);
+                // 타겟이 존재하고, '죽지 않은(!target.isDead)' 상태일 때만 관전 타겟으로 잡고 루프를 종료합니다.
+                if (target != null && !target.isDead)
+                {
+                    SetSpectateTarget(target);
+                    return;
+                }
+
+                attemptCount++;
+            }
+
+            Debug.Log("[Spectate] 현재 관전할 수 있는 살아있는 도망자가 없습니다.");
         }
 
         private void CycleSpectateSeeker()
@@ -284,22 +330,22 @@ namespace PixelChroma
 
             var target = SeekerPlayer.AllSeekers[_spectateSeekerIndex];
             if (target != null)
-                SetSpectateTarget(target.transform);
+                SetSpectateTarget(target);
         }
 
-        private void SetSpectateTarget(Transform targetTransform)
+        private void SetSpectateTarget(PlayerBase targetPlayer)
         {
-            if (targetTransform == null || cinemachineCamera == null) return;
+            if (targetPlayer == null || cinemachineCamera == null) return;
 
             _isFrozen = true;
+            if (GetComponent<Rigidbody2D>() != null) GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
 
-            if (GetComponent<Rigidbody2D>() != null)
-                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+            cinemachineCamera.Follow = targetPlayer.transform;
 
-            cinemachineCamera.Follow = targetTransform;
+            UpdateSpectatorUIAsync(targetPlayer.playerName).Forget();
         }
 
-        // 💡 통합 및 최적화된 이동 로직 (생존/사망 공용)
+        // 통합 및 최적화된 이동 로직 (생존/사망 공용)
         protected override void HandleMovement()
         {
             if (GetComponent<Rigidbody2D>() == null) return;
@@ -322,12 +368,20 @@ namespace PixelChroma
                         {
                             // 죽은 유저: 내 시체 위치(FreeCamTarget)로 카메라만 복귀
                             if (cinemachineCamera != null) cinemachineCamera.Follow = _freeCamTarget.transform;
+                            UpdateSpectatorUIAsync("자유 시점").Forget();
                         }
                         else
                         {
-                            // 산 유저: 관전 모드 끄고 즉시 이동 재개
+                            // 산 유저: 관전 모드 끄고 UI도 닫고 즉시 이동 재개
                             _isFrozen = false;
                             if (cinemachineCamera != null) cinemachineCamera.Follow = transform;
+
+                            if (_spectatorPopup != null)
+                            {
+                                _spectatorPopup.OnClickBack(); // UIPopup의 창 닫기 기능 활용
+                                _spectatorPopup = null; // 연결 해제
+                            }
+
                             base.HandleMovement();
                         }
                     }
