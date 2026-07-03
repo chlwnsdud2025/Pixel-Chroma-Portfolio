@@ -7,9 +7,18 @@ using Mirror;
 using UnityEngine.SceneManagement;
 using Mirror.FizzySteam;
 using Cysharp.Threading.Tasks;
+using PixelChroma.UI;
 
 namespace PixelChroma
 {
+    public enum TimeState { Waiting, HideTime, SeekTime, GameEnd }
+
+    public struct TimeStateMessage : NetworkMessage
+    {
+        public TimeState state;
+        public float timer;
+    }
+
     public class ChromaNetworkManager : NetworkManager
     {
         [Header("Chroma Scene Settings")]
@@ -26,9 +35,17 @@ namespace PixelChroma
         public static event Action<int> OnCountdownTick;
         public static event Action OnCountdownEnd;
 
+        // 이벤트 이름도 OnTimeStateChanged 로 변경
+        public static event Action<TimeState, float> OnTimeStateChanged;
+
         private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
         private bool _isCountingDown;
         private CancellationTokenSource _countdownCts;
+
+        // 방장이 설정한 룰과 현재 진행 상태 관리
+        public RoomOption CurrentRoomOption { get; private set; }
+        public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
+        public float CurrentTimer { get; private set; } = 0f;
 
         public override void Awake()
         {
@@ -40,7 +57,6 @@ namespace PixelChroma
             }
 
             base.Awake();
-
 #if UNITY_EDITOR
             var fizzy = GetComponent<FizzySteamworks>();
             var kcp = GetComponent<kcp2k.KcpTransport>();
@@ -49,11 +65,22 @@ namespace PixelChroma
 #endif
         }
 
+        public override void OnClientConnect()
+        {
+            base.OnClientConnect();
+
+            if (LobbyManager.Instance != null && !NetworkServer.active)
+                LobbyManager.Instance.NotifyClientConnected();
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
             NetworkClient.RegisterHandler<CountdownTickMessage>(OnClientCountdownTick);
             NetworkClient.RegisterHandler<CountdownEndMessage>(OnClientCountdownEnd);
+
+            // 클라이언트가 게임 상태 변경 메시지를 받을 수 있도록 등록
+            NetworkClient.RegisterHandler<TimeStateMessage>(OnClientTimeStateChanged);
         }
 
         public override void OnStopClient()
@@ -61,12 +88,65 @@ namespace PixelChroma
             base.OnStopClient();
             NetworkClient.UnregisterHandler<CountdownTickMessage>();
             NetworkClient.UnregisterHandler<CountdownEndMessage>();
+            NetworkClient.UnregisterHandler<TimeStateMessage>();
         }
+
+        // ── 중앙 통제 게임 루프 및 타이머 ────────────────────────────────
+
+        private void Update()
+        {
+            if (CurrentTimeState == TimeState.HideTime || CurrentTimeState == TimeState.SeekTime)
+            {
+                // 서버와 클라이언트 모두 각자 컴퓨터에서 타이머를 깎습니다 (UI가 부드럽게 흐르도록)
+                if (CurrentTimer > 0)
+                    CurrentTimer -= Time.deltaTime;
+
+                // 타이머가 0이 되면 다음 상태로 넘어가는 통제는 "오직 서버"만 합니다.
+                if (NetworkServer.active && CurrentTimer <= 0)
+                {
+                    if (CurrentTimeState == TimeState.HideTime)
+                    {
+                        float seekTime = CurrentRoomOption != null ? CurrentRoomOption.seekTime : 180f;
+                        SetTimeState(TimeState.SeekTime, seekTime);
+                    }
+                    else if (CurrentTimeState == TimeState.SeekTime)
+                    {
+                        SetTimeState(TimeState.GameEnd, 0f);
+                    }
+                }
+            }
+        }
+
+        [Server]
+        private void SetTimeState(TimeState newState, float time)
+        {
+            CurrentTimeState = newState;
+            CurrentTimer = time;
+
+            // 모든 클라이언트에게 바뀐 상태와 시간을 쏴줍니다.
+            NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
+            Debug.Log($"[NetworkManager] 상태 전환: {newState}, 시간: {time}초");
+        }
+
+        private void OnClientTimeStateChanged(TimeStateMessage msg)
+        {
+            CurrentTimeState = msg.state;
+            CurrentTimer = msg.timer;
+            OnTimeStateChanged?.Invoke(msg.state, msg.timer);
+        }
+
+        // ────────────────────────────────────────────────────────────────
 
         public void StartGame()
         {
+            StartGameWithOption(CurrentRoomOption ?? new RoomOption());
+        }
+
+        public void StartGameWithOption(RoomOption option)
+        {
             if (!NetworkServer.active || _isCountingDown) return;
 
+            CurrentRoomOption = option;
             AssignRoles();
             ApplyRolesToLobbyPlayers();
             StartCountdownAsync().Forget();
@@ -82,7 +162,6 @@ namespace PixelChroma
             while (remaining > 0)
             {
                 NetworkServer.SendToAll(new CountdownTickMessage { remainingSeconds = remaining });
-
                 await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: _countdownCts.Token);
                 remaining--;
             }
@@ -139,12 +218,10 @@ namespace PixelChroma
 
                 if (InGameManager.Instance != null)
                 {
-                    // InGameManager가 살아있다면 맵에 등록된 스폰 포인트를 가져옵니다.
                     spawnPos = InGameManager.Instance.GetSpawnPosition(role);
                 }
                 else
                 {
-                    // 만약 매니저를 찾지 못하는 예외 상황이면 기존 Mirror 방식을 백업으로 씁니다.
                     Transform startPos = GetStartPosition();
                     if (startPos != null)
                     {
@@ -153,7 +230,6 @@ namespace PixelChroma
                     }
                 }
 
-                // 받아온 좌표를 기반으로 플레이어 생성
                 playerInstance = Instantiate(prefab, spawnPos, spawnRot);
 
                 var playerBase = playerInstance.GetComponent<PlayerBase>();
@@ -169,21 +245,30 @@ namespace PixelChroma
             }
         }
 
-        public override void OnServerSceneChanged(string sceneName)
-        {
-            // 역할 배정은 StartGame() 카운트다운 시점에 이미 완료됨.
-            // 씬별 추가 처리가 필요하면 여기에 분기 추가.
-        }
-
         public override void OnClientSceneChanged()
         {
             base.OnClientSceneChanged();
 
             string currentScene = SceneManager.GetActiveScene().name;
-
             if (currentScene == GetSceneName(inGameScene) && GameManager.Instance != null)
             {
                 GameManager.Instance.EnterInGame().Forget();
+            }
+        }
+
+        public override void OnServerSceneChanged(string sceneName)
+        {
+            base.OnServerSceneChanged(sceneName);
+
+            if (GetSceneName(sceneName) == GetSceneName(inGameScene))
+            {
+                // 방장이 설정한 옵션이 있다면 그 시간을, 없다면 기본값(45초)을 적용
+                float hideTime = CurrentRoomOption != null ? CurrentRoomOption.hideTime : 45f;
+
+                // 타이머 및 상태 가동!
+                SetTimeState(TimeState.HideTime, hideTime);
+
+                Debug.Log($"[NetworkManager] 인게임 씬 진입 확인. 타이머 가동 시작: {hideTime}초");
             }
         }
 
@@ -191,10 +276,11 @@ namespace PixelChroma
         {
             base.OnClientDisconnect();
 
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.NotifyClientDisconnected();
+
             if (InGameManager.Instance != null)
-            {
                 InGameManager.Instance.ClearSpawnPoints();
-            }
 
             if (GameManager.Instance == null) return;
 
@@ -219,13 +305,7 @@ namespace PixelChroma
             var conns = NetworkServer.connections.Values.ToList();
             if (conns.Count == 0) return;
 
-            // TODO: 현재는 랜덤 1명을 술래로 지정하지만,
-            //       추후 방 생성 시 seekerCount를 설정하거나 로비에서 변경할 수 있도록 확장 예정.
-            //       - 방 생성 옵션(SyncVar 또는 Lobby 메타데이터)으로 seekerCount를 받아오기
-            //       - 로비 UI에서 호스트가 seekerCount를 조절할 수 있는 기능 추가
-            //       - seekerCount에 따라 아래 배정 로직을 N명 랜덤 선택으로 변경
-            int seekerCount = 1;
-
+            int seekerCount = CurrentRoomOption != null ? CurrentRoomOption.seekerCount : 1;
             var shuffled = conns.OrderBy(_ => UnityEngine.Random.value).ToList();
 
             for (int i = 0; i < shuffled.Count; i++)

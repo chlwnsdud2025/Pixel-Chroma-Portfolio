@@ -2,24 +2,220 @@ using UnityEngine;
 using Mirror;
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
+using UnityEngine.InputSystem;
+using System.Collections.Generic; // 💡 List 사용을 위해 추가
 
 namespace PixelChroma
 {
     public class RunnerPlayer : PlayerBase
     {
+        // 💡 씬에 존재하는 모든 도망자를 담아둘 전역(Static) 리스트
+        public static readonly List<RunnerPlayer> AllRunners = new();
+
         [Header("Runner Settings")]
         [Tooltip("캐릭터의 이동 속도를 설정합니다.")]
         public float runnerMoveSpeed = 5f;
 
+        [Header("Free Cam Settings")]
+        [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
+        public float freeCamSpeed = 15f;
+        private bool _isSpectating = false;
+
+        private bool _isFrozen = false;
+        private GameObject _freeCamTarget;
+
+        // 관전 대상을 순회하기 위한 인덱스
+        private int _spectateRunnerIndex = -1;
+        private int _spectateSeekerIndex = -1;
+
+        // ── 💡 네트워크 스폰 시 명부(캐싱 리스트)에 등록/해제 ────────────────
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            if (!AllRunners.Contains(this)) AllRunners.Add(this);
+        }
+
+        public override void OnStopClient()
+        {
+            base.OnStopClient();
+            AllRunners.Remove(this);
+        }
+        // ──────────────────────────────────────────────────────────────────
+
         protected override void OnLocalPlayerStarted()
         {
-            moveSpeed = runnerMoveSpeed; // 도망자는 보통 술래보다 같거나 살짝 빠릅니다.
-            ShowHUDAsync().Forget();
+            moveSpeed = runnerMoveSpeed;
+            ShowHUDAsync().Forget(); // HUD 정상 호출
+
+            _freeCamTarget = new GameObject("FreeCamTarget");
+            _freeCamTarget.transform.position = transform.position;
         }
 
         protected override void OnLocalPlayerStopped()
         {
             UnbindPaintHUD();
+
+            if (_freeCamTarget != null)
+                Destroy(_freeCamTarget);
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            if (!isLocalPlayer) return;
+
+            if (Keyboard.current != null)
+            {
+                // P키: 자유 시점 토글
+                if (Keyboard.current.pKey.wasPressedThisFrame)
+                {
+                    ToggleFreezeMode();
+                }
+
+                // O키: 다른 러너(도망자) 관전
+                if (Keyboard.current.oKey.wasPressedThisFrame)
+                {
+                    CycleSpectateRunner();
+                }
+
+                // I키: 술래 관전
+                if (Keyboard.current.iKey.wasPressedThisFrame)
+                {
+                    CycleSpectateSeeker();
+                }
+            }
+        }
+
+        public void ToggleFreezeMode()
+        {
+            _isFrozen = !_isFrozen;
+
+            if (_isFrozen)
+            {
+                // [고정 모드 ON] 가짜 타겟을 현재 내 위치로 불러온 뒤, 카메라가 따라가게 덮어씌움
+                _freeCamTarget.transform.position = transform.position;
+                if (cinemachineCamera != null)
+                {
+                    cinemachineCamera.Follow = _freeCamTarget.transform;
+                }
+
+                // 캐릭터는 즉시 정지
+                if (GetComponent<Rigidbody2D>() != null)
+                {
+                    GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+                }
+            }
+            else
+            {
+                // [고정 모드 OFF] 카메라가 다시 내 캐릭터를 따라가도록 원상 복구
+                if (cinemachineCamera != null)
+                {
+                    cinemachineCamera.Follow = transform;
+                }
+            }
+        }
+
+        // ── 관전(Spectate) 기능 ──────────────────────────────────────
+        private void CycleSpectateRunner()
+        {
+            if (AllRunners.Count == 0) return;
+
+            if (_spectateRunnerIndex >= AllRunners.Count)
+                _spectateRunnerIndex = -1;
+
+            _spectateRunnerIndex = (_spectateRunnerIndex + 1) % AllRunners.Count;
+
+            var target = AllRunners[_spectateRunnerIndex];
+            if (target != null)
+                SetSpectateTarget(target.transform);
+        }
+
+        private void CycleSpectateSeeker()
+        {
+            // SeekerPlayer의 캐싱 리스트를 참조
+            if (SeekerPlayer.AllSeekers.Count == 0) return;
+
+            if (_spectateSeekerIndex >= SeekerPlayer.AllSeekers.Count)
+                _spectateSeekerIndex = -1;
+
+            _spectateSeekerIndex = (_spectateSeekerIndex + 1) % SeekerPlayer.AllSeekers.Count;
+
+            var target = SeekerPlayer.AllSeekers[_spectateSeekerIndex];
+            if (target != null)
+                SetSpectateTarget(target.transform);
+        }
+
+        private void SetSpectateTarget(Transform targetTransform)
+        {
+            if (targetTransform == null || cinemachineCamera == null) return;
+
+            _isFrozen = true;
+            _isSpectating = true;
+
+            if (GetComponent<Rigidbody2D>() != null)
+                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+
+            cinemachineCamera.Follow = targetTransform;
+        }
+        // ──────────────────────────────────────────────────────────────────
+
+        protected override void HandleMovement()
+        {
+            if (GetComponent<Rigidbody2D>() == null) return;
+
+            Vector2 input = moveAction.ReadValue<Vector2>();
+
+            if (_isFrozen)
+            {
+                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+
+                if (input.sqrMagnitude > 0.01f)
+                {
+                    // 다른 대상을 관전 중(`_isSpectating`)이었다면 WASD를 누르는 즉시 나 자신에게 복귀!
+                    if (_isSpectating)
+                    {
+                        _isFrozen = false;
+                        _isSpectating = false;
+
+                        if (cinemachineCamera != null)
+                        {
+                            cinemachineCamera.Follow = transform; // 카메라 타겟을 다시 나에게로
+                        }
+
+                        // 복귀함과 동시에 딜레이 없이 바로 내 캐릭터가 걷도록 이동 함수 실행
+                        base.HandleMovement();
+                    }
+                    else
+                    {
+                        // 관전이 아닌 P키를 눌러 들어온 순수 고정 모드일 때는 기존 기획대로 카메라 맵 구경 지원
+                        if (_freeCamTarget != null)
+                        {
+                            _freeCamTarget.transform.position += (Vector3)input * freeCamSpeed * Time.fixedDeltaTime;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                base.HandleMovement();
+            }
+        }
+
+        protected override void UpdateAnimation()
+        {
+            if (animator == null) return;
+
+            // 고정 모드면 입력값을 강제로 (0,0)으로 만들어서 애니메이터에 전달
+            Vector2 input = _isFrozen ? Vector2.zero : moveAction.ReadValue<Vector2>();
+            bool moving = input.sqrMagnitude > 0.01f;
+
+            animator.SetBool(IsMoving, moving);
+            if (moving)
+            {
+                animator.SetFloat(MoveX, input.x);
+                animator.SetFloat(MoveY, input.y);
+            }
         }
 
         private async UniTaskVoid ShowHUDAsync()
@@ -28,49 +224,45 @@ namespace PixelChroma
             BindPaintHUD(hud);
         }
 
-        // ── 피격 및 지워짐 로직 ──────────────────────────────────────
+        // ── 피격 및 지워짐 로직──────────────────────
 
-        [ClientRpc]
-        public void RpcTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
+        [Server]
+        public void ServerTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
         {
             if (paintCanvas == null) return;
 
-            // 1. 물총이 터진 월드 좌표를 내 캔버스의 픽셀 좌표로 변환합니다.
             Vector2Int centerPixel = paintCanvas.WorldToPixel(hitWorldPos);
-
-            // 💡 [핵심 수정] 캐릭터의 Transform Scale이 커졌을 경우를 대비한 오차 보정
-            // (월드 공간의 폭발이 캐릭터 로컬 공간에서는 몇 유닛인지 비율을 정확히 맞춥니다)
             float lossyScale = transform.lossyScale.x;
             float localAoeRadius = aoeRadius / lossyScale;
-
-            // 2. 캔버스의 실제 PPU를 가져와 정확한 픽셀 반경을 계산합니다.
             int pixelRadius = Mathf.RoundToInt(localAoeRadius * paintCanvas.PixelsPerUnit);
 
-            // 3. 원형 범위 내의 픽셀을 "원본 색상"으로 조용히(Local) 되돌립니다.
+            RpcTakeEraseDamageByPixel(centerPixel, pixelRadius);
+        }
+
+        [ClientRpc]
+        public void RpcTakeEraseDamageByPixel(Vector2Int centerPixel, int pixelRadius)
+        {
+            if (paintCanvas == null) return;
+
             for (int x = -pixelRadius; x <= pixelRadius; x++)
             {
                 for (int y = -pixelRadius; y <= pixelRadius; y++)
                 {
-                    // 수학적 원의 방정식 (x^2 + y^2 <= r^2) 검사
                     if (x * x + y * y <= pixelRadius * pixelRadius)
                     {
                         int px = centerPixel.x + x;
                         int py = centerPixel.y + y;
 
-                        // 캔버스 범위를 벗어나지 않는지 확인 후 원본 복구
                         if (paintCanvas.IsInBounds(px, py))
                         {
-                            // 칠하기 전 원본 픽셀로 복구!
                             paintCanvas.RestorePixelLocal(px, py);
                         }
                     }
                 }
             }
 
-            // 4. 복구된 픽셀 데이터를 한 번에 텍스처에 적용(Apply)하여 화면을 갱신합니다.
             paintCanvas.ApplyChanges();
 
-            // 5. 내 캐릭터라면 캔버스를 검사해 몸이 다 지워졌는지(체력 0) 판단합니다.
             if (isLocalPlayer)
             {
                 CheckIfCaught();
@@ -81,10 +273,9 @@ namespace PixelChroma
         {
             if (paintCanvas == null) return;
 
-            // 캔버스의 모든 픽셀을 검사해서 페인트가 1픽셀이라도 남아있는지 확인합니다.
+            // "1픽셀이라도 남아있으면 생존" 판정 
             bool isAlive = paintCanvas.HasAnyPaintedPixels();
 
-            // 남아있는 덧칠 픽셀이 없다면(완전히 씻겨 나갔다면), 내가 잡혔음을 서버에 공식 선언합니다!
             if (!isAlive)
             {
                 CmdNotifyCaught();
@@ -94,11 +285,8 @@ namespace PixelChroma
         [Command]
         private void CmdNotifyCaught()
         {
-            // 서버에서 이 Runner가 공식적으로 잡혔음을 선언
             Debug.Log($"[Runner] {netId}번 플레이어의 색상이 모두 지워져 아웃되었습니다!");
-
-            // 추후 InGameManager에게 "Runner 1명 탈락!" 이벤트를 보내어
-            // 관전자 모드로 전환시키거나, 모든 러너가 잡혔을 경우 게임 종료 판정을 넣으시면 됩니다.
+            // TODO: 게임 매니저에 아웃 알림
         }
     }
 }

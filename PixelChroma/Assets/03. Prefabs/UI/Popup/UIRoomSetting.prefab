@@ -3261,6 +3261,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f831ea1dbda5fca49b851527d4495ad9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIRoomSetting
+  dimmed: {fileID: 0}
+  closeOnDimmedClick: 1
   basicModeButton: {fileID: 1031156127105948370}
   infectionModeButton: {fileID: 3755128560585413333}
   maxPlayersMinusButton: {fileID: 5669347721386073687}
@@ -3279,6 +3281,7 @@ MonoBehaviour:
   mapListContent: {fileID: 3559373590538739469}
   mapItemPrefab: {fileID: 0}
   createButton: {fileID: 4747589092766620695}
+  createButtonText: {fileID: 3214188240918186886}
 --- !u!1 &2760358025996978207
 GameObject:
   m_ObjectHideFlags: 0
@@ -5452,7 +5455,7 @@ GameObject:
   - component: {fileID: 7977043753951285190}
   - component: {fileID: 7124977805188341223}
   m_Layer: 5
-  m_Name: Dimed
+  m_Name: Dimmed
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

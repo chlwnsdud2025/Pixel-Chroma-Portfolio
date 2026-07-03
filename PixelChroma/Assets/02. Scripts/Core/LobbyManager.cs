@@ -9,7 +9,7 @@ namespace PixelChroma
 {
     public class LobbyManager : MonoSingleton<LobbyManager>
     {
-        private const int CodeLength = 6;
+        public const int CodeLength = 6;
         private const string CodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
         public const string GameKey = "GameID";
@@ -27,7 +27,7 @@ namespace PixelChroma
         public CSteamID CurrentLobbyId { get; private set; }
         public string CurrentRoomCode { get; private set; }
         public bool IsHost { get; private set; }
-        public RoomOption CurrentRoomOption { get; private set; } = new();
+        public RoomOption CurrentRoomOption { get; set; } = new();
         public List<MapEntry> AvailableMaps => availableMaps;
         private bool isHostingPublic = false;
 
@@ -44,7 +44,7 @@ namespace PixelChroma
         {
             base.Awake();
 
-            // 💡 [방어벽 추가] 부모 싱글톤 검증 결과, 내가 진짜가 아니라 유령이라면
+            // 부모 싱글톤 검증 결과, 내가 진짜가 아니라 유령이라면
             // 아래에 있는 스팀 콜백 등록 로직을 실행하지 못하도록 즉시 튕겨냅니다.
             if (Instance != this) return;
 
@@ -55,7 +55,7 @@ namespace PixelChroma
             _lobbyMatchList = CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
         }
 
-        // [안전장치 추가] 진짜든 유령이든 씬 전환으로 인해 이 컴포넌트가 파괴될 때,
+        // 진짜든 유령이든 씬 전환으로 인해 이 컴포넌트가 파괴될 때,
         // 스팀 통신망에 엮여있던 C++ 비동기 콜백 링크를 명시적으로 완벽하게 끊어줍니다.
         private void OnDestroy()
         {
@@ -72,6 +72,9 @@ namespace PixelChroma
             CurrentRoomOption = option.Clone();
             isHostingPublic = option.isPublic;
 
+            // ⭐ [핵심 추가] 방 생성 시 Mirror 네트워크의 최대 접속자 수도 동기화합니다!
+            NetworkManager.singleton.maxConnections = CurrentRoomOption.maxPlayers;
+
 #if UNITY_EDITOR
             IsHost = true;
             CurrentRoomCode = GenerateCode();
@@ -79,10 +82,38 @@ namespace PixelChroma
 
             NetworkManager.singleton.StartHost();
             OnLobbyEntered?.Invoke(true);
-#else
+#else            
             var lobbyType = option.isPublic ? ELobbyType.k_ELobbyTypePublic : ELobbyType.k_ELobbyTypeFriendsOnly;
+            // 여기서 스팀 로비 제한은 잘 걸리고 있었습니다.
             SteamMatchmaking.CreateLobby(lobbyType, option.maxPlayers);
 #endif
+        }
+
+        // ── [신규 추가] 로비 안에서 방 설정이 변경되었을 때 호출할 함수 ──
+        public void UpdateLobbySettings(RoomOption newOption)
+        {
+            // 방장이 아니면 튕겨냅니다. (스팀 로비 ID 체크는 여기서 하지 않습니다)
+            if (!IsHost) return;
+
+            // 1. 장부부터 무조건 최신화합니다!
+            CurrentRoomOption = newOption.Clone();
+
+            // 2. Mirror 엔진 접속 제한 즉시 업데이트
+            if (NetworkManager.singleton != null)
+            {
+                NetworkManager.singleton.maxConnections = CurrentRoomOption.maxPlayers;
+            }
+
+            // 3. 실제 스팀 빌드일 때만 스팀 서버 쪽에 인원/공개 여부를 갱신 요청합니다.
+#if !UNITY_EDITOR
+            if (CurrentLobbyId.IsValid())
+            {
+                SteamMatchmaking.SetLobbyMemberLimit(CurrentLobbyId, CurrentRoomOption.maxPlayers);
+                SteamMatchmaking.SetLobbyData(CurrentLobbyId, IsPublicKey, CurrentRoomOption.isPublic ? "True" : "False");
+            }
+#endif
+
+            Debug.Log($"[LobbyManager] 방 설정 갱신 완료! 최대 인원: {CurrentRoomOption.maxPlayers}명, 숨는 시간: {CurrentRoomOption.hideTime}초");
         }
 
         private void OnLobbyCreated(LobbyCreated_t result)
@@ -109,6 +140,24 @@ namespace PixelChroma
             OnLobbyEntered?.Invoke(true);
         }
 
+        public void NotifyClientConnected()
+        {
+            Debug.Log($"[LobbyManager] 클라이언트 연결 성공 | 코드: {CurrentRoomCode}");
+            OnLobbyEntered?.Invoke(true);
+        }
+
+        public void NotifyClientDisconnected()
+        {
+            if (_waitingForConnection)
+            {
+                _waitingForConnection = false;
+                Debug.LogWarning("[LobbyManager] 클라이언트 연결 실패");
+                OnLobbyEntered?.Invoke(false);
+            }
+        }
+
+        private bool _waitingForConnection;
+
         // ── 2. 코드로 참가 ─────────────────────────
         public void JoinLobbyByCode(string code)
         {
@@ -124,11 +173,11 @@ namespace PixelChroma
 
             IsHost = false;
             CurrentRoomCode = code;
+            _waitingForConnection = true;
             Debug.Log($"[LobbyManager] 에디터 로컬 접속 시도 (localhost) | 입력한 코드: {code}");
 
             NetworkManager.singleton.networkAddress = "localhost";
             NetworkManager.singleton.StartClient();
-            OnLobbyEntered?.Invoke(true);
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(CodeKey, code, ELobbyComparison.k_ELobbyComparisonEqual);
@@ -144,8 +193,19 @@ namespace PixelChroma
         public void JoinQuickMatch()
         {
 #if UNITY_EDITOR
-            Debug.LogWarning("[LobbyManager] 에디터에서는 빠른 참가가 불가합니다. 코드로 참가(localhost)를 이용하세요.");
-            OnLobbyEntered?.Invoke(false);
+            if (NetworkServer.active)
+            {
+                Debug.LogWarning("[LobbyManager] 이미 당신의 에디터에서 서버가 실행 중입니다! 중복 입장을 거부합니다.");
+                OnLobbyEntered?.Invoke(false);
+                return;
+            }
+
+            IsHost = false;
+            _waitingForConnection = true;
+            Debug.Log("[LobbyManager] 에디터 빠른 참가 시도 (localhost)");
+
+            NetworkManager.singleton.networkAddress = "localhost";
+            NetworkManager.singleton.StartClient();
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(IsPublicKey, "True", ELobbyComparison.k_ELobbyComparisonEqual);
