@@ -4,6 +4,7 @@ using Steamworks;
 using UnityEngine;
 using Mirror;
 using PixelChroma.UI;
+using Cysharp.Threading.Tasks;
 
 namespace PixelChroma
 {
@@ -24,14 +25,7 @@ namespace PixelChroma
         [Header("Map List")]
         [SerializeField] private List<MapEntry> availableMaps = new();
 
-        public CSteamID CurrentLobbyId { get; private set; }
-        public string CurrentRoomCode { get; private set; }
-        public bool IsHost { get; private set; }
-        public RoomOption CurrentRoomOption { get; set; } = new();
-        public List<MapEntry> AvailableMaps => availableMaps;
-        private bool isHostingPublic = false;
-
-        public event Action<bool> OnLobbyEntered;
+        public event Action OnLobbyFailed;
         public event Action OnMembersChanged;
 
         private Callback<LobbyCreated_t> _lobbyCreated;
@@ -39,6 +33,15 @@ namespace PixelChroma
         private Callback<LobbyEnter_t> _lobbyEntered;
         private Callback<LobbyChatUpdate_t> _lobbyChatUpdate;
         private CallResult<LobbyMatchList_t> _lobbyMatchList;
+
+        private bool isHostingPublic = false;
+        private bool _waitingForConnection;
+
+        public CSteamID CurrentLobbyId { get; private set; }
+        public string CurrentRoomCode { get; private set; }
+        public bool IsHost { get; private set; }
+        public RoomOption CurrentRoomOption { get; set; } = new();
+        public List<MapEntry> AvailableMaps => availableMaps;
 
         protected override void Awake()
         {
@@ -66,6 +69,23 @@ namespace PixelChroma
             _lobbyMatchList?.Dispose();
         }
 
+        public void NotifyClientConnected()
+        {
+            _waitingForConnection = false;
+            Debug.Log($"[LobbyManager] 클라이언트 연결 성공 | 코드: {CurrentRoomCode}");
+            OnLobbySuccess();
+        }
+
+        public void NotifyClientDisconnected()
+        {
+            if (_waitingForConnection)
+            {
+                _waitingForConnection = false;
+                Debug.LogWarning("[LobbyManager] 클라이언트 연결 실패");
+                OnLobbyFailed?.Invoke();
+            }
+        }
+
         // ── 1. 방 만들기 ─────────────────────────
         public void CreateLobby(RoomOption option)
         {
@@ -81,7 +101,7 @@ namespace PixelChroma
             Debug.Log($"[LobbyManager] 에디터 방 생성 완료 (localhost) | 코드: {CurrentRoomCode} | 모드: {option.gameMode} | 공개: {option.isPublic}");
 
             NetworkManager.singleton.StartHost();
-            OnLobbyEntered?.Invoke(true);
+            OnLobbySuccess();
 #else            
             var lobbyType = option.isPublic ? ELobbyType.k_ELobbyTypePublic : ELobbyType.k_ELobbyTypeFriendsOnly;
             // 여기서 스팀 로비 제한은 잘 걸리고 있었습니다.
@@ -120,7 +140,7 @@ namespace PixelChroma
         {
             if (result.m_eResult != EResult.k_EResultOK)
             {
-                OnLobbyEntered?.Invoke(false);
+                OnLobbyFailed?.Invoke();
                 return;
             }
 
@@ -137,26 +157,37 @@ namespace PixelChroma
             Debug.Log($"[LobbyManager] 스팀 방 생성 완료 | 코드: {CurrentRoomCode}");
 
             NetworkManager.singleton.StartHost();
-            OnLobbyEntered?.Invoke(true);
+            OnLobbySuccess();
         }
 
-        public void NotifyClientConnected()
+        private void OnLobbySuccess()
         {
-            Debug.Log($"[LobbyManager] 클라이언트 연결 성공 | 코드: {CurrentRoomCode}");
-            OnLobbyEntered?.Invoke(true);
+            GameManager.Instance.EnterLobby().Forget();
         }
 
-        public void NotifyClientDisconnected()
+
+#if UNITY_EDITOR
+        // 에디터 전용 로컬 클라이언트 접속 (코드 참가 / 빠른 참가 공용)
+        private void StartEditorClient(string roomCode = null)
         {
-            if (_waitingForConnection)
+            if (NetworkServer.active)
             {
-                _waitingForConnection = false;
-                Debug.LogWarning("[LobbyManager] 클라이언트 연결 실패");
-                OnLobbyEntered?.Invoke(false);
+                Debug.LogWarning("[LobbyManager] 이미 당신의 에디터에서 서버가 실행 중입니다! 중복 입장을 거부합니다.");
+                OnLobbyFailed?.Invoke();
+                return;
             }
-        }
 
-        private bool _waitingForConnection;
+            IsHost = false;
+            CurrentRoomCode = roomCode;
+            _waitingForConnection = true;
+            Debug.Log(roomCode != null
+                ? $"[LobbyManager] 에디터 로컬 접속 시도 (localhost) | 입력한 코드: {roomCode}"
+                : "[LobbyManager] 에디터 빠른 참가 시도 (localhost)");
+
+            NetworkManager.singleton.networkAddress = "localhost";
+            NetworkManager.singleton.StartClient();
+        }
+#endif
 
         // ── 2. 코드로 참가 ─────────────────────────
         public void JoinLobbyByCode(string code)
@@ -164,20 +195,7 @@ namespace PixelChroma
             code = code.Trim().ToUpper();
 
 #if UNITY_EDITOR
-            if (NetworkServer.active)
-            {
-                Debug.LogWarning("[LobbyManager] 이미 당신의 에디터에서 서버가 실행 중입니다! 중복 입장을 거부합니다.");
-                OnLobbyEntered?.Invoke(false);
-                return;
-            }
-
-            IsHost = false;
-            CurrentRoomCode = code;
-            _waitingForConnection = true;
-            Debug.Log($"[LobbyManager] 에디터 로컬 접속 시도 (localhost) | 입력한 코드: {code}");
-
-            NetworkManager.singleton.networkAddress = "localhost";
-            NetworkManager.singleton.StartClient();
+            StartEditorClient(code);
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(CodeKey, code, ELobbyComparison.k_ELobbyComparisonEqual);
@@ -193,19 +211,7 @@ namespace PixelChroma
         public void JoinQuickMatch()
         {
 #if UNITY_EDITOR
-            if (NetworkServer.active)
-            {
-                Debug.LogWarning("[LobbyManager] 이미 당신의 에디터에서 서버가 실행 중입니다! 중복 입장을 거부합니다.");
-                OnLobbyEntered?.Invoke(false);
-                return;
-            }
-
-            IsHost = false;
-            _waitingForConnection = true;
-            Debug.Log("[LobbyManager] 에디터 빠른 참가 시도 (localhost)");
-
-            NetworkManager.singleton.networkAddress = "localhost";
-            NetworkManager.singleton.StartClient();
+            StartEditorClient();
 #else
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(IsPublicKey, "True", ELobbyComparison.k_ELobbyComparisonEqual);
@@ -223,7 +229,7 @@ namespace PixelChroma
             if (ioFailure || result.m_nLobbiesMatching == 0)
             {
                 Debug.LogWarning("[LobbyManager] 조건에 맞는 방을 찾지 못했습니다.");
-                OnLobbyEntered?.Invoke(false);
+                OnLobbyFailed?.Invoke();
                 return;
             }
 
@@ -239,7 +245,7 @@ namespace PixelChroma
             if (!success)
             {
                 Debug.LogError($"[LobbyManager] 방 입장 실패 코드: {result.m_EChatRoomEnterResponse}");
-                OnLobbyEntered?.Invoke(false);
+                OnLobbyFailed?.Invoke();
                 return;
             }
 
@@ -252,8 +258,8 @@ namespace PixelChroma
             NetworkManager.singleton.networkAddress = hostAddress;
             NetworkManager.singleton.StartClient();
 
-            Debug.Log($"[LobbyManager] 스팀 방 입장 완료 | 코드: {CurrentRoomCode}");
-            OnLobbyEntered?.Invoke(true);
+            Debug.Log($"[LobbyManager] 스팀 방 입장 완료, Mirror 연결 대기 중 | 코드: {CurrentRoomCode}");
+            _waitingForConnection = true;
         }
 
         public void ChangeLobbyStatusToInGame()

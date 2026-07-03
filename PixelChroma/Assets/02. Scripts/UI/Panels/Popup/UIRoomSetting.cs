@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using TMPro;
@@ -49,8 +48,6 @@ namespace PixelChroma.UI
         private int _selectedMapIndex = -1;
         private bool _isEditMode = false;
 
-        public RoomOption CurrentOption => _option;
-        public event Action<RoomOption> OnSettingsApplied;
         public override void Initialize()
         {
             base.Initialize();
@@ -86,18 +83,39 @@ namespace PixelChroma.UI
             if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
         }
 
+        protected override UniTask OnShow()
+        {
+            var lobby = LobbyManager.Instance;
+
+            bool isEdit = GameManager.Instance != null
+                && GameManager.Instance.CurrentState == GameState.Lobby;
+
+            // 편집 모드는 현재 방 설정에서, 생성 모드는 항상 기본값에서 시작한다.
+            // (생성 모드에 null을 넘기면 Setup에서 new RoomOption() 기본값이 만들어진다.)
+            RoomOption startOption = isEdit ? lobby?.CurrentRoomOption : null;
+            Setup(startOption, isEdit);
+            SetMaps(lobby?.AvailableMaps);
+
+            if (lobby != null)
+                lobby.OnLobbyFailed += HandleLobbyFailed;
+
+            return UniTask.CompletedTask;
+        }
+
+        protected override UniTask OnHide()
+        {
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;
+
+            return UniTask.CompletedTask;
+        }
+
         public void Setup(RoomOption option, bool isEditMode = false)
         {
             _option = option?.Clone() ?? new RoomOption();
             _isEditMode = isEditMode;
 
             RefreshAllUI();
-
-            // 💡 수정 모드일 때와 생성 모드일 때 하단 버튼의 글자를 동적으로 바꿉니다!
-            if (createButtonText != null)
-            {
-                createButtonText.text = _isEditMode ? "변경" : "생성";
-            }
         }
 
         public void SetMaps(List<MapEntry> maps)
@@ -112,24 +130,6 @@ namespace PixelChroma.UI
                     : _maps.FindIndex(m => m.name == _option.mapName);
                 SelectMap(Mathf.Max(0, idx));
             }
-        }
-
-        protected override UniTask OnShow()
-        {
-            //ResetToDefaults();
-            Setup(LobbyManager.Instance.CurrentRoomOption);
-            SetMaps(LobbyManager.Instance.AvailableMaps);
-            LobbyManager.Instance.OnLobbyEntered += HandleLobbyEntered;
-
-            return UniTask.CompletedTask;
-        }
-
-        protected override UniTask OnHide()
-        {
-            if (LobbyManager.Instance != null)
-                LobbyManager.Instance.OnLobbyEntered -= HandleLobbyEntered;
-
-            return UniTask.CompletedTask;
         }
 
         private void SetPublic(bool isPublic)
@@ -194,19 +194,8 @@ namespace PixelChroma.UI
             RefreshMapListHighlight();
         }
 
-        private void OnClickCreate()
+        private void HandleLobbyFailed()
         {
-            OnSettingsApplied?.Invoke(_option);
-        }
-
-        private void HandleLobbyEntered(bool success)
-        {
-            if (success)
-            {
-                GameManager.Instance.EnterLobby().Forget();
-                return;
-            }
-
             if (createButton != null) createButton.interactable = true;
         }
 
@@ -216,6 +205,7 @@ namespace PixelChroma.UI
             RefreshGameModeUI();
             RefreshPlayerCountUI();
             RefreshTimeUI();
+            RefreshCreateButtonUI();
 
             if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
             if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
@@ -243,6 +233,17 @@ namespace PixelChroma.UI
         {
             if (hideTimeText != null) hideTimeText.text = _option.hideTime.ToString("0");
             if (seekTimeText != null) seekTimeText.text = _option.seekTime.ToString("0");
+        }
+
+        private void RefreshCreateButtonUI()
+        {
+            // 💡 수정 모드일 때와 생성 모드일 때 하단 버튼의 글자를 동적으로 바꿉니다!
+            if (createButtonText != null)
+                createButtonText.text = _isEditMode ? "변경" : "생성";
+
+            // 팝업을 다시 열 때 이전 생성 시도로 꺼진 버튼을 항상 활성 상태로 복구한다.
+            if (createButton != null)
+                createButton.interactable = true;
         }
 
         private void RebuildMapList()
@@ -283,9 +284,25 @@ namespace PixelChroma.UI
 
         private static void SetButtonSelected(Button button, bool selected)
         {
-            if (button == null) return;
+            if (button == null) 
+                return;
+
             var outline = button.GetComponent<Outline>();
-            if (outline != null) outline.enabled = selected;
+            if (outline != null) 
+                outline.enabled = selected;
+        }
+
+        private void OnClickCreate()
+        {
+            if (_isEditMode)
+            {
+                LobbyManager.Instance.UpdateLobbySettings(_option);
+                UIManager.Instance.HidePopup().Forget();
+                return;
+            }
+
+            if (createButton != null) createButton.interactable = false;
+            LobbyManager.Instance.CreateLobby(_option);
         }
     }
 

@@ -43,7 +43,9 @@ namespace PixelChroma.UI
         {
             if (cursorRect != null && _parentCanvas == null)
             {
-                _parentCanvas = cursorRect.GetComponentInParent<Canvas>();
+                var canvas = cursorRect.GetComponentInParent<Canvas>();
+                // Cursor 자신에게 Nested Canvas가 붙어 있으므로, 좌표 기준은 항상 루트 Canvas를 사용
+                if (canvas != null) _parentCanvas = canvas.rootCanvas;
             }
         }
 

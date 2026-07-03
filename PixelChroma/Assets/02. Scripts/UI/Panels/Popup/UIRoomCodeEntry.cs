@@ -74,14 +74,14 @@ namespace PixelChroma.UI
 
         protected override UniTask OnShow()
         {
-            LobbyManager.Instance.OnLobbyEntered += HandleLobbyEntered;
+            LobbyManager.Instance.OnLobbyFailed += HandleLobbyFailed;
             return UniTask.CompletedTask;
         }
 
         protected override UniTask OnHide()
         {
             if (LobbyManager.Instance != null)
-                LobbyManager.Instance.OnLobbyEntered -= HandleLobbyEntered;
+                LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;
 
             return UniTask.CompletedTask;
         }
@@ -141,17 +141,11 @@ namespace PixelChroma.UI
             LobbyManager.Instance.JoinLobbyByCode(code);
         }
 
-        private void HandleLobbyEntered(bool success)
+        private void HandleLobbyFailed()
         {
-            if (success)
-            {
-                GameManager.Instance.EnterLobby().Forget();
-                return;
-            }
-
             SetStatus("해당 코드의 방을 찾을 수 없습니다.");
 
-            if (roomCodeInput != null) 
+            if (roomCodeInput != null)
                 RefreshJoinButton(roomCodeInput.text.Trim().Length);
         }
 
