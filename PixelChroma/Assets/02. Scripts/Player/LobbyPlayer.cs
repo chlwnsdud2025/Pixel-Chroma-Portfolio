@@ -6,14 +6,23 @@ namespace PixelChroma
 {
     public class LobbyPlayer : PlayerBase
     {
-        // 만약 미러 로비 시스템의 ReadyState를 쓰고 계시다면 [SyncVar] 훅을 사용하시거나 
-        // Ready가 바뀔 때 이 가상 함수(UpdateNicknameText)를 재호출해주시면 됩니다.
+        [Header("Lobby Ready UI")]
+        [Tooltip("레디 시 켜질 체크마크 이미지 오브젝트를 연결해주세요.")]
+        [SerializeField] private GameObject readyCheckObject;
+
         [SyncVar(hook = nameof(OnReadyStateChanged))]
         public bool isReady = false;
 
         private void OnReadyStateChanged(bool oldState, bool newState)
         {
+            UpdateReadyImage();
             UpdateNicknameText();
+        }
+
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            UpdateReadyImage(); // 처음 스폰되었을 때 상태 동기화
         }
 
         protected override void OnLocalPlayerStarted()
@@ -27,19 +36,20 @@ namespace PixelChroma
             UnbindPaintHUD();
         }
 
-        // 💡 부모의 가상 함수를 재정의하여 레디 상태에 따라 닉네임 뒤에 초록색 체크(✔) 문양을 더해줍니다!
+        // 텍스트는 이제 순수하게 닉네임만 출력합니다.
         protected override void UpdateNicknameText()
         {
             if (nicknameText == null) return;
+            nicknameText.text = playerName;
+        }
 
-            string displayName = playerName;
-
-            if (isReady)
+        // 레디 상태에 따라 체크마크 오브젝트를 켜고 끕니다.
+        private void UpdateReadyImage()
+        {
+            if (readyCheckObject != null)
             {
-                displayName += " <color=#00FF00>✔</color>";
+                readyCheckObject.SetActive(isReady);
             }
-
-            nicknameText.text = displayName;
         }
     }
 }
