@@ -39,13 +39,19 @@ namespace PixelChroma
         public static event Action<TimeState, float> OnTimeStateChanged;
 
         private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
+        private readonly Dictionary<int, string> _playerNicknames = new(); // 닉네임 명부 추가
+
         private bool _isCountingDown;
         private CancellationTokenSource _countdownCts;
 
         // 방장이 설정한 룰과 현재 진행 상태 관리
+        private MapRegistrySO MapRegistry => LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
+
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public float CurrentTimer { get; private set; } = 0f;
+
+
 
         public override void Awake()
         {
@@ -89,6 +95,12 @@ namespace PixelChroma
             NetworkClient.UnregisterHandler<CountdownTickMessage>();
             NetworkClient.UnregisterHandler<CountdownEndMessage>();
             NetworkClient.UnregisterHandler<TimeStateMessage>();
+        }
+
+        public void RegisterNickname(int connId, string nickname)
+        {
+            _playerNicknames[connId] = nickname;
+            Debug.Log($"[NetworkManager] 명부에 닉네임 등록 완료 - ConnID: {connId}, Name: {nickname}");
         }
 
         // ── 중앙 통제 게임 루프 및 타이머 ────────────────────────────────
@@ -183,7 +195,8 @@ namespace PixelChroma
             _isCountingDown = false;
             _countdownCts = null;
 
-            ServerChangeScene(inGameScene);
+            string targetScene = ResolveMapScene();
+            ServerChangeScene(targetScene);
         }
 
         private void ApplyRolesToLobbyPlayers()
@@ -215,23 +228,27 @@ namespace PixelChroma
 
             if (currentScene == GetSceneName(onlineScene))
             {
+                // 1. 로비 씬 스폰
                 playerInstance = Instantiate(lobbyPlayerPrefab);
             }
-            else if (currentScene == GetSceneName(inGameScene))
+            else if (IsInGameScene(currentScene))
             {
-                PlayerRole role = _assignedRoles.TryGetValue(conn.connectionId, out var assigned)
-                    ? assigned
+                // 2. 인게임 씬 스폰
+
+                // 💡 변수명이 겹치지 않게 'assignedRole'로 명확하게 변경했습니다.
+                PlayerRole assignedRole = _assignedRoles.TryGetValue(conn.connectionId, out var r)
+                    ? r
                     : PlayerRole.Runner;
 
-                GameObject prefab = role == PlayerRole.Seeker ? seekerPrefab : runnerPrefab;
+                GameObject prefab = assignedRole == PlayerRole.Seeker ? seekerPrefab : runnerPrefab;
 
                 Vector3 spawnPos = Vector3.zero;
                 Quaternion spawnRot = Quaternion.identity;
 
                 if (InGameManager.Instance != null)
                 {
-                    bool isWaiting = (role == PlayerRole.Seeker);
-                    spawnPos = InGameManager.Instance.GetSpawnPosition(role, isWaiting);
+                    bool isWaiting = (assignedRole == PlayerRole.Seeker);
+                    spawnPos = InGameManager.Instance.GetSpawnPosition(assignedRole, isWaiting);
                 }
                 else
                 {
@@ -245,15 +262,30 @@ namespace PixelChroma
 
                 playerInstance = Instantiate(prefab, spawnPos, spawnRot);
 
-                var playerBase = playerInstance.GetComponent<PlayerBase>();
-                if (playerBase != null)
-                    playerBase.role = role;
+                // 인게임 캐릭터에 역할 주입
+                var inGamePlayerBase = playerInstance.GetComponent<PlayerBase>();
+                if (inGamePlayerBase != null)
+                {
+                    inGamePlayerBase.role = assignedRole;
+                }
 
                 _assignedRoles.Remove(conn.connectionId);
             }
 
+            // 3. 공통 처리: 스폰된 아바타(로비든 인게임이든)에 명부 닉네임 주입 후 네트워크 연결
             if (playerInstance != null)
             {
+                var playerBase = playerInstance.GetComponent<PlayerBase>();
+                if (playerBase != null)
+                {
+                    if (_playerNicknames.TryGetValue(conn.connectionId, out var savedName))
+                    {
+                        playerBase.playerName = savedName;
+                        // 서버에서 여기서 playerName을 미리 세팅해주면, 
+                        // AddPlayerForConnection 호출 시 모든 유저에게 이 닉네임이 SyncVar로 완벽하게 뿌려집니다!
+                    }
+                }
+
                 NetworkServer.AddPlayerForConnection(conn, playerInstance);
             }
         }
@@ -263,7 +295,7 @@ namespace PixelChroma
             base.OnClientSceneChanged();
 
             string currentScene = SceneManager.GetActiveScene().name;
-            if (currentScene == GetSceneName(inGameScene) && GameManager.Instance != null)
+            if (IsInGameScene(currentScene) && GameManager.Instance != null)
             {
                 GameManager.Instance.EnterInGame().Forget();
             }
@@ -273,7 +305,7 @@ namespace PixelChroma
         {
             base.OnServerSceneChanged(sceneName);
 
-            if (GetSceneName(sceneName) == GetSceneName(inGameScene))
+            if (IsInGameScene(GetSceneName(sceneName)))
             {
                 // 방장이 설정한 옵션이 있다면 그 시간을, 없다면 기본값(45초)을 적용
                 float hideTime = CurrentRoomOption != null ? CurrentRoomOption.hideTime : 45f;
@@ -309,6 +341,7 @@ namespace PixelChroma
         {
             base.OnServerDisconnect(conn);
             _assignedRoles.Remove(conn.connectionId);
+            _playerNicknames.Remove(conn.connectionId); //명부에서 삭제
         }
 
         private void AssignRoles()
@@ -326,6 +359,26 @@ namespace PixelChroma
                 PlayerRole role = (i < seekerCount) ? PlayerRole.Seeker : PlayerRole.Runner;
                 _assignedRoles[shuffled[i].connectionId] = role;
             }
+        }
+
+        private bool IsInGameScene(string sceneName)
+        {
+            if (sceneName == GetSceneName(inGameScene))
+                return true;
+
+            return MapRegistry != null && MapRegistry.ContainsScene(sceneName);
+        }
+
+        private string ResolveMapScene()
+        {
+            if (MapRegistry != null && CurrentRoomOption != null)
+            {
+                var mapData = MapRegistry.FindById(CurrentRoomOption.mapName);
+                if (mapData != null && !string.IsNullOrEmpty(mapData.sceneName))
+                    return mapData.sceneName;
+            }
+
+            return inGameScene;
         }
 
         private string GetSceneName(string scenePath)

@@ -108,7 +108,7 @@ namespace PixelChroma.UI
                 chatText.transform.SetAsLastSibling();
             }
 
-            chatText.text = $"<b>[{sender}]</b>: {message}";
+            chatText.text = $"[{sender}]:{message}";
             _chatMessagePool.Enqueue(chatText);
 
             if (scrollRect != null)
@@ -127,7 +127,6 @@ namespace PixelChroma.UI
                 localPlayerChat.SendChat(message);
             }
 
-            // --- 변경된 부분 ---
             // 채팅을 보내고 창을 닫지 않습니다. 
             // 대신 입력된 텍스트만 지우고 다시 입력할 수 있도록 포커스를 줍니다.
             chatInputField.text = string.Empty;

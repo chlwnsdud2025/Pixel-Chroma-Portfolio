@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -35,17 +34,13 @@ namespace PixelChroma.UI
         [SerializeField] private Button privateButton;
 
         [Header("Map Selection")]
-        [SerializeField] private Image mapPreviewImage;
-        [SerializeField] private Transform mapListContent;
-        [SerializeField] private GameObject mapItemPrefab;
+        [SerializeField] private UIMapPanel mapPanel;
 
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private TMP_Text createButtonText;
 
         private RoomOption _option;
-        private List<MapEntry> _maps = new();
-        private int _selectedMapIndex = -1;
         private bool _isEditMode = false;
 
         public override void Initialize()
@@ -81,6 +76,9 @@ namespace PixelChroma.UI
             }
 
             if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
+
+            if (mapPanel != null)
+                mapPanel.Initialize(LobbyManager.Instance?.MapRegistry);
         }
 
         protected override UniTask OnShow()
@@ -90,11 +88,15 @@ namespace PixelChroma.UI
             bool isEdit = GameManager.Instance != null
                 && GameManager.Instance.CurrentState == GameState.Lobby;
 
-            // 편집 모드는 현재 방 설정에서, 생성 모드는 항상 기본값에서 시작한다.
-            // (생성 모드에 null을 넘기면 Setup에서 new RoomOption() 기본값이 만들어진다.)
             RoomOption startOption = isEdit ? lobby?.CurrentRoomOption : null;
             Setup(startOption, isEdit);
-            SetMaps(lobby?.AvailableMaps);
+
+            if (mapPanel != null)
+            {
+                mapPanel.OnMapSelected -= OnMapSelected;
+                mapPanel.OnMapSelected += OnMapSelected;
+                mapPanel.Refresh(lobby?.MapRegistry, _option.mapName);
+            }
 
             if (lobby != null)
                 lobby.OnLobbyFailed += HandleLobbyFailed;
@@ -107,6 +109,9 @@ namespace PixelChroma.UI
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;
 
+            if (mapPanel != null)
+                mapPanel.OnMapSelected -= OnMapSelected;
+
             return UniTask.CompletedTask;
         }
 
@@ -118,18 +123,9 @@ namespace PixelChroma.UI
             RefreshAllUI();
         }
 
-        public void SetMaps(List<MapEntry> maps)
+        private void OnMapSelected(MapDataSO map)
         {
-            _maps = maps ?? new List<MapEntry>();
-            RebuildMapList();
-
-            if (_maps.Count > 0)
-            {
-                int idx = string.IsNullOrEmpty(_option.mapName)
-                    ? 0
-                    : _maps.FindIndex(m => m.name == _option.mapName);
-                SelectMap(Mathf.Max(0, idx));
-            }
+            _option.mapName = map.name;
         }
 
         private void SetPublic(bool isPublic)
@@ -179,19 +175,6 @@ namespace PixelChroma.UI
         {
             _option.seekTime = value;
             RefreshTimeUI();
-        }
-
-        private void SelectMap(int index)
-        {
-            if (index < 0 || index >= _maps.Count) return;
-
-            _selectedMapIndex = index;
-            _option.mapName = _maps[index].name;
-
-            if (mapPreviewImage != null && _maps[index].preview != null)
-                mapPreviewImage.sprite = _maps[index].preview;
-
-            RefreshMapListHighlight();
         }
 
         private void HandleLobbyFailed()
@@ -246,42 +229,6 @@ namespace PixelChroma.UI
                 createButton.interactable = true;
         }
 
-        private void RebuildMapList()
-        {
-            if (mapListContent == null || mapItemPrefab == null) return;
-
-            for (int i = mapListContent.childCount - 1; i >= 0; i--)
-                Destroy(mapListContent.GetChild(i).gameObject);
-
-            for (int i = 0; i < _maps.Count; i++)
-            {
-                var go = Instantiate(mapItemPrefab, mapListContent);
-                var text = go.GetComponentInChildren<TMP_Text>();
-                if (text != null) text.text = _maps[i].name;
-
-                int index = i;
-                var button = go.GetComponent<Button>();
-                if (button != null) button.onClick.AddListener(() => SelectMap(index));
-            }
-        }
-
-        private void RefreshMapListHighlight()
-        {
-            if (mapListContent == null) return;
-
-            for (int i = 0; i < mapListContent.childCount; i++)
-            {
-                var button = mapListContent.GetChild(i).GetComponent<Button>();
-                if (button == null) continue;
-
-                var colors = button.colors;
-                colors.normalColor = (i == _selectedMapIndex)
-                    ? new Color(0.4f, 0.4f, 0.4f)
-                    : new Color(0.2f, 0.2f, 0.2f);
-                button.colors = colors;
-            }
-        }
-
         private static void SetButtonSelected(Button button, bool selected)
         {
             if (button == null) 
@@ -304,13 +251,5 @@ namespace PixelChroma.UI
             if (createButton != null) createButton.interactable = false;
             LobbyManager.Instance.CreateLobby(_option);
         }
-    }
-
-    [System.Serializable]
-    public class MapEntry
-    {
-        public string name;
-        public string sceneName;
-        public Sprite preview;
     }
 }

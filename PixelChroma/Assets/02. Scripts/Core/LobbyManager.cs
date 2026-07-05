@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Steamworks;
 using UnityEngine;
 using Mirror;
-using PixelChroma.UI;
+
 using Cysharp.Threading.Tasks;
 
 namespace PixelChroma
@@ -23,7 +23,7 @@ namespace PixelChroma
         public const string StatusInGame = "InGame";
 
         [Header("Map List")]
-        [SerializeField] private List<MapEntry> availableMaps = new();
+        [SerializeField] private MapRegistrySO mapRegistry;
 
         public event Action OnLobbyFailed;
         public event Action OnMembersChanged;
@@ -41,7 +41,7 @@ namespace PixelChroma
         public string CurrentRoomCode { get; private set; }
         public bool IsHost { get; private set; }
         public RoomOption CurrentRoomOption { get; set; } = new();
-        public List<MapEntry> AvailableMaps => availableMaps;
+        public MapRegistrySO MapRegistry => mapRegistry;
 
         protected override void Awake()
         {
