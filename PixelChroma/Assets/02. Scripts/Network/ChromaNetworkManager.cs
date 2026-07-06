@@ -4,7 +4,6 @@ using Mirror;
 using UnityEngine.SceneManagement;
 using Mirror.FizzySteam;
 using Cysharp.Threading.Tasks;
-using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -72,25 +71,6 @@ namespace PixelChroma
 
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.Cleanup();
-        }
-
-        public override void OnClientConnect()
-        {
-            base.OnClientConnect();
-
-            if (LobbyManager.Instance != null)
-                LobbyManager.Instance.NotifyClientConnected();
-        }
-
-        public override void OnClientDisconnect()
-        {
-            base.OnClientDisconnect();
-
-            if (LobbyManager.Instance != null)
-                LobbyManager.Instance.NotifyClientDisconnected();
-
-            if (GameManager.Instance != null)
-                GameManager.Instance.HandleDisconnect();
         }
 
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
