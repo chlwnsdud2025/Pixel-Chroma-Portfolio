@@ -42,13 +42,35 @@ namespace PixelChroma
             await EnterMainMenu();
         }
 
+        // 스팀을 사용하는(초기화된) 빌드인지 여부. 에디터는 localhost로 테스트하므로 스팀을 쓰지 않습니다.
+        // 스팀 콜백 등록·로비 API 등 스팀 의존 로직을 한 곳에서 켜고 끄기 위한 단일 게이트입니다.
+        public static bool SteamActive =>
+#if UNITY_EDITOR
+            false;
+#else
+            true;
+#endif
+
         private bool InitializeSteam()
         {
-#if UNITY_EDITOR
-            return true;
-#else
+            // 스팀 미사용(에디터/로컬)이면 초기화를 건너뛰고 성공으로 처리합니다.
+            if (!SteamActive)
+                return true;
+
             return Steamworks.SteamAPI.Init();
-#endif
+        }
+
+        public void HandleDisconnect()
+        {
+            Debug.LogWarning("[GameManager] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
+
+            if (InGameManager.Instance != null)
+                InGameManager.Instance.ClearSpawnPoints();
+
+            if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
+                LobbyManager.Instance.LeaveLobby();
+
+            EnterMainMenu().Forget();
         }
 
         public async UniTask EnterMainMenu()

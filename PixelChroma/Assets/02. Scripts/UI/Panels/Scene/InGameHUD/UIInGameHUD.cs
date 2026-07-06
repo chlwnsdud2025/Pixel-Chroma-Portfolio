@@ -27,30 +27,30 @@ namespace PixelChroma.UI
 
         protected virtual void OnEnable()
         {
-            ChromaNetworkManager.OnTimeStateChanged += HandleTimeStateChanged;
+            GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
 
-            var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
-            if (netManager != null)
+            var round = GameRoundManager.Instance;
+            if (round != null)
             {
-                UpdateStateUI(netManager.CurrentTimeState, netManager.CurrentTimer, netManager.CurrentWinner);
+                UpdateStateUI(round.CurrentTimeState, round.CurrentTimer, round.CurrentWinner);
             }
         }
 
         protected virtual void OnDisable()
         {
-            ChromaNetworkManager.OnTimeStateChanged -= HandleTimeStateChanged;
+            GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
         }
 
         protected virtual void Update()
         {
-            var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
-            if (netManager != null)
+            var round = GameRoundManager.Instance;
+            if (round != null)
             {
-                if (netManager.CurrentTimeState == TimeState.HideTime ||
-                    netManager.CurrentTimeState == TimeState.SeekTime ||
-                    netManager.CurrentTimeState == TimeState.CheckTime)
+                if (round.CurrentTimeState == TimeState.HideTime ||
+                    round.CurrentTimeState == TimeState.SeekTime ||
+                    round.CurrentTimeState == TimeState.CheckTime)
                 {
-                    UpdateTimerText(netManager.CurrentTimer);
+                    UpdateTimerText(round.CurrentTimer);
                 }
             }
         }

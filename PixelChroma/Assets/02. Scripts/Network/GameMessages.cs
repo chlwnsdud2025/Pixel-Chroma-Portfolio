@@ -2,9 +2,12 @@ using Mirror;
 
 namespace PixelChroma
 {
-    public struct CountdownStartMessage : NetworkMessage
+    public enum TimeState { Waiting, HideTime, SeekTime, GameEnd }
+
+    public struct TimeStateMessage : NetworkMessage
     {
-        public float duration;
+        public TimeState state;
+        public float timer;
     }
 
     public struct CountdownTickMessage : NetworkMessage

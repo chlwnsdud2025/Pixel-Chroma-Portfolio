@@ -1,4 +1,5 @@
 using System;
+using Mirror;
 
 namespace PixelChroma
 {
@@ -37,7 +38,8 @@ namespace PixelChroma
         public float checkTime = DefaultCheckTime;
 
         public string mapName = "";
-
+        public string roomCode = "";
+        public string hostName = "";
 
         public RoomOption Clone()
         {
@@ -50,8 +52,54 @@ namespace PixelChroma
                 hideTime = hideTime,
                 seekTime = seekTime,
                 mapName = mapName,
-                checkTime = checkTime,
+                roomCode = roomCode,
+                hostName = hostName,
             };
         }
+
+        public RoomOptionData ToData()
+        {
+            return new RoomOptionData
+            {
+                isPublic = isPublic,
+                gameMode = (int)gameMode,
+                maxPlayers = maxPlayers,
+                seekerCount = seekerCount,
+                hideTime = hideTime,
+                seekTime = seekTime,
+                mapName = mapName,
+                roomCode = roomCode,
+                hostName = hostName,
+            };
+        }
+
+        public static RoomOption FromData(RoomOptionData data)
+        {
+            return new RoomOption
+            {
+                isPublic = data.isPublic,
+                gameMode = (GameMode)data.gameMode,
+                maxPlayers = data.maxPlayers,
+                seekerCount = data.seekerCount,
+                hideTime = data.hideTime,
+                seekTime = data.seekTime,
+                mapName = data.mapName,
+                roomCode = data.roomCode,
+                hostName = data.hostName,
+            };
+        }
+    }
+
+    public struct RoomOptionData
+    {
+        public bool isPublic;
+        public int gameMode;
+        public int maxPlayers;
+        public int seekerCount;
+        public float hideTime;
+        public float seekTime;
+        public string mapName;
+        public string roomCode;
+        public string hostName;
     }
 }
