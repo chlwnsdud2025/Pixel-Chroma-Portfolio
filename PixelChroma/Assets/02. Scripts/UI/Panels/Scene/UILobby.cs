@@ -5,7 +5,6 @@ using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using Mirror;
 
 namespace PixelChroma.UI
 {
@@ -28,12 +27,15 @@ namespace PixelChroma.UI
         [SerializeField] private Sprite hiddenSprite;
         [SerializeField] private TMP_Text showCodeLabel;
 
-        // 기본값은 코드가 가려진(***) 상태입니다.
-        private bool _isCodeVisible;
-
-        [Header("Ready & Start")]
-        [SerializeField] private Button readyButton;
+        [Header("Start (Host)")]
+        [SerializeField] private GameObject startButtonPanel;
         [SerializeField] private Button startGameButton;
+        [SerializeField] private TMP_Text startReadyCountText;
+
+        [Header("Ready (Client)")]
+        [SerializeField] private GameObject readyButtonPanel;
+        [SerializeField] private Button readyButton;
+        [SerializeField] private Image readyCheckImage;
         [SerializeField] private TMP_Text readyCountText;
 
         [Header("Countdown")]
@@ -42,11 +44,15 @@ namespace PixelChroma.UI
         [Header("친구 초대")]
         [SerializeField] private Button inviteFriendButton;
 
-        [HideInInspector] public LobbyPlayerState localLobbyPlayer;
-
         [Header("Customize")]
         [SerializeField] private GameObject paintModeRoot;
         [SerializeField] private UIColorPicker colorPicker;
+
+        [HideInInspector] public LobbyPlayerState localLobbyPlayer;
+
+        private bool _isCodeVisible;
+
+        // ── Override ─────────────────────────────────────────
 
         public UIColorPicker ColorPicker => colorPicker;
 
@@ -55,16 +61,77 @@ namespace PixelChroma.UI
             base.Initialize();
             if (copyCodeButton != null) copyCodeButton.onClick.AddListener(OnClickCopyCode);
             if (leaveButton != null) leaveButton.onClick.AddListener(OnClickLeave);
-            if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
             if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
+            if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
             if (inviteFriendButton != null) inviteFriendButton.onClick.AddListener(OnClickInviteFriend);
-
             if (roomSettingsButton != null) roomSettingsButton.onClick.AddListener(OnClickRoomSettings);
-
-            if (showCodeButton != null) showCodeButton.onClick.AddListener(ToggleCodeVisibility);
+            if (showCodeButton != null) showCodeButton.onClick.AddListener(OnClickToggleCode);
 
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
         }
+
+        /// <summary>
+        /// 패널이 켜지기 직전에 호출. GameObject 활성화 전에 이벤트를 구독한다.
+        /// </summary>
+        public override void OnBeforeShow()
+        {
+            base.OnBeforeShow();
+
+            LobbyPlayerState.OnLobbyPlayersChanged += OnLobbyPlayersChanged;
+            LobbyPlayerState.OnReadyChanged += OnReadyChanged;
+            LobbyPlayerState.OnRoomOptionSynced += OnRoomOptionSynced;
+
+            GameRoundManager.OnCountdownTick += OnCountdownTick;
+            GameRoundManager.OnCountdownEnd += OnCountdownEnd;
+        }
+
+        /// <summary>
+        /// 패널이 완전히 내려간 뒤 호출. OnBeforeShow와 대칭으로 구독을 해제한다.
+        /// </summary>
+        public override void OnAfterHide()
+        {
+            base.OnAfterHide();
+
+            LobbyPlayerState.OnLobbyPlayersChanged -= OnLobbyPlayersChanged;
+            LobbyPlayerState.OnReadyChanged -= OnReadyChanged;
+            LobbyPlayerState.OnRoomOptionSynced -= OnRoomOptionSynced;
+
+            GameRoundManager.OnCountdownTick -= OnCountdownTick;
+            GameRoundManager.OnCountdownEnd -= OnCountdownEnd;
+        }
+
+        protected override UniTask OnShow()
+        {
+            if (timerText != null)
+                timerText.gameObject.SetActive(false);
+
+            bool isHost = LobbyManager.Instance.IsHost;
+
+            if (startButtonPanel != null) startButtonPanel.SetActive(isHost);
+            if (readyButtonPanel != null) readyButtonPanel.SetActive(!isHost);
+
+            if (isHost && startGameButton != null)
+                startGameButton.interactable = false;
+
+            if (roomSettingsButton != null)
+                roomSettingsButton.gameObject.SetActive(isHost);
+
+            if (inviteFriendButton != null)
+                inviteFriendButton.gameObject.SetActive(isHost);
+
+            _isCodeVisible = false;
+            ApplyCodeVisibility();
+
+            RefreshRoomTitle();
+            RefreshRoomCode();
+            RefreshMemberList();
+            RefreshPlayerCount();
+            RefreshReadyUI();
+
+            return UniTask.CompletedTask;
+        }
+
+        // ── Public ───────────────────────────────────────────
 
         public void SetPaintMode(bool active)
         {
@@ -72,71 +139,65 @@ namespace PixelChroma.UI
                 paintModeRoot.SetActive(active);
         }
 
-        private void OnEnable()
+        // ── Private ──────────────────────────────────────────
+
+        private void RefreshRoomTitle()
         {
-            LobbyManager.Instance.OnMembersChanged += RefreshMemberList;
-            LobbyPlayerState.OnLobbyPlayersChanged += RefreshReadyUI;
+            if (roomTitleText == null)
+                return;
 
-            // 누군가 레디(Ready)를 누르면 명단 텍스트(체크마크)도 즉각 갱신하도록 이벤트 추가
-            LobbyPlayerState.OnLobbyPlayersChanged += RefreshMemberList;
+            string hostName = LobbyManager.Instance?.CurrentRoomOption?.hostName ?? "Player";
+            roomTitleText.text = $"{hostName}의 방";
+        }
 
-            ChromaNetworkManager.OnCountdownTick += HandleCountdownTick;
-            ChromaNetworkManager.OnCountdownEnd += HandleCountdownEnd;
+        private void RefreshRoomCode()
+        {
+            if (roomCodeText == null) 
+                return;
 
-            if (timerText != null)
-                timerText.gameObject.SetActive(false);
+            string code = LobbyManager.Instance.CurrentRoomCode;
+            string display = _isCodeVisible ? code : MaskCode(code);
+            roomCodeText.text = display;
+        }
 
-            if (startGameButton != null)
+        /// <summary>
+        /// Mirror 네트워크 객체에서 동기화된 닉네임으로 멤버 목록을 구성한다.
+        /// </summary>
+        private void RefreshMemberList()
+        {
+            var sortedPlayers = LobbyPlayerState.AllPlayers.OrderBy(p => p.netId).ToList();
+
+            if (memberListText == null) return;
+
+            var sb = new StringBuilder();
+
+            for (int i = 0; i < sortedPlayers.Count; i++)
             {
-                startGameButton.gameObject.SetActive(NetworkServer.active);
-                startGameButton.interactable = false;
+                var p = sortedPlayers[i];
+                var playerBase = p.GetComponent<PlayerBase>();
+                string name = playerBase != null ? playerBase.playerName : "Player";
+                bool isHost = (i == 0);
+                sb.AppendLine(isHost ? $"{name} (방장)" : name);
             }
 
-            if (roomSettingsButton != null)
-                roomSettingsButton.gameObject.SetActive(NetworkServer.active);
-
-            if (inviteFriendButton != null)
-                inviteFriendButton.gameObject.SetActive(NetworkServer.active);
-
-            // 네트워크 닉네임(SyncVar)이 클라이언트에 도착하는 미세한 핑 딜레이를 잡기 위해, 로비 창에서는 0.5초마다 UI를 안전하게 덧칠해줍니다.
-            InvokeRepeating(nameof(RefreshMemberList), 0.5f, 0.5f);
+            memberListText.text = sb.ToString();
         }
 
-        private void OnDisable()
+        private void RefreshPlayerCount()
         {
-            if (LobbyManager.Instance != null)
-                LobbyManager.Instance.OnMembersChanged -= RefreshMemberList;
+            if (playerCountText == null || LobbyManager.Instance == null)
+                return;
 
-            LobbyPlayerState.OnLobbyPlayersChanged -= RefreshReadyUI;
-            LobbyPlayerState.OnLobbyPlayersChanged -= RefreshMemberList;
+            int current = LobbyManager.Instance.GetMemberCount();
+            if (current == 0)
+                current = LobbyPlayerState.AllPlayers.Count;
 
-            ChromaNetworkManager.OnCountdownTick -= HandleCountdownTick;
-            ChromaNetworkManager.OnCountdownEnd -= HandleCountdownEnd;
+            int max = LobbyManager.Instance.CurrentRoomOption != null
+                ? LobbyManager.Instance.CurrentRoomOption.maxPlayers
+                : RoomOption.DefaultMaxPlayers;
 
-            CancelInvoke(nameof(RefreshMemberList)); // 루프 종료
+            playerCountText.text = $"{current}/{max}";
         }
-
-        protected override UniTask OnShow()
-        {
-            // 로비를 열 때마다 코드는 기본적으로 가려진(***) 상태로 표시합니다.
-            _isCodeVisible = false;
-            ApplyCodeVisibility();
-
-            RefreshRoomCode();
-            RefreshMemberList();
-            RefreshReadyUI();
-
-            return UniTask.CompletedTask;
-        }
-
-        // ── 방 설정 관리 (로비용) ──────────────────────────────────────────
-
-        private void OnClickRoomSettings()
-        {
-            UIManager.Instance.ShowPopup<UIRoomSetting>().Forget();
-        }
-
-        // ── Ready UI ─────────────────────────────────────────
 
         private void RefreshReadyUI()
         {
@@ -146,22 +207,93 @@ namespace PixelChroma.UI
 
             localLobbyPlayer = allPlayers.FirstOrDefault(p => p.isLocalPlayer);
 
-            UpdateReadyCountText(readyPlayers, totalPlayers);
+            string countDisplay = $"{readyPlayers}/{totalPlayers}";
+
+            if (readyCountText != null)
+                readyCountText.text = countDisplay;
+            if (startReadyCountText != null)
+                startReadyCountText.text = countDisplay;
+
             if (totalPlayers == 0) return;
 
             bool isEveryoneReady = (readyPlayers == totalPlayers);
 
-            if (NetworkServer.active && startGameButton != null)
+            if (LobbyManager.Instance.IsHost && startGameButton != null)
                 startGameButton.interactable = isEveryoneReady;
+
+            if (!LobbyManager.Instance.IsHost && readyCheckImage != null)
+            {
+                bool isLocalReady = localLobbyPlayer != null && localLobbyPlayer.isReady;
+                readyCheckImage.gameObject.SetActive(isLocalReady);
+            }
         }
 
-        private void UpdateReadyCountText(int ready, int total)
+        private void ApplyCodeVisibility()
         {
-            if (readyCountText != null)
-                readyCountText.text = $"{ready} / {total}";
+            var sprite = _isCodeVisible ? shownSprite : hiddenSprite;
+
+            if (showCodeIcon != null && sprite != null)
+                showCodeIcon.sprite = sprite;
+            else if (showCodeLabel != null)
+                showCodeLabel.text = _isCodeVisible ? "Hide" : "Show";
         }
 
-        // ── 버튼 핸들러 ──────────────────────────────────────
+        private static string MaskCode(string code)
+        {
+            return string.IsNullOrEmpty(code) ? string.Empty : new string('*', code.Length);
+        }
+
+        // ── 이벤트 바인딩 ────────────────────────────────────
+
+        /// <summary>
+        /// 플레이어 입장/퇴장 시 호출.
+        /// </summary>
+        private void OnLobbyPlayersChanged()
+        {
+            RefreshMemberList();
+            RefreshPlayerCount();
+            RefreshReadyUI();
+        }
+
+        /// <summary>
+        /// 레디 상태 변경 시 호출.
+        /// </summary>
+        private void OnReadyChanged()
+        {
+            RefreshReadyUI();
+        }
+
+        /// <summary>
+        /// 서버로부터 RoomOption이 동기화되었을 때 호출.
+        /// </summary>
+        private void OnRoomOptionSynced(RoomOption option)
+        {
+            RefreshRoomTitle();
+            RefreshRoomCode();
+            RefreshPlayerCount();
+        }
+
+        private void OnCountdownTick(int remainingSeconds)
+        {
+            if (timerText == null)
+                return;
+
+            timerText.gameObject.SetActive(true);
+            timerText.text = $"게임 시작까지... {remainingSeconds}";
+        }
+
+        private void OnCountdownEnd()
+        {
+            if (timerText != null)
+                timerText.gameObject.SetActive(false);
+        }
+
+        // ── 클릭 이벤트 ──────────────────────────────────────
+
+        private void OnClickRoomSettings()
+        {
+            UIManager.Instance.ShowPopup<UIRoomSetting>().Forget();
+        }
 
         private void OnClickReady()
         {
@@ -171,131 +303,16 @@ namespace PixelChroma.UI
 
         private void OnClickStartGame()
         {
-            if (NetworkServer.active)
+            if (LobbyManager.Instance.IsHost)
             {
-                ChromaNetworkManager manager = NetworkManager.singleton as ChromaNetworkManager;
                 LobbyManager.Instance.ChangeLobbyStatusToInGame();
-                manager?.StartGameWithOption(LobbyManager.Instance.CurrentRoomOption);
+                GameRoundManager.Instance?.StartGameWithOption(LobbyManager.Instance.CurrentRoomOption);
             }
         }
-
-        // ── 카운트다운 ────────────────────────────────────────────
-
-        private void HandleCountdownTick(int remainingSeconds)
-        {
-            if (timerText == null) return;
-
-            timerText.gameObject.SetActive(true);
-            timerText.text = $"게임 시작까지... {remainingSeconds}";
-        }
-
-        private void HandleCountdownEnd()
-        {
-            if (timerText != null)
-                timerText.gameObject.SetActive(false);
-        }
-
-        // ── 표시 ───────────────────────────────────────────────
-
-        private void RefreshRoomCode()
-        {
-            if (roomCodeText == null) return;
-
-            string code = LobbyManager.Instance.CurrentRoomCode;
-            string display = _isCodeVisible ? code : MaskCode(code);
-            roomCodeText.text = display;
-        }
-
-        // ── 코드 표시/숨김 토글 ─────────────────────────────────
-
-        private void ToggleCodeVisibility()
-        {
-            _isCodeVisible = !_isCodeVisible;
-            ApplyCodeVisibility();
-            RefreshRoomCode();
-        }
-
-        private void ApplyCodeVisibility()
-        {
-            var sprite = _isCodeVisible ? shownSprite : hiddenSprite;
-
-            if (showCodeIcon != null && sprite != null)
-            {
-                showCodeIcon.sprite = sprite;
-            }
-            else if (showCodeLabel != null)
-            {
-                showCodeLabel.text = _isCodeVisible ? "Hide" : "Show";
-            }
-        }
-
-        private static string MaskCode(string code)
-        {
-            return string.IsNullOrEmpty(code) ? string.Empty : new string('*', code.Length);
-        }
-
-        // 스팀 API가 아닌 Mirror 네트워크 객체에서 커스텀 닉네임을 가져옵니다.
-        private void RefreshMemberList()
-        {
-            RefreshPlayerCount();
-
-            if (memberListText == null) return;
-
-            var sb = new StringBuilder();
-
-            // 네트워크에 스폰된 로비 플레이어들을 netId 순(접속 순서)으로 정렬합니다.
-            var sortedPlayers = LobbyPlayerState.AllPlayers.OrderBy(p => p.netId).ToList();
-
-            for (int i = 0; i < sortedPlayers.Count; i++)
-            {
-                var p = sortedPlayers[i];
-                var playerBase = p.GetComponent<PlayerBase>();
-
-                // PlayerBase(공통 네트워크)에서 동기화된 커스텀 닉네임을 가져옵니다.
-                string name = playerBase != null ? playerBase.playerName : "Player";
-
-               
-
-                // 가장 처음 스폰된 사람(netId가 제일 낮은 사람)이 방장입니다.
-                bool isHost = (i == 0);
-                sb.AppendLine(isHost ? $"{name} (방장)" : name);
-            }
-
-            // 만약 서버 딜레이로 미러(Mirror) 객체가 아직 없다면 스팀 API 이름으로 임시 렌더링
-            if (sortedPlayers.Count == 0 && LobbyManager.Instance != null)
-            {
-                int count = LobbyManager.Instance.GetMemberCount();
-                for (int i = 0; i < count; i++)
-                {
-                    CSteamID memberId = LobbyManager.Instance.GetMember(i);
-                    string name = SteamFriends.GetFriendPersonaName(memberId);
-                    bool isHost = (i == 0);
-                    sb.AppendLine(isHost ? $"{name} (방장)" : name);
-                }
-            }
-
-            memberListText.text = sb.ToString();
-        }
-
-        // 현재 입장 인원 / 최대 인원 (예: 3 / 10)
-        private void RefreshPlayerCount()
-        {
-            if (playerCountText == null) return;
-
-            int current = LobbyManager.Instance.GetMemberCount();
-            int max = LobbyManager.Instance.CurrentRoomOption != null
-                ? LobbyManager.Instance.CurrentRoomOption.maxPlayers
-                : RoomOption.DefaultMaxPlayers;
-
-            playerCountText.text = $"{current} / {max}";
-        }
-
-        // ── 유틸 버튼 ────────────────────────────────────────
 
         private void OnClickCopyCode()
         {
             GUIUtility.systemCopyBuffer = LobbyManager.Instance.CurrentRoomCode;
-            Debug.Log("방 코드가 클립보드에 복사되었습니다.");
         }
 
         private void OnClickLeave()
@@ -304,15 +321,20 @@ namespace PixelChroma.UI
             GameManager.Instance.EnterMainMenu().Forget();
         }
 
-        // ── 친구 초대 ─────────────────────────────────────────
+        private void OnClickToggleCode()
+        {
+            _isCodeVisible = !_isCodeVisible;
+            ApplyCodeVisibility();
+            RefreshRoomCode();
+        }
+
         private void OnClickInviteFriend()
         {
 #if UNITY_EDITOR
             Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
-#else            
+#else
             if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
             {
-                Debug.Log("[UILobby] 스팀 친구 초대 오버레이 열림");
                 SteamFriends.ActivateGameOverlayInviteDialog(LobbyManager.Instance.CurrentLobbyId);
             }
             else

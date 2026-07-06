@@ -86,33 +86,30 @@ namespace PixelChroma.UI
         // ── 이벤트 구독 및 "최초 싱크 강제 맞춤" 로직 ──────────────────────
         private void OnEnable()
         {
-            ChromaNetworkManager.OnTimeStateChanged += HandleTimeStateChanged;
+            GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
 
-            //  HUD가 켜지는 순간, 이미 NetworkManager에서 흐르고 있는 최신 시간 정보를 강제로 긁어옵니다.
-            // 이렇게 하면 로딩이 늦어서 최초 전환 메시지를 놓친 클라이언트도 완벽하게 싱크가 맞춰집니다!
-            var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
-            if (netManager != null)
+            var round = GameRoundManager.Instance;
+            if (round != null)
             {
-                UpdateStateUI(netManager.CurrentTimeState, netManager.CurrentTimer);
+                UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
             }
         }
 
         private void OnDisable()
         {
-            ChromaNetworkManager.OnTimeStateChanged -= HandleTimeStateChanged;
+            GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
         }
         // ─────────────────────────────────────────────────────────────────
 
         // 서버가 매 프레임 차감하고 있는 정밀한 남은 시간을 실시간으로 스크린에 반영합니다.
         private void Update()
         {
-            var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
-            if (netManager != null)
+            var round = GameRoundManager.Instance;
+            if (round != null)
             {
-                // 대기 중이거나 게임 종료가 아닐 때(시간이 흐르는 중일 때) 매 프레임 타이머 텍스트를 밀어줍니다.
-                if (netManager.CurrentTimeState == TimeState.HideTime || netManager.CurrentTimeState == TimeState.SeekTime)
+                if (round.CurrentTimeState == TimeState.HideTime || round.CurrentTimeState == TimeState.SeekTime)
                 {
-                    UpdateTimerText(netManager.CurrentTimer);
+                    UpdateTimerText(round.CurrentTimer);
                 }
             }
         }
