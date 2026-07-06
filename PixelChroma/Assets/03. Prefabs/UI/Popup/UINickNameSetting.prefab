@@ -1219,9 +1219,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIMainMenuNickname
   dimmed: {fileID: 3463833734641389942}
   closeOnDimmedClick: 1
+  maxNicknameLength: 10
+  bannedWords:
+  - "\uBC14\uBCF4"
+  - "\uBA4D\uCCAD\uC774"
+  - "\uC545\uD50C\uB2E8\uC5B4"
   nicknameInputField: {fileID: 2369082542202772838}
   confirmButton: {fileID: 7026414951848359136}
   cancelButton: {fileID: 3480302002723274741}
+  warningText: {fileID: 6409670674511679707}
+  warningColor: {r: 1, g: 0, b: 0, a: 1}
   panel: {fileID: 8687309525983846586}
   animationDuration: 0.25
 --- !u!1 &4990146497619179349

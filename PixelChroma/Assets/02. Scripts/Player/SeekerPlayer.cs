@@ -9,6 +9,9 @@ namespace PixelChroma
 {
     public class SeekerPlayer : PlayerBase
     {
+        [Header("Seeker Settings")]
+        public float seekerMoveSpeed = 5.5f;
+
         [Header("Seeker Basic Settings")]
         public float catchRadius = 1.5f;
 
@@ -20,6 +23,8 @@ namespace PixelChroma
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
         [SerializeField] private GameObject waterSplashPrefab;
+
+
 
         [SyncVar(hook = nameof(OnAimAngleChanged))]
         private float _syncAimAngle;
@@ -40,7 +45,7 @@ namespace PixelChroma
 
         protected override void OnLocalPlayerStarted()
         {
-            moveSpeed = 4f;
+            moveSpeed = seekerMoveSpeed;
             _mainCam = Camera.main;
             if (weaponPivot != null)
             {
@@ -113,7 +118,7 @@ namespace PixelChroma
 
             foreach (var runner in RunnerPlayer.AllRunners)
             {
-                // 💡 젖어 있고, 아직 죽지 않은(관전 중이 아닌) 도망자만 필터링
+                // 젖어 있고, 아직 죽지 않은(관전 중이 아닌) 도망자만 필터링
                 if (runner != null && runner.isWet && !runner.IsSpectating)
                 {
                     float dist = Vector2.Distance(transform.position, runner.transform.position);
