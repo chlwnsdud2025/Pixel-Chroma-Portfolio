@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2323885775483511654
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6963973221907891379}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6963973221907891379
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2323885775483511654}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.56, y: 0.07, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5094712816300647291}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3329247650249689647
 GameObject:
   m_ObjectHideFlags: 0
@@ -202,6 +233,8 @@ MonoBehaviour:
   seekerMoveSpeed: 10
   catchRadius: 1.5
   weaponPivot: {fileID: 3992759080059206177}
+  firePoint: {fileID: 6963973221907891379}
+  laserPrefab: {fileID: 8869732654689229243, guid: 0165dbdcee1f1c24582812cf7a55302f, type: 3}
   fireCooldown: 1.5
   fireRange: 8
   aoeRadius: 0.9
@@ -211,7 +244,7 @@ MonoBehaviour:
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 2048
-  waterSplashPrefab: {fileID: 7511292617098089931, guid: 0818940c27f4a47478f9a7637c4feddf, type: 3}
+  waterSplashPrefab: {fileID: 0}
   indicatorPrefab: {fileID: 5891163646657699527, guid: 2661097394c955043a40f674d4be90a1, type: 3}
   indicatorRadius: 1
   wettimer: 5
@@ -723,7 +756,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 515527655525827208, guid: 5bfd88c021af68748a25c4adc4caf4ad, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6963973221907891379}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5bfd88c021af68748a25c4adc4caf4ad, type: 3}
 --- !u!4 &5094712816300647291 stripped

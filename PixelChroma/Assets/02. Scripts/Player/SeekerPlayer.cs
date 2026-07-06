@@ -17,12 +17,18 @@ namespace PixelChroma
 
         [Header("Water Gun Settings")]
         [SerializeField] private Transform weaponPivot;
+        // 실제 물총의 끝부분(총구)을 지정할 변수
+        [SerializeField] private Transform firePoint;
+        // 연구원님 말씀대로 코드가 아닌 프리팹으로 관리할 레이저
+        [SerializeField] private GameObject laserPrefab;
         [SerializeField] private float fireCooldown = 1.5f;
         [SerializeField] private float fireRange = 5f;
         [SerializeField] private float aoeRadius = 2f;
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
         [SerializeField] private GameObject waterSplashPrefab;
+
+       
 
 
         [Header("Indicator Settings")]
@@ -299,7 +305,8 @@ namespace PixelChroma
         [Command]
         private void CmdFireWaterGun(Vector2 targetPos)
         {
-            Vector2 currentPos = weaponPivot != null ? weaponPivot.position : (Vector2)transform.position;
+            Vector2 currentPos = firePoint != null ? firePoint.position :
+                                 (weaponPivot != null ? weaponPivot.position : (Vector2)transform.position);
             Vector2 dir = (targetPos - currentPos).normalized;
             float dist = Vector2.Distance(currentPos, targetPos);
 
@@ -328,13 +335,56 @@ namespace PixelChroma
         }
 
         [ClientRpc]
-        private void RpcPlayFireEffect(Vector2 effectPos)
+        private void RpcPlayFireEffect(Vector2 targetPos) // 💡 인자 변경
         {
-            ShowSplashEffect(effectPos, aoeRadius);
+            StartCoroutine(AnimateLaserAndSplash(targetPos));
+        }
+
+        // 💡 [핵심 수정] 코루틴 내부에서 시작점을 '실시간'으로 추적합니다!
+        private System.Collections.IEnumerator AnimateLaserAndSplash(Vector2 targetPos)
+        {
+            float laserDuration = 0.1f;
+
+            GameObject laserObj = null;
+            LineRenderer lr = null;
+
+            if (laserPrefab != null)
+            {
+                // 생성 위치는 상관없습니다. 어차피 LineRenderer가 World Space로 덮어씌웁니다.
+                laserObj = Instantiate(laserPrefab, transform.position, Quaternion.identity);
+                lr = laserObj.GetComponent<LineRenderer>();
+            }
+
+            float elapsed = 0f;
+
+            while (elapsed < laserDuration)
+            {
+                elapsed += Time.deltaTime;
+                float ratio = elapsed / laserDuration;
+
+                // 캐릭터가 아무리 빠르게 이동 중이어도 레이저 꼬리가 총구에 찰싹 달라붙습니다!
+                Vector2 dynamicStartPos = firePoint != null ? (Vector2)firePoint.position : (Vector2)transform.position;
+
+                // 레이저의 꼬리(Tail)와 머리(Head)를 실시간 총구 위치 기준으로 부드럽게 뻗어나가게 합니다.
+                Vector2 currentTail = Vector2.Lerp(dynamicStartPos, targetPos, Mathf.Max(0, ratio - 0.5f));
+                Vector2 currentHead = Vector2.Lerp(dynamicStartPos, targetPos, ratio);
+
+                if (lr != null)
+                {
+                    lr.SetPosition(0, currentTail);
+                    lr.SetPosition(1, currentHead);
+                }
+
+                yield return null;
+            }
+
+            if (laserObj != null) Destroy(laserObj);
+
+            ShowSplashEffect(targetPos, aoeRadius);
 
             if (waterSplashPrefab != null)
             {
-                Instantiate(waterSplashPrefab, effectPos, Quaternion.identity);
+                Instantiate(waterSplashPrefab, targetPos, Quaternion.identity);
             }
         }
 
