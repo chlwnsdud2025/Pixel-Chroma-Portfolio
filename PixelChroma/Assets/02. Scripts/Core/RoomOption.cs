@@ -16,6 +16,7 @@ namespace PixelChroma
         public const int DefaultSeekerCount = 1;
         public const float DefaultHideTime = 60f;
         public const float DefaultSeekTime = 300f;
+        public const float DefaultCheckTime = 30f;
 
         public const int MinPlayers = 2;
         public const int MaxPlayersLimit = 10;
@@ -25,6 +26,8 @@ namespace PixelChroma
         public const float MaxHideTime = 120f;
         public const float MinSeekTime = 60f;
         public const float MaxSeekTime = 600f;
+        public const float MinCheckTime = 10f; 
+        public const float MaxCheckTime = 100f; 
 
         public bool isPublic = true;
         public GameMode gameMode = GameMode.Basic;
@@ -32,6 +35,8 @@ namespace PixelChroma
         public int seekerCount = DefaultSeekerCount;
         public float hideTime = DefaultHideTime;
         public float seekTime = DefaultSeekTime;
+        public float checkTime = DefaultCheckTime;
+
         public string mapName = "";
         public string roomCode = "";
         public string hostName = "";

@@ -12,6 +12,7 @@ namespace PixelChroma
         public static event Action OnReadyChanged;
         public static event Action<RoomOption> OnRoomOptionSynced;
 
+
         [SyncVar(hook = nameof(OnReadyStateChanged))]
         public bool isReady = false;
 

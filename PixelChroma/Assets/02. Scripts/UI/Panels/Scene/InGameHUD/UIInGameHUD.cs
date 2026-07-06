@@ -1,27 +1,19 @@
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
     public class UIInGameHUD : UIScene, IPaintHUD
     {
-        [Header("Paint UI")]
-        [SerializeField] private GameObject paintModeRoot;
-        [SerializeField] private UIColorPicker colorPicker;
+        [Header("Paint UI (Common)")]
+        [SerializeField] protected GameObject paintModeRoot;
+        [SerializeField] protected UIColorPicker colorPicker;
 
-        [Header("Game State UI")]
+        [Header("Game State UI (Common)")]
         [SerializeField] private TMP_Text stateText;
         [SerializeField] private TMP_Text timerText;
 
-
-        [Header("Interaction UI")]
-        [SerializeField] private Button killButton;
-
-        [Header("Skill UI")]
-        [SerializeField] private GameObject waterGunRoot; // 물총 UI 전체 (술래에게만 보이게)
-        [SerializeField] private Image waterGunCooldownOverlay; // 회색으로 덮일 쿨타임 이미지
-
+        [SerializeField] private TMP_Text gameResultOverlayText;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -29,85 +21,34 @@ namespace PixelChroma.UI
         public override void Initialize()
         {
             base.Initialize();
-            if (paintModeRoot != null)
-                paintModeRoot.SetActive(false);
-
-            if (killButton != null)
-            {
-                // 기본적으로 킬 버튼의 렌더링 자체를 꺼버립니다. (Runner에게 안 보이게 됨)
-                killButton.gameObject.SetActive(false);
-                killButton.interactable = false;
-            }
-
-            if (waterGunRoot != null)
-                waterGunRoot.SetActive(false);
+            if (paintModeRoot != null) paintModeRoot.SetActive(false);
+            if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false); // 초기엔 숨김
         }
 
-        // Seeker만 호출할 수 있도록 킬 버튼의 표시 여부를 끄고 켜는 함수를 추가합니다.
-        public void SetKillButtonVisible(bool isVisible)
-        {
-            if (killButton != null)
-            {
-                killButton.gameObject.SetActive(isVisible);
-            }
-        }
-
-        // 술래(Seeker) 화면에만 물총 UI를 띄우는 함수
-        public void SetWaterGunUIVisible(bool isVisible)
-        {
-            if (waterGunRoot != null)
-            {
-                waterGunRoot.SetActive(isVisible);
-            }
-        }
-
-        public void UpdateWaterGunCooldown(float fillAmount)
-        {
-            if (waterGunCooldownOverlay != null)
-            {
-                waterGunCooldownOverlay.fillAmount = fillAmount;
-            }
-        }
-
-        public void SetKillButtonInteractable(bool isInteractable, UnityEngine.Events.UnityAction onClickAction = null)
-        {
-            if (killButton == null) return;
-
-            killButton.interactable = isInteractable;
-
-            // 버튼 클릭 이벤트 갱신
-            killButton.onClick.RemoveAllListeners();
-            if (isInteractable && onClickAction != null)
-            {
-                killButton.onClick.AddListener(onClickAction);
-            }
-        }
-
-        // ── 이벤트 구독 및 "최초 싱크 강제 맞춤" 로직 ──────────────────────
-        private void OnEnable()
+        protected virtual void OnEnable()
         {
             GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
 
             var round = GameRoundManager.Instance;
             if (round != null)
             {
-                UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
+                UpdateStateUI(round.CurrentTimeState, round.CurrentTimer, round.CurrentWinner);
             }
         }
 
-        private void OnDisable()
+        protected virtual void OnDisable()
         {
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
         }
-        // ─────────────────────────────────────────────────────────────────
 
-        // 서버가 매 프레임 차감하고 있는 정밀한 남은 시간을 실시간으로 스크린에 반영합니다.
-        private void Update()
+        protected virtual void Update()
         {
             var round = GameRoundManager.Instance;
             if (round != null)
             {
-                if (round.CurrentTimeState == TimeState.HideTime || round.CurrentTimeState == TimeState.SeekTime)
+                if (round.CurrentTimeState == TimeState.HideTime ||
+                    round.CurrentTimeState == TimeState.SeekTime ||
+                    round.CurrentTimeState == TimeState.CheckTime)
                 {
                     UpdateTimerText(round.CurrentTimer);
                 }
@@ -116,48 +57,64 @@ namespace PixelChroma.UI
 
         public void TogglePaintMode()
         {
-            if (paintModeRoot != null)
-                paintModeRoot.SetActive(!paintModeRoot.activeSelf);
+            if (paintModeRoot != null) paintModeRoot.SetActive(!paintModeRoot.activeSelf);
         }
 
         public void SetPaintMode(bool active)
         {
-            if (paintModeRoot != null)
-                paintModeRoot.SetActive(active);
+            if (paintModeRoot != null) paintModeRoot.SetActive(active);
         }
 
-        private void HandleTimeStateChanged(TimeState state, float remainingTime)
+        private void HandleTimeStateChanged(TimeState state, float remainingTime, WinFaction winner)
         {
-            UpdateStateUI(state, remainingTime);
+            UpdateStateUI(state, remainingTime, winner);
         }
 
-        private void UpdateStateUI(TimeState state, float remainingTime)
+        private void UpdateStateUI(TimeState state, float remainingTime, WinFaction winner)
         {
-            // 상태 텍스트 변경
             if (stateText != null)
             {
                 switch (state)
                 {
-                    case TimeState.Waiting:
-                        stateText.text = "대기 중...";
-                        break;
-                    case TimeState.HideTime:
-                        stateText.text = "숨는 시간!";
-                        break;
-                    case TimeState.SeekTime:
-                        stateText.text = "찾는 시간!";
-                        break;
-                    case TimeState.GameEnd:
-                        stateText.text = "게임 종료!";
-                        break;
+                    case TimeState.Waiting: stateText.text = "대기 중..."; break;
+                    case TimeState.HideTime: stateText.text = "숨는 시간!"; break;
+                    case TimeState.SeekTime: stateText.text = "찾는 시간!"; break;
+                    case TimeState.CheckTime: stateText.text = "확인 시간!"; break;
+                    case TimeState.GameEnd: stateText.text = "게임 종료!"; break;
                 }
             }
 
-            // 타이머 텍스트 변경
+            // 💡 [승리 오버레이 연출 분기점]
+            if (gameResultOverlayText != null)
+            {
+                if (state == TimeState.CheckTime)
+                {
+                    // 찾는 시간이 끝났을 때 도망자가 한 명이라도 살았다면 "도망자 승리!" 텍스트 가시화
+                    gameResultOverlayText.gameObject.SetActive(true);
+                    gameResultOverlayText.text = "<color=#00FFFF>도망자 승리!</color>";
+                }
+                else if (state == TimeState.GameEnd)
+                {
+                    gameResultOverlayText.gameObject.SetActive(true);
+                    if (winner == WinFaction.Seeker)
+                    {
+                        gameResultOverlayText.text = "<color=#FF2222>술래 승리!</color>";
+                    }
+                    else if (winner == WinFaction.Runner)
+                    {
+                        gameResultOverlayText.text = "<color=#00FFFF>도망자 승리!</color>";
+                    }
+                }
+                else
+                {
+                    // 평상시엔 가려두기
+                    gameResultOverlayText.gameObject.SetActive(false);
+                }
+            }
+
             UpdateTimerText(remainingTime);
         }
 
-        // 분리된 타이머 가독성 포맷팅 함수
         private void UpdateTimerText(float remainingTime)
         {
             if (timerText != null)

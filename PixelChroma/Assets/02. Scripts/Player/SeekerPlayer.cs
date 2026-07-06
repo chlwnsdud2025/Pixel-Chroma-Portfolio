@@ -9,17 +9,34 @@ namespace PixelChroma
 {
     public class SeekerPlayer : PlayerBase
     {
+        [Header("Seeker Settings")]
+        public float seekerMoveSpeed = 5.5f;
+
         [Header("Seeker Basic Settings")]
         public float catchRadius = 1.5f;
 
         [Header("Water Gun Settings")]
         [SerializeField] private Transform weaponPivot;
+        // 실제 물총의 끝부분(총구)을 지정할 변수
+        [SerializeField] private Transform firePoint;
+        // 연구원님 말씀대로 코드가 아닌 프리팹으로 관리할 레이저
+        [SerializeField] private GameObject laserPrefab;
         [SerializeField] private float fireCooldown = 1.5f;
         [SerializeField] private float fireRange = 5f;
         [SerializeField] private float aoeRadius = 2f;
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
         [SerializeField] private GameObject waterSplashPrefab;
+
+       
+
+
+        [Header("Indicator Settings")]
+        [Tooltip("도망자를 가리킬 화살표 프리팹")]
+        public GameObject indicatorPrefab;
+        [Tooltip("술래 몸 중심으로부터 화살표가 띄워질 거리(반지름)")]
+        public float indicatorRadius = 1.5f;
+
 
         [SyncVar(hook = nameof(OnAimAngleChanged))]
         private float _syncAimAngle;
@@ -33,14 +50,13 @@ namespace PixelChroma
         public static readonly System.Collections.Generic.List<SeekerPlayer> AllSeekers = new();
 
         private RunnerPlayer _targetRunnerToKill = null;
-        private UIInGameHUD _inGameHUD;
-
+        private UIInGameHUD_Seeker _seekerHUD;
         [SerializeField] private float wettimer = 5f;
 
 
         protected override void OnLocalPlayerStarted()
         {
-            moveSpeed = 4f;
+            moveSpeed = seekerMoveSpeed;
             _mainCam = Camera.main;
             if (weaponPivot != null)
             {
@@ -73,15 +89,11 @@ namespace PixelChroma
             }
         }
 
-        private async UniTaskVoid ShowHUDAsync()
+        protected async UniTaskVoid ShowHUDAsync() // (기존 코드 명칭에 맞춤)
         {
-            var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
-            BindPaintHUD(hud);
-
-
-            hud.SetKillButtonVisible(true);
-            hud.SetWaterGunUIVisible(true);
-            _inGameHUD = hud;
+            // 어드레서블 명부에 등록된 "술래 전용 HUD 프리팹"을 스폰합니다.
+            _seekerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Seeker>();
+            BindPaintHUD(_seekerHUD);
         }
 
         protected override void Update()
@@ -94,14 +106,11 @@ namespace PixelChroma
             HandleKillInput();
             HandleAiming();
             HandleShooting();
-            if (_inGameHUD != null)
+            if (_seekerHUD != null)
             {
                 float elapsed = Time.time - _lastFireTime;
                 float ratio = Mathf.Clamp01(elapsed / fireCooldown);
-
-                // 방금 쏘면 elapsed가 0이므로 ratio = 0 -> (1 - 0) = 1 (회색 꽉 참)
-                // 시간이 지나서 elapsed가 fireCooldown에 도달하면 ratio = 1 -> (1 - 1) = 0 (회색 다 벗겨짐)
-                _inGameHUD.UpdateWaterGunCooldown(1f - ratio);
+                _seekerHUD.UpdateWaterGunCooldown(1f - ratio);
             }
 
         }
@@ -113,7 +122,7 @@ namespace PixelChroma
 
             foreach (var runner in RunnerPlayer.AllRunners)
             {
-                // 💡 젖어 있고, 아직 죽지 않은(관전 중이 아닌) 도망자만 필터링
+                // 젖어 있고, 아직 죽지 않은(관전 중이 아닌) 도망자만 필터링
                 if (runner != null && runner.isWet && !runner.IsSpectating)
                 {
                     float dist = Vector2.Distance(transform.position, runner.transform.position);
@@ -126,15 +135,15 @@ namespace PixelChroma
             }
 
             // HUD의 킬 버튼 켜기/끄기
-            if (_inGameHUD != null)
+            if (_seekerHUD != null)
             {
                 if (_targetRunnerToKill != null)
                 {
-                    _inGameHUD.SetKillButtonInteractable(true, ExecuteKill);
+                    _seekerHUD.SetKillButtonInteractable(true, ExecuteKill);
                 }
                 else
                 {
-                    _inGameHUD.SetKillButtonInteractable(false);
+                    _seekerHUD.SetKillButtonInteractable(false);
                 }
             }
         }
@@ -296,7 +305,8 @@ namespace PixelChroma
         [Command]
         private void CmdFireWaterGun(Vector2 targetPos)
         {
-            Vector2 currentPos = weaponPivot != null ? weaponPivot.position : (Vector2)transform.position;
+            Vector2 currentPos = firePoint != null ? firePoint.position :
+                                 (weaponPivot != null ? weaponPivot.position : (Vector2)transform.position);
             Vector2 dir = (targetPos - currentPos).normalized;
             float dist = Vector2.Distance(currentPos, targetPos);
 
@@ -325,13 +335,56 @@ namespace PixelChroma
         }
 
         [ClientRpc]
-        private void RpcPlayFireEffect(Vector2 effectPos)
+        private void RpcPlayFireEffect(Vector2 targetPos) // 💡 인자 변경
         {
-            ShowSplashEffect(effectPos, aoeRadius);
+            StartCoroutine(AnimateLaserAndSplash(targetPos));
+        }
+
+        // 💡 [핵심 수정] 코루틴 내부에서 시작점을 '실시간'으로 추적합니다!
+        private System.Collections.IEnumerator AnimateLaserAndSplash(Vector2 targetPos)
+        {
+            float laserDuration = 0.1f;
+
+            GameObject laserObj = null;
+            LineRenderer lr = null;
+
+            if (laserPrefab != null)
+            {
+                // 생성 위치는 상관없습니다. 어차피 LineRenderer가 World Space로 덮어씌웁니다.
+                laserObj = Instantiate(laserPrefab, transform.position, Quaternion.identity);
+                lr = laserObj.GetComponent<LineRenderer>();
+            }
+
+            float elapsed = 0f;
+
+            while (elapsed < laserDuration)
+            {
+                elapsed += Time.deltaTime;
+                float ratio = elapsed / laserDuration;
+
+                // 캐릭터가 아무리 빠르게 이동 중이어도 레이저 꼬리가 총구에 찰싹 달라붙습니다!
+                Vector2 dynamicStartPos = firePoint != null ? (Vector2)firePoint.position : (Vector2)transform.position;
+
+                // 레이저의 꼬리(Tail)와 머리(Head)를 실시간 총구 위치 기준으로 부드럽게 뻗어나가게 합니다.
+                Vector2 currentTail = Vector2.Lerp(dynamicStartPos, targetPos, Mathf.Max(0, ratio - 0.5f));
+                Vector2 currentHead = Vector2.Lerp(dynamicStartPos, targetPos, ratio);
+
+                if (lr != null)
+                {
+                    lr.SetPosition(0, currentTail);
+                    lr.SetPosition(1, currentHead);
+                }
+
+                yield return null;
+            }
+
+            if (laserObj != null) Destroy(laserObj);
+
+            ShowSplashEffect(targetPos, aoeRadius);
 
             if (waterSplashPrefab != null)
             {
-                Instantiate(waterSplashPrefab, effectPos, Quaternion.identity);
+                Instantiate(waterSplashPrefab, targetPos, Quaternion.identity);
             }
         }
 
@@ -412,8 +465,13 @@ namespace PixelChroma
 
         private void OnDrawGizmosSelected()
         {
+            // 1. 기존 킬 사거리 (빨간색 원)
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(transform.position, catchRadius);
+
+            // 2. 위치 노출 화살표가 맴도는 궤도 범위 (노란색 원)
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, indicatorRadius);
         }
 
         [ClientRpc]
@@ -428,13 +486,58 @@ namespace PixelChroma
                 rb.linearVelocity = Vector2.zero;
             }
 
-            // 💡 만약 카메라를 시네머신으로 쓴다면, 텔레포트 시 카메라가 쭈욱 따라오지 않고 즉시 순간이동 하도록 강제 업데이트
+            // 만약 카메라를 시네머신으로 쓴다면, 텔레포트 시 카메라가 쭈욱 따라오지 않고 즉시 순간이동 하도록 강제 업데이트
             if (cinemachineCamera != null)
             {
                 cinemachineCamera.PreviousStateIsValid = false;
             }
 
             Debug.Log("[Seeker] 본진으로 텔레포트 되었습니다!");
+        }
+
+
+        [ClientRpc]
+        public void RpcShowRunnerIndicator(NetworkIdentity runnerIdentity, float duration)
+        {
+            // 오직 이 술래를 조종하는 당사자의 화면에서만 화살표가 보이게 처리합니다.
+            // (다른 도망자들이나 관전자의 화면에는 화살표가 안 보입니다)
+            if (!isLocalPlayer) return;
+
+            if (runnerIdentity == null || indicatorPrefab == null) return;
+
+            // 화살표 생성 및 추적 코루틴 시작
+            StartCoroutine(TrackRunnerCoroutine(runnerIdentity.transform, duration));
+        }
+
+        private System.Collections.IEnumerator TrackRunnerCoroutine(Transform target, float duration)
+        {
+            // 화살표 생성 (술래의 자식으로 묶지 않고 독립적으로 움직이게 합니다)
+            GameObject arrow = Instantiate(indicatorPrefab, transform.position, Quaternion.identity);
+
+            float elapsed = 0f;
+
+            // duration 시간이 다 되거나, 타겟(도망자)이 게임에서 나갔을 때 루프 종료
+            while (elapsed < duration && target != null)
+            {
+                elapsed += Time.deltaTime;
+
+                // 1. 방향 벡터 구하기 (도망자 위치 - 술래 위치)
+                Vector2 dir = (target.position - transform.position).normalized;
+
+                // 2. 각도 계산 (Atan2를 사용해 방향을 회전값으로 변환)
+                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+                // 3. 화살표 위치 세팅 (술래 중심에서 방향벡터 * 반지름만큼 떨어진 곳)
+                arrow.transform.position = transform.position + (Vector3)(dir * indicatorRadius);
+
+                // 4. 화살표 회전 세팅 (화살표가 도망자를 쳐다보도록 회전)
+                arrow.transform.rotation = Quaternion.Euler(0, 0, angle);
+
+                yield return null;
+            }
+
+            // 시간이 끝나면 화살표 삭제
+            if (arrow != null) Destroy(arrow);
         }
     }
 }

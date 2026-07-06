@@ -93,7 +93,7 @@ namespace PixelChroma
             CurrentState = GameState.InGame;
             EnsureSceneEssentials();
             await UIManager.Instance.HideAllPopups();
-            await UIManager.Instance.ShowScene<UIInGameHUD>();
+            //await UIManager.Instance.ShowScene<UIInGameHUD>();
         }
 
         // 씬 전환 시 필수 오브젝트를 보장한다. 없으면 프리팹으로 생성한다.

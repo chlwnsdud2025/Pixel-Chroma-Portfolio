@@ -28,6 +28,7 @@ namespace PixelChroma
         private int _spectateSeekerIndex = -1;
 
         private UISpectatorPopup _spectatorPopup;
+        private UIInGameHUD_Runner _runnerHUD;
 
         // ── 물에 젖음 및 디버프 상태 ────────────────────────────────
         [Header("Status Effect")]
@@ -47,6 +48,11 @@ namespace PixelChroma
         [Header("Paint Mode Settings")]
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
         [SerializeField] private float paintModeSpeedMultiplier = 0.2f;
+
+        [Header("Expose Skill")]
+        public float exposeDuration = 1f;  // 화살표가 떠있는 시간
+        public float exposeCooldown = 1f; // 스킬 쿨타임
+        private float _lastExposeTime = -100f;
 
         public bool IsSpectating => isDead;
 
@@ -84,9 +90,12 @@ namespace PixelChroma
         protected override void OnLocalPlayerStopped()
         {
             UnbindPaintHUD();
+            _runnerHUD = null;
 
             if (_freeCamTarget != null)
                 Destroy(_freeCamTarget);
+
+            OnPaintModeChanged -= HandlePaintModeChanged;
         }
 
         // 통합된 Update: 서버 타이머 처리 + 클라이언트 입력 감지
@@ -111,6 +120,11 @@ namespace PixelChroma
             // [생존/관전 공통 단축키 로직]
             if (Keyboard.current != null)
             {
+                if (Keyboard.current.eKey.wasPressedThisFrame)
+                {
+                    TryUseExposeSkill();
+                }
+
                 // P키: 살아있을 때만 자유 시점 토글 허용
                 if (!isDead && Keyboard.current.pKey.wasPressedThisFrame)
                     ToggleFreezeMode();
@@ -234,6 +248,17 @@ namespace PixelChroma
             if (TryGetComponent<Collider2D>(out var col)) col.enabled = false;
             foreach (var sr in GetComponentsInChildren<SpriteRenderer>(true)) sr.enabled = false;
             if (paintCanvas != null) paintCanvas.gameObject.SetActive(false);
+
+            // 캐릭터 하위에 있는 모든 UI 캔버스(닉네임, 체력바 등)와 텍스트를 꺼줍니다!
+            foreach (var canvas in GetComponentsInChildren<Canvas>(true))
+            {
+                canvas.enabled = false;
+            }
+            // 혹시 Canvas 없이 3D TextMeshPro를 사용하셨을 경우를 대비한 텍스트 끄기
+            foreach (var text in GetComponentsInChildren<TMPro.TMP_Text>(true))
+            {
+                text.enabled = false;
+            }
 
             // 2. 당사자 화면에서만 자유 시점(관전) 세팅
             if (isLocalPlayer)
@@ -417,8 +442,38 @@ namespace PixelChroma
 
         private async UniTaskVoid ShowHUDAsync()
         {
-            var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
-            BindPaintHUD(hud);
+            // 어드레서블 명부에 등록된 "도망자 전용 HUD 프리팹"을 스폰합니다.
+            _runnerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Runner>();
+            BindPaintHUD(_runnerHUD);
         }
+
+        private void TryUseExposeSkill()
+        {
+            if (Time.time < _lastExposeTime + exposeCooldown)
+            {
+                //Debug.Log($"스킬 쿨타임 중입니다! 남은 시간: {(_lastExposeTime + exposeCooldown) - Time.time:F1}초");
+                return;
+            }
+
+            _lastExposeTime = Time.time;
+            //Debug.Log("[Runner] 위치 노출 스킬 사용!");
+
+            if (_runnerHUD != null)
+            {
+                _runnerHUD.StartExposeSkillCooldown(exposeCooldown);
+            }
+
+            CmdExposeLocation(exposeDuration);
+        }
+        [Command]
+        private void CmdExposeLocation(float duration)
+        {
+            // 서버가 모든 술래(Seeker)를 찾아서 "이 도망자(this)를 가리키는 화살표를 띄워라!" 라고 명령함
+            foreach (var seeker in SeekerPlayer.AllSeekers)
+            {
+                seeker.RpcShowRunnerIndicator(this.netIdentity, duration);
+            }
+        }
+
     }
 }
