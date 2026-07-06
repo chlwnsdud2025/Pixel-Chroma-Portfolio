@@ -11,12 +11,14 @@ using PixelChroma.UI;
 
 namespace PixelChroma
 {
-    public enum TimeState { Waiting, HideTime, SeekTime, GameEnd }
+    public enum TimeState { Waiting, HideTime, SeekTime, CheckTime, GameEnd }
 
+    public enum WinFaction { None, Seeker, Runner }
     public struct TimeStateMessage : NetworkMessage
     {
         public TimeState state;
         public float timer;
+        public WinFaction winner;
     }
 
     public class ChromaNetworkManager : NetworkManager
@@ -35,14 +37,16 @@ namespace PixelChroma
         public static event Action<int> OnCountdownTick;
         public static event Action OnCountdownEnd;
 
+
         // 이벤트 이름도 OnTimeStateChanged 로 변경
-        public static event Action<TimeState, float> OnTimeStateChanged;
+        public static event Action<TimeState, float, WinFaction> OnTimeStateChanged;
 
         private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
         private readonly Dictionary<int, string> _playerNicknames = new(); // 닉네임 명부 추가
 
         private bool _isCountingDown;
         private CancellationTokenSource _countdownCts;
+        private bool _isLobbyReturningStarted = false;// 중복 로비 이동 방지
 
         // 방장이 설정한 룰과 현재 진행 상태 관리
         private MapRegistrySO MapRegistry => LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
@@ -50,6 +54,7 @@ namespace PixelChroma
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public float CurrentTimer { get; private set; } = 0f;
+        public WinFaction CurrentWinner { get; private set; } = WinFaction.None;
 
 
 
@@ -107,56 +112,96 @@ namespace PixelChroma
 
         private void Update()
         {
-            if (CurrentTimeState == TimeState.HideTime || CurrentTimeState == TimeState.SeekTime)
+            if (CurrentTimeState == TimeState.HideTime ||
+                CurrentTimeState == TimeState.SeekTime ||
+                CurrentTimeState == TimeState.CheckTime)
             {
-                // 서버와 클라이언트 모두 각자 컴퓨터에서 타이머를 깎습니다
                 if (CurrentTimer > 0)
                     CurrentTimer -= Time.deltaTime;
 
-                // 타이머가 0이 되면 다음 상태로 넘어가는 통제는 "오직 서버"만 합니다.
-                if (NetworkServer.active && CurrentTimer <= 0)
+                // ── 오직 서버(방장)만 승리 판정 및 페이즈 전환을 감시합니다 ──
+                if (NetworkServer.active)
                 {
-                    if (CurrentTimeState == TimeState.HideTime)
+                    // 술래 시간(SeekTime) 도중 실시간 생존 인원 검사
+                    if (CurrentTimeState == TimeState.SeekTime)
                     {
-                        float seekTime = CurrentRoomOption != null ? CurrentRoomOption.seekTime : 180f;
-                        SetTimeState(TimeState.SeekTime, seekTime);
+                        // 관전 중이 아니고(alive), 아직 살아있는 도망자 컴포넌트 추출
+                        int aliveRunners = RunnerPlayer.AllRunners.Count(r => r != null && !r.isDead && !r.IsSpectating);
 
-                        // 찾는 시간이 시작되었으므로 술래들을 대기실에서 본진으로 텔레포트!
-                        if (InGameManager.Instance != null)
+                        // 🚨 도망자가 전멸했다면? 즉시 술래(Seeker) 조기 승리 확정!
+                        if (aliveRunners == 0 && RunnerPlayer.AllRunners.Count > 0)
                         {
-                            Vector3 seekerMainSpawn = InGameManager.Instance.GetSpawnPosition(PlayerRole.Seeker, false);
-
-                            // SeekerPlayer에 만들어둔 전역 리스트(AllSeekers)를 활용해 모두 텔레포트
-                            foreach (var seeker in SeekerPlayer.AllSeekers)
-                            {
-                                seeker.RpcTeleport(seekerMainSpawn);
-                            }
+                            SetTimeState(TimeState.GameEnd, 0f, WinFaction.Seeker);
+                            StartReturnToLobbyTimer(5f).Forget(); // 5초 뒤 로비 복귀 공정 가동
+                            return;
                         }
                     }
-                    else if (CurrentTimeState == TimeState.SeekTime)
+
+                    // 시간 만료에 따른 정규 타임라인 통제
+                    if (CurrentTimer <= 0)
                     {
-                        SetTimeState(TimeState.GameEnd, 0f);
+                        if (CurrentTimeState == TimeState.HideTime)
+                        {
+                            float seekTime = CurrentRoomOption != null ? CurrentRoomOption.seekTime : 180f;
+                            SetTimeState(TimeState.SeekTime, seekTime);
+
+                            if (InGameManager.Instance != null)
+                            {
+                                Vector3 seekerMainSpawn = InGameManager.Instance.GetSpawnPosition(PlayerRole.Seeker, false);
+                                foreach (var seeker in SeekerPlayer.AllSeekers)
+                                {
+                                    seeker.RpcTeleport(seekerMainSpawn);
+                                }
+                            }
+                        }
+                        else if (CurrentTimeState == TimeState.SeekTime)
+                        {
+                            // 시간 끝날 때까지 도망자가 1명이라도 살아남았다면? 도망자(Runner) 승리!
+                            float checkTime = CurrentRoomOption != null ? CurrentRoomOption.checkTime : 15f;
+                            SetTimeState(TimeState.CheckTime, checkTime, WinFaction.Runner);
+                        }
+                        else if (CurrentTimeState == TimeState.CheckTime)
+                        {
+                            // 숨어있던 자리 확인 시간(CheckTime)마저 끝나면 로비로 안전 복귀 가동
+                            SetTimeState(TimeState.GameEnd, 0f, WinFaction.Runner);
+                            StartReturnToLobbyTimer(0.5f).Forget();
+                        }
                     }
                 }
             }
         }
 
         [Server]
-        private void SetTimeState(TimeState newState, float time)
+        private void SetTimeState(TimeState newState, float time, WinFaction winner = WinFaction.None)
         {
             CurrentTimeState = newState;
             CurrentTimer = time;
+            CurrentWinner = winner;
 
-            // 모든 클라이언트에게 바뀐 상태와 시간을 쏴줍니다.
-            NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
-            Debug.Log($"[NetworkManager] 상태 전환: {newState}, 시간: {time}초");
+            NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time, winner = winner });
+            Debug.Log($"[Server 루프] 상태: {newState}, 남은시간: {time}초, 승리진영: {winner}");
         }
 
         private void OnClientTimeStateChanged(TimeStateMessage msg)
         {
             CurrentTimeState = msg.state;
             CurrentTimer = msg.timer;
-            OnTimeStateChanged?.Invoke(msg.state, msg.timer);
+            CurrentWinner = msg.winner;
+            OnTimeStateChanged?.Invoke(msg.state, msg.timer, msg.winner);
+        }
+
+        private async UniTaskVoid StartReturnToLobbyTimer(float delaySeconds)
+        {
+            if (_isLobbyReturningStarted) return;
+            _isLobbyReturningStarted = true;
+
+            await UniTask.Delay(TimeSpan.FromSeconds(delaySeconds));
+
+            Debug.Log("[Server 루프] 인게임이 공식 종료되어 다시 로비 대기방 씬으로 전환합니다.");
+            _isLobbyReturningStarted = false;
+
+            // Mirror 엔진 명령어: 방에 묶인 모든 클라이언트를 데리고 로비(onlineScene)로 강제 이동합니다.
+            ServerChangeScene(onlineScene);
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -298,6 +343,10 @@ namespace PixelChroma
             if (IsInGameScene(currentScene) && GameManager.Instance != null)
             {
                 GameManager.Instance.EnterInGame().Forget();
+            }
+            else if (currentScene == GetSceneName(onlineScene) && GameManager.Instance != null)
+            {
+                GameManager.Instance.EnterLobby().Forget();
             }
         }
 

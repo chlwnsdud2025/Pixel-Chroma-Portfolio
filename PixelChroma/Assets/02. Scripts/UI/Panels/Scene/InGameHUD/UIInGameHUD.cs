@@ -10,8 +10,10 @@ namespace PixelChroma.UI
         [SerializeField] protected UIColorPicker colorPicker;
 
         [Header("Game State UI (Common)")]
-        [SerializeField] protected TMP_Text stateText;
-        [SerializeField] protected TMP_Text timerText;
+        [SerializeField] private TMP_Text stateText;
+        [SerializeField] private TMP_Text timerText;
+
+        [SerializeField] private TMP_Text gameResultOverlayText;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -19,19 +21,18 @@ namespace PixelChroma.UI
         public override void Initialize()
         {
             base.Initialize();
-            if (paintModeRoot != null)
-                paintModeRoot.SetActive(false);
+            if (paintModeRoot != null) paintModeRoot.SetActive(false);
+            if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false); // 초기엔 숨김
         }
 
         protected virtual void OnEnable()
         {
             ChromaNetworkManager.OnTimeStateChanged += HandleTimeStateChanged;
 
-            // 최초 씬 진입 시 시간 싱크 맞춤
             var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
             if (netManager != null)
             {
-                UpdateStateUI(netManager.CurrentTimeState, netManager.CurrentTimer);
+                UpdateStateUI(netManager.CurrentTimeState, netManager.CurrentTimer, netManager.CurrentWinner);
             }
         }
 
@@ -40,13 +41,14 @@ namespace PixelChroma.UI
             ChromaNetworkManager.OnTimeStateChanged -= HandleTimeStateChanged;
         }
 
-        // 💡 자식 클래스들이 Update를 오버라이드해서 각자의 쿨타임을 깎을 수 있도록 virtual 선언
         protected virtual void Update()
         {
             var netManager = Mirror.NetworkManager.singleton as ChromaNetworkManager;
             if (netManager != null)
             {
-                if (netManager.CurrentTimeState == TimeState.HideTime || netManager.CurrentTimeState == TimeState.SeekTime)
+                if (netManager.CurrentTimeState == TimeState.HideTime ||
+                    netManager.CurrentTimeState == TimeState.SeekTime ||
+                    netManager.CurrentTimeState == TimeState.CheckTime)
                 {
                     UpdateTimerText(netManager.CurrentTimer);
                 }
@@ -55,22 +57,20 @@ namespace PixelChroma.UI
 
         public void TogglePaintMode()
         {
-            if (paintModeRoot != null)
-                paintModeRoot.SetActive(!paintModeRoot.activeSelf);
+            if (paintModeRoot != null) paintModeRoot.SetActive(!paintModeRoot.activeSelf);
         }
 
         public void SetPaintMode(bool active)
         {
-            if (paintModeRoot != null)
-                paintModeRoot.SetActive(active);
+            if (paintModeRoot != null) paintModeRoot.SetActive(active);
         }
 
-        private void HandleTimeStateChanged(TimeState state, float remainingTime)
+        private void HandleTimeStateChanged(TimeState state, float remainingTime, WinFaction winner)
         {
-            UpdateStateUI(state, remainingTime);
+            UpdateStateUI(state, remainingTime, winner);
         }
 
-        private void UpdateStateUI(TimeState state, float remainingTime)
+        private void UpdateStateUI(TimeState state, float remainingTime, WinFaction winner)
         {
             if (stateText != null)
             {
@@ -79,9 +79,39 @@ namespace PixelChroma.UI
                     case TimeState.Waiting: stateText.text = "대기 중..."; break;
                     case TimeState.HideTime: stateText.text = "숨는 시간!"; break;
                     case TimeState.SeekTime: stateText.text = "찾는 시간!"; break;
+                    case TimeState.CheckTime: stateText.text = "확인 시간!"; break;
                     case TimeState.GameEnd: stateText.text = "게임 종료!"; break;
                 }
             }
+
+            // 💡 [승리 오버레이 연출 분기점]
+            if (gameResultOverlayText != null)
+            {
+                if (state == TimeState.CheckTime)
+                {
+                    // 찾는 시간이 끝났을 때 도망자가 한 명이라도 살았다면 "도망자 승리!" 텍스트 가시화
+                    gameResultOverlayText.gameObject.SetActive(true);
+                    gameResultOverlayText.text = "<color=#00FFFF>도망자 승리!</color>";
+                }
+                else if (state == TimeState.GameEnd)
+                {
+                    gameResultOverlayText.gameObject.SetActive(true);
+                    if (winner == WinFaction.Seeker)
+                    {
+                        gameResultOverlayText.text = "<color=#FF2222>술래 승리!</color>";
+                    }
+                    else if (winner == WinFaction.Runner)
+                    {
+                        gameResultOverlayText.text = "<color=#00FFFF>도망자 승리!</color>";
+                    }
+                }
+                else
+                {
+                    // 평상시엔 가려두기
+                    gameResultOverlayText.gameObject.SetActive(false);
+                }
+            }
+
             UpdateTimerText(remainingTime);
         }
 
