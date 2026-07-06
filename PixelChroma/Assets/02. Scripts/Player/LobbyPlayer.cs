@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace PixelChroma
 {
-    // 💡 이제 LobbyPlayer는 독자적인 isReady 변수를 가지지 않고, 
+    // 이제 LobbyPlayer는 독자적인 isReady 변수를 가지지 않고, 
     // 같은 프리팹에 붙어있는 LobbyPlayerState의 데이터를 가져다 씁니다.
     public class LobbyPlayer : PlayerBase
     {

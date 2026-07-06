@@ -188,7 +188,7 @@ namespace PixelChroma.UI
             timerText.gameObject.SetActive(true);
             timerText.text = $"게임 시작까지... {remainingSeconds}";
 
-            // 💡 [수정] 카운트다운 시작 시 Ready 버튼 비활성화 처리 (트롤링 방지)
+            // 카운트다운 시작 시 Ready 버튼 비활성화 처리 (트롤링 방지)
             if (readyButton != null)
                 readyButton.interactable = false;
         }
@@ -198,7 +198,7 @@ namespace PixelChroma.UI
             if (timerText != null)
                 timerText.gameObject.SetActive(false);
 
-            // 💡 [수정] 카운트다운이 끝나고 인게임 씬으로 안 가고 방이 유지될 때를 대비해 원상복구
+            // 카운트다운이 끝나고 인게임 씬으로 안 가고 방이 유지될 때를 대비해 원상복구
             if (readyButton != null)
                 readyButton.interactable = true;
         }

@@ -25,6 +25,12 @@ namespace PixelChroma
         [SerializeField] private GameObject waterSplashPrefab;
 
 
+        [Header("Indicator Settings")]
+        [Tooltip("도망자를 가리킬 화살표 프리팹")]
+        public GameObject indicatorPrefab;
+        [Tooltip("술래 몸 중심으로부터 화살표가 띄워질 거리(반지름)")]
+        public float indicatorRadius = 1.5f;
+
 
         [SyncVar(hook = nameof(OnAimAngleChanged))]
         private float _syncAimAngle;
@@ -38,8 +44,7 @@ namespace PixelChroma
         public static readonly System.Collections.Generic.List<SeekerPlayer> AllSeekers = new();
 
         private RunnerPlayer _targetRunnerToKill = null;
-        private UIInGameHUD _inGameHUD;
-
+        private UIInGameHUD_Seeker _seekerHUD;
         [SerializeField] private float wettimer = 5f;
 
 
@@ -78,15 +83,11 @@ namespace PixelChroma
             }
         }
 
-        private async UniTaskVoid ShowHUDAsync()
+        protected async UniTaskVoid ShowHUDAsync() // (기존 코드 명칭에 맞춤)
         {
-            var hud = await UIManager.Instance.ShowScene<UIInGameHUD>();
-            BindPaintHUD(hud);
-
-
-            hud.SetKillButtonVisible(true);
-            hud.SetWaterGunUIVisible(true);
-            _inGameHUD = hud;
+            // 어드레서블 명부에 등록된 "술래 전용 HUD 프리팹"을 스폰합니다.
+            _seekerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Seeker>();
+            BindPaintHUD(_seekerHUD);
         }
 
         protected override void Update()
@@ -99,14 +100,11 @@ namespace PixelChroma
             HandleKillInput();
             HandleAiming();
             HandleShooting();
-            if (_inGameHUD != null)
+            if (_seekerHUD != null)
             {
                 float elapsed = Time.time - _lastFireTime;
                 float ratio = Mathf.Clamp01(elapsed / fireCooldown);
-
-                // 방금 쏘면 elapsed가 0이므로 ratio = 0 -> (1 - 0) = 1 (회색 꽉 참)
-                // 시간이 지나서 elapsed가 fireCooldown에 도달하면 ratio = 1 -> (1 - 1) = 0 (회색 다 벗겨짐)
-                _inGameHUD.UpdateWaterGunCooldown(1f - ratio);
+                _seekerHUD.UpdateWaterGunCooldown(1f - ratio);
             }
 
         }
@@ -131,15 +129,15 @@ namespace PixelChroma
             }
 
             // HUD의 킬 버튼 켜기/끄기
-            if (_inGameHUD != null)
+            if (_seekerHUD != null)
             {
                 if (_targetRunnerToKill != null)
                 {
-                    _inGameHUD.SetKillButtonInteractable(true, ExecuteKill);
+                    _seekerHUD.SetKillButtonInteractable(true, ExecuteKill);
                 }
                 else
                 {
-                    _inGameHUD.SetKillButtonInteractable(false);
+                    _seekerHUD.SetKillButtonInteractable(false);
                 }
             }
         }
@@ -417,8 +415,13 @@ namespace PixelChroma
 
         private void OnDrawGizmosSelected()
         {
+            // 1. 기존 킬 사거리 (빨간색 원)
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(transform.position, catchRadius);
+
+            // 2. 위치 노출 화살표가 맴도는 궤도 범위 (노란색 원)
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, indicatorRadius);
         }
 
         [ClientRpc]
@@ -433,13 +436,58 @@ namespace PixelChroma
                 rb.linearVelocity = Vector2.zero;
             }
 
-            // 💡 만약 카메라를 시네머신으로 쓴다면, 텔레포트 시 카메라가 쭈욱 따라오지 않고 즉시 순간이동 하도록 강제 업데이트
+            // 만약 카메라를 시네머신으로 쓴다면, 텔레포트 시 카메라가 쭈욱 따라오지 않고 즉시 순간이동 하도록 강제 업데이트
             if (cinemachineCamera != null)
             {
                 cinemachineCamera.PreviousStateIsValid = false;
             }
 
             Debug.Log("[Seeker] 본진으로 텔레포트 되었습니다!");
+        }
+
+
+        [ClientRpc]
+        public void RpcShowRunnerIndicator(NetworkIdentity runnerIdentity, float duration)
+        {
+            // 오직 이 술래를 조종하는 당사자의 화면에서만 화살표가 보이게 처리합니다.
+            // (다른 도망자들이나 관전자의 화면에는 화살표가 안 보입니다)
+            if (!isLocalPlayer) return;
+
+            if (runnerIdentity == null || indicatorPrefab == null) return;
+
+            // 화살표 생성 및 추적 코루틴 시작
+            StartCoroutine(TrackRunnerCoroutine(runnerIdentity.transform, duration));
+        }
+
+        private System.Collections.IEnumerator TrackRunnerCoroutine(Transform target, float duration)
+        {
+            // 화살표 생성 (술래의 자식으로 묶지 않고 독립적으로 움직이게 합니다)
+            GameObject arrow = Instantiate(indicatorPrefab, transform.position, Quaternion.identity);
+
+            float elapsed = 0f;
+
+            // duration 시간이 다 되거나, 타겟(도망자)이 게임에서 나갔을 때 루프 종료
+            while (elapsed < duration && target != null)
+            {
+                elapsed += Time.deltaTime;
+
+                // 1. 방향 벡터 구하기 (도망자 위치 - 술래 위치)
+                Vector2 dir = (target.position - transform.position).normalized;
+
+                // 2. 각도 계산 (Atan2를 사용해 방향을 회전값으로 변환)
+                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+                // 3. 화살표 위치 세팅 (술래 중심에서 방향벡터 * 반지름만큼 떨어진 곳)
+                arrow.transform.position = transform.position + (Vector3)(dir * indicatorRadius);
+
+                // 4. 화살표 회전 세팅 (화살표가 도망자를 쳐다보도록 회전)
+                arrow.transform.rotation = Quaternion.Euler(0, 0, angle);
+
+                yield return null;
+            }
+
+            // 시간이 끝나면 화살표 삭제
+            if (arrow != null) Destroy(arrow);
         }
     }
 }
