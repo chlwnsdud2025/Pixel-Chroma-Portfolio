@@ -29,6 +29,10 @@ namespace PixelChroma.UI
         [SerializeField] private Slider seekTimeSlider;
         [SerializeField] private TMP_Text seekTimeText;
 
+        [Header("Check Time")]
+        [SerializeField] private Slider checkTimeSlider;
+        [SerializeField] private TMP_Text checkTimeText;
+
         [Header("Public / Private")]
         [SerializeField] private Button publicButton;
         [SerializeField] private Button privateButton;
@@ -73,6 +77,14 @@ namespace PixelChroma.UI
                 seekTimeSlider.maxValue = RoomOption.MaxSeekTime;
                 seekTimeSlider.wholeNumbers = true;
                 seekTimeSlider.onValueChanged.AddListener(OnSeekTimeChanged);
+            }
+
+            if (checkTimeSlider != null)
+            {
+                checkTimeSlider.minValue = RoomOption.MinCheckTime;
+                checkTimeSlider.maxValue = RoomOption.MaxCheckTime;
+                checkTimeSlider.wholeNumbers = true;
+                checkTimeSlider.onValueChanged.AddListener(OnCheckTimeChanged);
             }
 
             if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
@@ -177,6 +189,12 @@ namespace PixelChroma.UI
             RefreshTimeUI();
         }
 
+        private void OnCheckTimeChanged(float value)
+        {
+            _option.checkTime = value;
+            RefreshTimeUI();
+        }
+
         private void HandleLobbyFailed()
         {
             if (createButton != null) createButton.interactable = true;
@@ -192,6 +210,7 @@ namespace PixelChroma.UI
 
             if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
             if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
+            if (checkTimeSlider != null) checkTimeSlider.SetValueWithoutNotify(_option.checkTime);
         }
 
         private void RefreshPublicUI()
@@ -216,6 +235,7 @@ namespace PixelChroma.UI
         {
             if (hideTimeText != null) hideTimeText.text = _option.hideTime.ToString("0");
             if (seekTimeText != null) seekTimeText.text = _option.seekTime.ToString("0");
+            if (checkTimeText != null) checkTimeText.text = _option.checkTime.ToString("0");
         }
 
         private void RefreshCreateButtonUI()

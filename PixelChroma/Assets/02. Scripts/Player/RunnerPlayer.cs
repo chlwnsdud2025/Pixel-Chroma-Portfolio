@@ -249,6 +249,17 @@ namespace PixelChroma
             foreach (var sr in GetComponentsInChildren<SpriteRenderer>(true)) sr.enabled = false;
             if (paintCanvas != null) paintCanvas.gameObject.SetActive(false);
 
+            // 캐릭터 하위에 있는 모든 UI 캔버스(닉네임, 체력바 등)와 텍스트를 꺼줍니다!
+            foreach (var canvas in GetComponentsInChildren<Canvas>(true))
+            {
+                canvas.enabled = false;
+            }
+            // 혹시 Canvas 없이 3D TextMeshPro를 사용하셨을 경우를 대비한 텍스트 끄기
+            foreach (var text in GetComponentsInChildren<TMPro.TMP_Text>(true))
+            {
+                text.enabled = false;
+            }
+
             // 2. 당사자 화면에서만 자유 시점(관전) 세팅
             if (isLocalPlayer)
             {
