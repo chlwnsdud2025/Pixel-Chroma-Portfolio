@@ -63,9 +63,6 @@ namespace PixelChroma
 
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.Initialize();
-
-            if (LobbyManager.Instance != null)
-                LobbyManager.Instance.NotifyClientConnected();
         }
 
         public override void OnStopClient()
@@ -74,9 +71,25 @@ namespace PixelChroma
 
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.Cleanup();
+        }
+
+        public override void OnClientConnect()
+        {
+            base.OnClientConnect();
+
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.NotifyClientConnected();
+        }
+
+        public override void OnClientDisconnect()
+        {
+            base.OnClientDisconnect();
 
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.NotifyClientDisconnected();
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.HandleDisconnect();
         }
 
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
@@ -142,31 +155,13 @@ namespace PixelChroma
             base.OnClientSceneChanged();
 
             string currentScene = SceneManager.GetActiveScene().name;
+
             if (IsInGameScene(currentScene) && GameManager.Instance != null)
                 GameManager.Instance.EnterInGame().Forget();
             else if (currentScene == GetSceneName(onlineScene) && GameManager.Instance != null)
             {
                 GameManager.Instance.EnterLobby().Forget();
             }
-        }
-        public override void OnClientDisconnect()
-        {
-            base.OnClientDisconnect();
-
-            // 매니저들 초기화
-            if (LobbyManager.Instance != null) LobbyManager.Instance.NotifyClientDisconnected();
-            if (InGameManager.Instance != null) InGameManager.Instance.ClearSpawnPoints();
-            if (GameRoundManager.Instance != null) GameRoundManager.Instance.Cleanup();
-
-            if (GameManager.Instance == null) return;
-
-            Debug.LogWarning("[Network] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
-
-            // 스팀 로비 탈퇴 및 메인 메뉴로 멱살 잡고 끌고 가기
-            if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
-                LobbyManager.Instance.LeaveLobby();
-
-            GameManager.Instance.EnterMainMenu().Forget();
         }
     
 
