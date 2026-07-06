@@ -15,18 +15,20 @@ namespace PixelChroma
 
         public static event Action<int> OnCountdownTick;
         public static event Action OnCountdownEnd;
-        public static event Action<TimeState, float> OnTimeStateChanged;
+        public static event Action<TimeState, float, PlayerRole> OnTimeStateChanged;
 
         // 게임 시작 시점에 LobbyManager.CurrentRoomOption의 참조를 확정하여 이 라운드의 규칙으로 사용한다.
         // 확정 후에는 LobbyManager와 독립적으로 사용하며, 서버에서만 읽는다(클라이언트에서는 null).
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
+        public PlayerRole CurrentWinner { get; private set; } = PlayerRole.None;
         public float CurrentTimer { get; private set; }
 
         private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
         private bool _isCountingDown;
         private CancellationTokenSource _countdownCts;
 
+        private bool _isLobbyReturningStarted = false;
         public void Initialize()
         {
             NetworkClient.RegisterHandler<CountdownTickMessage>(OnClientCountdownTick);
@@ -51,47 +53,96 @@ namespace PixelChroma
 
         private void Update()
         {
-            if (CurrentTimeState != TimeState.HideTime && CurrentTimeState != TimeState.SeekTime)
+            if (CurrentTimeState != TimeState.HideTime &&
+                CurrentTimeState != TimeState.SeekTime &&
+                CurrentTimeState != TimeState.CheckTime)
                 return;
 
             if (CurrentTimer > 0)
                 CurrentTimer = Mathf.Max(0f, CurrentTimer - Time.deltaTime);
 
-            if (!NetworkServer.active || CurrentTimer > 0)
+            if (!NetworkServer.active)
                 return;
 
-            if (CurrentTimeState == TimeState.HideTime)
+            // 1. 실시간 생존 검사 (술래 시간 도중)
+            if (CurrentTimeState == TimeState.SeekTime)
             {
-                float seekTime = CurrentRoomOption != null ? CurrentRoomOption.seekTime : RoomOption.DefaultSeekTime;
-                SetTimeState(TimeState.SeekTime, seekTime);
+                int aliveRunners = RunnerPlayer.AllRunners.Count(r => r != null && !r.isDead && !r.IsSpectating);
 
-                if (InGameManager.Instance != null)
+                // 도망자가 전멸했다면? 즉시 술래 승리 판정 및 조기 종료
+                if (aliveRunners == 0 && RunnerPlayer.AllRunners.Count > 0)
                 {
-                    Vector3 seekerMainSpawn = InGameManager.Instance.GetSpawnPosition(PlayerRole.Seeker, false);
-                    foreach (var seeker in SeekerPlayer.AllSeekers)
-                        seeker.RpcTeleport(seekerMainSpawn);
+                    SetTimeState(TimeState.GameEnd, 0f, PlayerRole.Seeker);
+                    StartReturnToLobbyTimer(5f).Forget(); // 5초 뒤 로비 복귀
+                    return;
                 }
             }
-            else if (CurrentTimeState == TimeState.SeekTime)
+
+            // 2. 타이머 만료에 따른 페이즈 전환
+            if (CurrentTimer <= 0)
             {
-                SetTimeState(TimeState.GameEnd, 0f);
+                if (CurrentTimeState == TimeState.HideTime)
+                {
+                    float seekTime = CurrentRoomOption != null ? CurrentRoomOption.seekTime : RoomOption.DefaultSeekTime;
+                    SetTimeState(TimeState.SeekTime, seekTime, PlayerRole.None);
+
+                    if (InGameManager.Instance != null)
+                    {
+                        Vector3 seekerMainSpawn = InGameManager.Instance.GetSpawnPosition(PlayerRole.Seeker, false);
+                        foreach (var seeker in SeekerPlayer.AllSeekers)
+                            seeker.RpcTeleport(seekerMainSpawn);
+                    }
+                }
+                else if (CurrentTimeState == TimeState.SeekTime)
+                {
+                    // 시간 끝까지 살아남았으므로 도망자 승리 -> 위치 확인 시간(CheckTime)으로 전환
+                    float checkTime = CurrentRoomOption != null ? CurrentRoomOption.checkTime : 15f;
+                    SetTimeState(TimeState.CheckTime, checkTime, PlayerRole.Runner);
+                }
+                else if (CurrentTimeState == TimeState.CheckTime)
+                {
+                    // 확인 시간 종료 -> 로비로 복귀
+                    SetTimeState(TimeState.GameEnd, 0f, PlayerRole.Runner);
+                    StartReturnToLobbyTimer(0.5f).Forget();
+                }
+            }
+        }
+
+        private async UniTaskVoid StartReturnToLobbyTimer(float delaySeconds)
+        {
+            if (_isLobbyReturningStarted) return;
+            _isLobbyReturningStarted = true;
+
+            await UniTask.Delay(TimeSpan.FromSeconds(delaySeconds));
+
+            Debug.Log("[GameRound] 인게임 공식 종료, 로비 대기방 씬으로 강제 전환합니다.");
+            _isLobbyReturningStarted = false;
+
+            var netManager = NetworkManager.singleton as ChromaNetworkManager;
+            if (netManager != null)
+            {
+                netManager.ServerChangeScene(netManager.onlineScene);
             }
         }
 
         [Server]
-        private void SetTimeState(TimeState newState, float time)
+        private void SetTimeState(TimeState newState, float time, PlayerRole winner = PlayerRole.None)
         {
             CurrentTimeState = newState;
             CurrentTimer = time;
-            NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
-            Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초");
+            CurrentWinner = winner; // 승자 저장
+
+            NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time, winner = winner });
+            Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초, 승자: {winner}");
         }
 
         private void OnClientTimeStateChanged(TimeStateMessage msg)
         {
             CurrentTimeState = msg.state;
             CurrentTimer = msg.timer;
-            OnTimeStateChanged?.Invoke(msg.state, msg.timer);
+            CurrentWinner = msg.winner;
+
+            OnTimeStateChanged?.Invoke(msg.state, msg.timer, msg.winner);
         }
 
         // ── 게임 시작 / 카운트다운 ─────────────────────────────────────

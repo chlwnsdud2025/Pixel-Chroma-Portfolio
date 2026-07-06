@@ -65,12 +65,12 @@ namespace PixelChroma.UI
             if (paintModeRoot != null) paintModeRoot.SetActive(active);
         }
 
-        private void HandleTimeStateChanged(TimeState state, float remainingTime, WinFaction winner)
+        private void HandleTimeStateChanged(TimeState state, float remainingTime, PlayerRole winner)
         {
             UpdateStateUI(state, remainingTime, winner);
         }
 
-        private void UpdateStateUI(TimeState state, float remainingTime, WinFaction winner)
+        private void UpdateStateUI(TimeState state, float remainingTime, PlayerRole winner)
         {
             if (stateText != null)
             {
@@ -96,11 +96,11 @@ namespace PixelChroma.UI
                 else if (state == TimeState.GameEnd)
                 {
                     gameResultOverlayText.gameObject.SetActive(true);
-                    if (winner == WinFaction.Seeker)
+                    if (winner == PlayerRole.Seeker)
                     {
                         gameResultOverlayText.text = "<color=#FF2222>술래 승리!</color>";
                     }
-                    else if (winner == WinFaction.Runner)
+                    else if (winner == PlayerRole.Runner)
                     {
                         gameResultOverlayText.text = "<color=#00FFFF>도망자 승리!</color>";
                     }
