@@ -10,6 +10,7 @@ namespace PixelChroma
         public static readonly List<LobbyPlayerState> AllPlayers = new();
         public static event Action OnLobbyPlayersChanged;
 
+
         [SyncVar(hook = nameof(OnReadyStateChanged))]
         public bool isReady = false;
 

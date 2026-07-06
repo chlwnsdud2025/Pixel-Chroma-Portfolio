@@ -6,6 +6,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 namespace PixelChroma.UI
 {
@@ -26,7 +27,9 @@ namespace PixelChroma.UI
 
         public static event Action<bool> OnChatToggled;
 
-        private Queue<TMP_Text> _chatMessagePool = new Queue<TMP_Text>();
+        // 💡 [수정] 풀링 시스템 세분화 (화면에 떠있는 큐, 렌더링이 꺼진 대기 큐)
+        private Queue<TMP_Text> _activeMessages = new Queue<TMP_Text>();
+        private Queue<TMP_Text> _inactivePool = new Queue<TMP_Text>();
 
         private void OnEnable()
         {
@@ -35,6 +38,8 @@ namespace PixelChroma.UI
 
             if (openChatButton != null) openChatButton.onClick.AddListener(() => ToggleChat(!chatPanel.activeSelf));
             if (closeChatButton != null) closeChatButton.onClick.AddListener(() => ToggleChat(false));
+
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
         private void OnDisable()
@@ -44,6 +49,8 @@ namespace PixelChroma.UI
 
             if (openChatButton != null) openChatButton.onClick.RemoveAllListeners();
             if (closeChatButton != null) closeChatButton.onClick.RemoveAllListeners();
+
+            SceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
         private void Start()
@@ -55,16 +62,12 @@ namespace PixelChroma.UI
         {
             if (Keyboard.current == null) return;
 
-            // 1. T키로 채팅창 토글
             if (Keyboard.current.tKey.wasPressedThisFrame)
             {
-                // 텍스트를 입력 중일 때는 T를 눌러도 창이 꺼지지 않고 't'가 입력되도록 무시
                 if (chatInputField.isFocused) return;
-
                 ToggleChat(!chatPanel.activeSelf);
             }
 
-            // 2. ESC키로 채팅창 닫기 (채팅 중단 및 빠져나가기)
             if (Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 if (chatPanel.activeSelf)
@@ -72,6 +75,25 @@ namespace PixelChroma.UI
                     ToggleChat(false);
                 }
             }
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            ClearChat();
+        }
+
+        // 💡 [수정] Destroy 없이 순수 풀링으로만 관리하는 클린업 로직
+        public void ClearChat()
+        {
+            // 화면에 떠있는 메시지들을 모두 대기열(Pool)로 반환합니다.
+            while (_activeMessages.Count > 0)
+            {
+                TMP_Text chat = _activeMessages.Dequeue();
+                chat.gameObject.SetActive(false); // 렌더링 끄기
+                _inactivePool.Enqueue(chat);      // 재사용 대기열에 삽입
+            }
+
+            if (chatInputField != null) chatInputField.text = string.Empty;
         }
 
         public void ToggleChat(bool isOpen)
@@ -97,19 +119,30 @@ namespace PixelChroma.UI
         {
             TMP_Text chatText;
 
-            if (_chatMessagePool.Count < maxMessages)
+            // 1. 활성 메시지가 최대치(50개)에 도달했으면, 가장 오래된 것을 재사용
+            if (_activeMessages.Count >= maxMessages)
+            {
+                chatText = _activeMessages.Dequeue();
+            }
+            // 2. 대기열(Pool)에 쉬고 있는 오브젝트가 있으면 꺼내 쓰기
+            else if (_inactivePool.Count > 0)
+            {
+                chatText = _inactivePool.Dequeue();
+                chatText.gameObject.SetActive(true); // 다시 켜기
+            }
+            // 3. 둘 다 아니면 (최초 생성 시기) 새로 Instantiate
+            else
             {
                 GameObject newChat = Instantiate(chatTextPrefab, chatContentParent);
                 chatText = newChat.GetComponent<TMP_Text>();
             }
-            else
-            {
-                chatText = _chatMessagePool.Dequeue();
-                chatText.transform.SetAsLastSibling();
-            }
 
-            chatText.text = $"[{sender}]:{message}";
-            _chatMessagePool.Enqueue(chatText);
+            // UI 맨 아래로 보내기
+            chatText.transform.SetAsLastSibling();
+            chatText.text = $"[{sender}]: {message}";
+
+            // 활성 큐에 등록
+            _activeMessages.Enqueue(chatText);
 
             if (scrollRect != null)
             {
@@ -127,8 +160,6 @@ namespace PixelChroma.UI
                 localPlayerChat.SendChat(message);
             }
 
-            // 채팅을 보내고 창을 닫지 않습니다. 
-            // 대신 입력된 텍스트만 지우고 다시 입력할 수 있도록 포커스를 줍니다.
             chatInputField.text = string.Empty;
             chatInputField.ActivateInputField();
             chatInputField.Select();
