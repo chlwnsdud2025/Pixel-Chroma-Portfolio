@@ -3,14 +3,11 @@ using Mirror;
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
 using UnityEngine.InputSystem;
-using System.Collections.Generic;
 
 namespace PixelChroma
 {
     public class RunnerPlayer : PlayerBase
     {
-        public static readonly List<RunnerPlayer> AllRunners = new();
-
         [Header("Runner Settings")]
         [Tooltip("캐릭터의 이동 속도를 설정합니다.")]
         public float runnerMoveSpeed = 5f;
@@ -18,6 +15,9 @@ namespace PixelChroma
         [Header("Free Cam Settings")]
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         public float freeCamSpeed = 15f;
+
+        [SerializeField] private GameObject visual;
+        [SerializeField] private Collider2D bodyCollider;
 
         [SyncVar] public bool isDead = false;
         private bool _isFrozen = false;
@@ -60,7 +60,8 @@ namespace PixelChroma
         public override void OnStartClient()
         {
             base.OnStartClient();
-            if (!AllRunners.Contains(this)) AllRunners.Add(this);
+            if (InGameManager.Instance != null)
+                InGameManager.Instance.RegisterPlayer(this);
 
             if (paintCanvas != null)
                 paintCanvas.OnEraseFadeCompleted += HandleEraseFadeCompleted;
@@ -69,7 +70,8 @@ namespace PixelChroma
         public override void OnStopClient()
         {
             base.OnStopClient();
-            AllRunners.Remove(this);
+            if (InGameManager.Instance != null)
+                InGameManager.Instance.UnregisterPlayer(this);
 
             if (paintCanvas != null)
                 paintCanvas.OnEraseFadeCompleted -= HandleEraseFadeCompleted;
@@ -233,9 +235,11 @@ namespace PixelChroma
         public void CmdNotifyCaught()
         {
             Debug.Log($"[Runner] {netId}번 플레이어 아웃! (처형당함)");
-            // TODO: 게임 매니저에 아웃 알림 연동
 
             RpcBecomeSpectator();
+
+            if (GameRoundManager.Instance != null)
+                GameRoundManager.Instance.NotifyRunnerDead();
         }
 
         [ClientRpc]
@@ -244,23 +248,9 @@ namespace PixelChroma
             isDead = true;
             _isFrozen = true;
 
-            // 1. 캐릭터 숨기기 (렌더러, 콜라이더, 캔버스 끄기)
-            if (TryGetComponent<Collider2D>(out var col)) col.enabled = false;
-            foreach (var sr in GetComponentsInChildren<SpriteRenderer>(true)) sr.enabled = false;
-            if (paintCanvas != null) paintCanvas.gameObject.SetActive(false);
+            if (visual != null) visual.SetActive(false);
+            if (bodyCollider != null) bodyCollider.enabled = false;
 
-            // 캐릭터 하위에 있는 모든 UI 캔버스(닉네임, 체력바 등)와 텍스트를 꺼줍니다!
-            foreach (var canvas in GetComponentsInChildren<Canvas>(true))
-            {
-                canvas.enabled = false;
-            }
-            // 혹시 Canvas 없이 3D TextMeshPro를 사용하셨을 경우를 대비한 텍스트 끄기
-            foreach (var text in GetComponentsInChildren<TMPro.TMP_Text>(true))
-            {
-                text.enabled = false;
-            }
-
-            // 2. 당사자 화면에서만 자유 시점(관전) 세팅
             if (isLocalPlayer)
             {
                 if (_freeCamTarget == null)
@@ -269,8 +259,8 @@ namespace PixelChroma
                     _freeCamTarget.transform.position = transform.position;
                 }
 
-                var vcam = FindObjectOfType<Unity.Cinemachine.CinemachineCamera>();
-                if (vcam != null) vcam.Follow = _freeCamTarget.transform;
+                if (cinemachineCamera != null)
+                    cinemachineCamera.Follow = _freeCamTarget.transform;
 
                 UpdateSpectatorUIAsync("자유 시점").Forget();
             }
@@ -321,15 +311,15 @@ namespace PixelChroma
 
         private void CycleSpectateRunner()
         {
-            if (AllRunners.Count == 0) return;
+            var runners = InGameManager.Instance?.Runners;
+            if (runners == null || runners.Count == 0) return;
 
             int attemptCount = 0;
 
-            // 무한 루프 방지: 전체 도망자 수만큼만 살아있는 유저를 찾습니다.
-            while (attemptCount < AllRunners.Count)
+            while (attemptCount < runners.Count)
             {
-                _spectateRunnerIndex = (_spectateRunnerIndex + 1) % AllRunners.Count;
-                var target = AllRunners[_spectateRunnerIndex];
+                _spectateRunnerIndex = (_spectateRunnerIndex + 1) % runners.Count;
+                var target = runners[_spectateRunnerIndex];
 
                 // 타겟이 존재하고, '죽지 않은(!target.isDead)' 상태일 때만 관전 타겟으로 잡고 루프를 종료합니다.
                 if (target != null && !target.isDead)
@@ -346,14 +336,15 @@ namespace PixelChroma
 
         private void CycleSpectateSeeker()
         {
-            if (SeekerPlayer.AllSeekers.Count == 0) return;
+            var seekers = InGameManager.Instance?.Seekers;
+            if (seekers == null || seekers.Count == 0) return;
 
-            if (_spectateSeekerIndex >= SeekerPlayer.AllSeekers.Count)
+            if (_spectateSeekerIndex >= seekers.Count)
                 _spectateSeekerIndex = -1;
 
-            _spectateSeekerIndex = (_spectateSeekerIndex + 1) % SeekerPlayer.AllSeekers.Count;
+            _spectateSeekerIndex = (_spectateSeekerIndex + 1) % seekers.Count;
 
-            var target = SeekerPlayer.AllSeekers[_spectateSeekerIndex];
+            var target = seekers[_spectateSeekerIndex];
             if (target != null)
                 SetSpectateTarget(target);
         }
@@ -468,8 +459,8 @@ namespace PixelChroma
         [Command]
         private void CmdExposeLocation(float duration)
         {
-            // 서버가 모든 술래(Seeker)를 찾아서 "이 도망자(this)를 가리키는 화살표를 띄워라!" 라고 명령함
-            foreach (var seeker in SeekerPlayer.AllSeekers)
+            if (InGameManager.Instance == null) return;
+            foreach (var seeker in InGameManager.Instance.Seekers)
             {
                 seeker.RpcShowRunnerIndicator(this.netIdentity, duration);
             }

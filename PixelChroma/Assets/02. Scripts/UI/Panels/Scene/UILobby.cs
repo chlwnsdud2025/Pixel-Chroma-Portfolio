@@ -81,8 +81,8 @@ namespace PixelChroma.UI
             LobbyPlayerState.OnReadyChanged += OnReadyChanged;
             LobbyPlayerState.OnRoomOptionSynced += OnRoomOptionSynced;
 
-            GameRoundManager.OnCountdownTick += OnCountdownTick;
-            GameRoundManager.OnCountdownEnd += OnCountdownEnd;
+            GameRoundManager.OnTimeStateChanged += OnTimeStateChanged;
+            GameRoundManager.OnTimerTick += OnTimerTick;
         }
 
         /// <summary>
@@ -96,8 +96,8 @@ namespace PixelChroma.UI
             LobbyPlayerState.OnReadyChanged -= OnReadyChanged;
             LobbyPlayerState.OnRoomOptionSynced -= OnRoomOptionSynced;
 
-            GameRoundManager.OnCountdownTick -= OnCountdownTick;
-            GameRoundManager.OnCountdownEnd -= OnCountdownEnd;
+            GameRoundManager.OnTimeStateChanged -= OnTimeStateChanged;
+            GameRoundManager.OnTimerTick -= OnTimerTick;
         }
 
         protected override UniTask OnShow()
@@ -274,27 +274,32 @@ namespace PixelChroma.UI
             RefreshPlayerCount();
         }
 
-        private void OnCountdownTick(int remainingSeconds)
+        private void OnTimeStateChanged(TimeState state, int remainingSeconds)
         {
-            if (timerText == null)
-                return;
+            if (state == TimeState.Countdown)
+            {
+                if (timerText != null)
+                    timerText.gameObject.SetActive(true);
 
-            timerText.gameObject.SetActive(true);
-            timerText.text = $"게임 시작까지... {remainingSeconds}";
+                if (readyButton != null)
+                    readyButton.interactable = false;
+            }
+            else
+            {
+                if (timerText != null)
+                    timerText.gameObject.SetActive(false);
 
-            // 카운트다운 시작 시 Ready 버튼 비활성화 처리 (트롤링 방지)
-            if (readyButton != null)
-                readyButton.interactable = false;
+                if (readyButton != null)
+                    readyButton.interactable = true;
+            }
         }
 
-        private void OnCountdownEnd()
+        private void OnTimerTick(int remainingSeconds)
         {
-            if (timerText != null)
-                timerText.gameObject.SetActive(false);
+            if (GameRoundManager.Instance.CurrentTimeState != TimeState.Countdown) return;
 
-            // 카운트다운이 끝나고 인게임 씬으로 안 가고 방이 유지될 때를 대비해 원상복구
-            if (readyButton != null)
-                readyButton.interactable = true;
+            if (timerText != null)
+                timerText.text = $"게임 시작까지... {remainingSeconds}";
         }
 
         // ── 클릭 이벤트 ──────────────────────────────────────

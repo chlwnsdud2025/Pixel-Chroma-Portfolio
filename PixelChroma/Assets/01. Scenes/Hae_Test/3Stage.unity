@@ -180,51 +180,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 48619a5fbb6711f47968c602216b5f4e, type: 3}
---- !u!1 &243110458
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 243110460}
-  - component: {fileID: 243110459}
-  m_Layer: 0
-  m_Name: GameObject (1)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &243110459
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 243110458}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
---- !u!4 &243110460
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 243110458}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 100.7, y: 24.6, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &547925415
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -477,51 +432,6 @@ Tilemap:
     e31: 0
     e32: 0
     e33: 1
---- !u!1 &1157156972
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1157156974}
-  - component: {fileID: 1157156973}
-  m_Layer: 0
-  m_Name: GameObject
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1157156973
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1157156972}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 2
---- !u!4 &1157156974
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1157156972}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 100.7, y: 24.6, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1202426528
 GameObject:
   m_ObjectHideFlags: 0
@@ -581,7 +491,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 911928567054383571, guid: 8459bd7ca5b3bfb48af2087cae1b3e40, type: 3}
       propertyPath: orthographic size
-      value: 19.34375
+      value: 5.625
       objectReference: {fileID: 0}
     - target: {fileID: 7715246607666590058, guid: 8459bd7ca5b3bfb48af2087cae1b3e40, type: 3}
       propertyPath: m_LocalPosition.x
@@ -118859,5 +118769,3 @@ SceneRoots:
   - {fileID: 3541916143859706660}
   - {fileID: 2013023670}
   - {fileID: 183350640}
-  - {fileID: 1157156974}
-  - {fileID: 243110460}

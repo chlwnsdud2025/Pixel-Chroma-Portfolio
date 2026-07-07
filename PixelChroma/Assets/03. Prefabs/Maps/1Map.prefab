@@ -44,7 +44,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 2
 --- !u!1 &315445016374696463
 GameObject:
   m_ObjectHideFlags: 0
@@ -89,7 +88,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
 --- !u!1 &680486490288993294
 GameObject:
   m_ObjectHideFlags: 0
@@ -179,7 +177,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
 --- !u!1 &1611554434876535990
 GameObject:
   m_ObjectHideFlags: 0
@@ -1900,7 +1897,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &9182763105910523586
 Transform:
   m_ObjectHideFlags: 0
@@ -8657,7 +8654,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
+--- !u!1 &2561617140795815601
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5711988176377732646}
+  - component: {fileID: 6988116435888434767}
+  m_Layer: 0
+  m_Name: SpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5711988176377732646
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2561617140795815601}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 19.7, y: -0.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5054963854017761202}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6988116435888434767
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2561617140795815601}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
 --- !u!1 &2924409545346999155
 GameObject:
   m_ObjectHideFlags: 0
@@ -11596,7 +11636,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
 --- !u!1 &4574283249876444469
 GameObject:
   m_ObjectHideFlags: 0
@@ -12522,7 +12561,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &8560949736399067660
 Transform:
   m_ObjectHideFlags: 0
@@ -12590,7 +12629,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
 --- !u!1 &6620630270466392454
 GameObject:
   m_ObjectHideFlags: 0
@@ -12635,7 +12673,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
 --- !u!1 &7828976984398333814
 GameObject:
   m_ObjectHideFlags: 0
@@ -12669,6 +12706,7 @@ Transform:
   - {fileID: 801442436523955042}
   - {fileID: 8790766388527722155}
   - {fileID: 1913186828580512144}
+  - {fileID: 5711988176377732646}
   - {fileID: 8560949736399067660}
   - {fileID: 9182763105910523586}
   m_Father: {fileID: 0}
@@ -12762,7 +12800,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1
 --- !u!1 &8453063525244277906
 GameObject:
   m_ObjectHideFlags: 0
@@ -12807,4 +12844,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71a7465a74c7a1a479a0d4f8e117df84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.MapSpawnPoint
-  spawnRole: 1

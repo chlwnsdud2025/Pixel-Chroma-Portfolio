@@ -1,74 +1,85 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace PixelChroma
 {
     public class InGameManager : MonoSingleton<InGameManager>
     {
-        private Transform _enemySpawnPoint;
-        private readonly List<Transform> _playerSpawnPoints = new();
-        private int _currentPlayerSpawnIndex = 0;
+        private Transform _spawnPoint;
 
-        public void RegisterSpawnPoint(PlayerRole role, Transform spawnTransform)
+        private readonly List<RunnerPlayer> _runners = new();
+        private readonly List<SeekerPlayer> _seekers = new();
+
+        public IReadOnlyList<RunnerPlayer> Runners => _runners;
+        public IReadOnlyList<SeekerPlayer> Seekers => _seekers;
+
+        public void RegisterPlayer(PlayerBase player)
         {
-            if (role == PlayerRole.Seeker)
+            switch (player)
             {
-                _enemySpawnPoint = spawnTransform;
-                Debug.Log($"[InGameManager] 술래(Enemy) 본진 스폰 포인트 등록 완료: {spawnTransform.name}");
-            }
-            else if (role == PlayerRole.Runner)
-            {
-                if (!_playerSpawnPoints.Contains(spawnTransform))
-                {
-                    _playerSpawnPoints.Add(spawnTransform);
-                    Debug.Log($"[InGameManager] 도망자(Player) 스폰 포인트 추가 완료 (총 {_playerSpawnPoints.Count}개)");
-                }
+                case RunnerPlayer runner when !_runners.Contains(runner):
+                    _runners.Add(runner);
+                    break;
+                case SeekerPlayer seeker when !_seekers.Contains(seeker):
+                    _seekers.Add(seeker);
+                    break;
             }
         }
 
-        public void ClearSpawnPoints()
+        public void UnregisterPlayer(PlayerBase player)
         {
-            _enemySpawnPoint = null;
-            _playerSpawnPoints.Clear();
-            _currentPlayerSpawnIndex = 0;
+            switch (player)
+            {
+                case RunnerPlayer runner:
+                    _runners.Remove(runner);
+                    break;
+                case SeekerPlayer seeker:
+                    _seekers.Remove(seeker);
+                    break;
+            }
+        }
+
+        public int GetAliveRunnerCount()
+        {
+            return _runners.Count(r => r != null && !r.isDead);
+        }
+
+        public bool HasAnyRunner()
+        {
+            return _runners.Count > 0;
+        }
+
+        public void RegisterSpawnPoint(Transform spawnTransform)
+        {
+            _spawnPoint = spawnTransform;
+            Debug.Log($"[InGameManager] 스폰 포인트 등록 완료: {spawnTransform.name}");
+        }
+
+        public void ResetState()
+        {
+            _spawnPoint = null;
+            _runners.Clear();
+            _seekers.Clear();
             Debug.Log("[InGameManager] 이전 판의 스폰 포인트 데이터가 초기화되었습니다.");
         }
 
-        public Vector3 GetSpawnPosition(PlayerRole role, bool isWaiting = false)
+        public Vector3 GetSpawnPosition()
         {
-            if (role == PlayerRole.Seeker)
+            if (_spawnPoint != null)
             {
-                // 1. 대기실 스폰을 요청한 경우 (항상 0,0,0 좌표)
-                if (isWaiting)
-                {
-                    // 술래가 여러 명일 때 겹치지 않도록 약간의 오프셋만 더해줍니다.
-                    Vector3 waitingOffset = new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f), 0);
-                    return Vector3.zero + waitingOffset;
-                }
-
-                // 2. 본 게임 시작으로 본진 스폰을 요청한 경우
-                if (_enemySpawnPoint != null)
-                {
-                    Vector3 offset = new Vector3(Random.Range(-0.2f, 0.2f), Random.Range(-0.2f, 0.2f), 0);
-                    return _enemySpawnPoint.position + offset;
-                }
-
-                Debug.LogWarning("[InGameManager] 등록된 Enemy 스폰 포인트가 없습니다! Vector3.zero를 반환합니다.");
-                return Vector3.zero;
+                Vector3 offset = new Vector3(Random.Range(-0.2f, 0.2f), Random.Range(-0.2f, 0.2f), 0);
+                return _spawnPoint.position + offset;
             }
 
-            // 도망자(Runner) 스폰 로직
-            if (_playerSpawnPoints == null || _playerSpawnPoints.Count == 0)
-            {
-                Debug.LogWarning("[InGameManager] 등록된 Player 스폰 포인트가 없습니다! Vector3.zero를 반환합니다.");
-                return Vector3.zero;
-            }
+            Debug.LogWarning("[InGameManager] 등록된 스폰 포인트가 없습니다! Vector3.zero를 반환합니다.");
+            return Vector3.zero;
+        }
 
-            Transform selectedPoint = _playerSpawnPoints[_currentPlayerSpawnIndex];
-            _currentPlayerSpawnIndex = (_currentPlayerSpawnIndex + 1) % _playerSpawnPoints.Count;
-
-            Vector3 playerOffset = new Vector3(Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0.1f), 0);
-            return selectedPoint.position + playerOffset;
+        public Vector3 GetWaitingPosition()
+        {
+            Vector3 offset = new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f), 0);
+            return Vector3.zero + offset;
         }
     }
 }

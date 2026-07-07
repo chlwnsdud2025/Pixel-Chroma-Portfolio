@@ -73,6 +73,25 @@ namespace PixelChroma
                 GameRoundManager.Instance.Cleanup();
         }
 
+        public override void OnClientConnect()
+        {
+            base.OnClientConnect();
+
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.NotifyClientConnected();
+        }
+
+        public override void OnClientDisconnect()
+        {
+            base.OnClientDisconnect();
+
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.NotifyClientDisconnected();
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.HandleDisconnect();
+        }
+
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
         {
             string currentScene = SceneManager.GetActiveScene().name;
@@ -96,8 +115,9 @@ namespace PixelChroma
 
                 if (InGameManager.Instance != null)
                 {
-                    bool isWaiting = (assignedRole == PlayerRole.Seeker);
-                    spawnPos = InGameManager.Instance.GetSpawnPosition(assignedRole, isWaiting);
+                    spawnPos = (assignedRole == PlayerRole.Seeker)
+                        ? InGameManager.Instance.GetWaitingPosition()
+                        : InGameManager.Instance.GetSpawnPosition();
                 }
                 else
                 {
@@ -136,9 +156,15 @@ namespace PixelChroma
             base.OnClientSceneChanged();
 
             string currentScene = SceneManager.GetActiveScene().name;
+
             if (IsInGameScene(currentScene) && GameManager.Instance != null)
                 GameManager.Instance.EnterInGame().Forget();
+            else if (currentScene == GetSceneName(onlineScene) && GameManager.Instance != null)
+            {
+                GameManager.Instance.EnterLobby().Forget();
+            }
         }
+    
 
         public override void OnServerSceneChanged(string sceneName)
         {
@@ -189,5 +215,7 @@ namespace PixelChroma
             if (string.IsNullOrEmpty(scenePath)) return string.Empty;
             return System.IO.Path.GetFileNameWithoutExtension(scenePath);
         }
+
     }
+        
 }

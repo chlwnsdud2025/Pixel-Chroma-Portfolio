@@ -47,8 +47,6 @@ namespace PixelChroma
 
         private SpriteRenderer[] _weaponRenderers;
 
-        public static readonly System.Collections.Generic.List<SeekerPlayer> AllSeekers = new();
-
         private RunnerPlayer _targetRunnerToKill = null;
         private UIInGameHUD_Seeker _seekerHUD;
         [SerializeField] private float wettimer = 5f;
@@ -120,7 +118,8 @@ namespace PixelChroma
             _targetRunnerToKill = null;
             float closestDist = catchRadius;
 
-            foreach (var runner in RunnerPlayer.AllRunners)
+            if (InGameManager.Instance == null) return;
+            foreach (var runner in InGameManager.Instance.Runners)
             {
                 // 젖어 있고, 아직 죽지 않은(관전 중이 아닌) 도망자만 필터링
                 if (runner != null && runner.isWet && !runner.IsSpectating)
@@ -454,13 +453,15 @@ namespace PixelChroma
         public override void OnStartClient()
         {
             base.OnStartClient();
-            if (!AllSeekers.Contains(this)) AllSeekers.Add(this);
+            if (InGameManager.Instance != null)
+                InGameManager.Instance.RegisterPlayer(this);
         }
 
         public override void OnStopClient()
         {
             base.OnStopClient();
-            AllSeekers.Remove(this);
+            if (InGameManager.Instance != null)
+                InGameManager.Instance.UnregisterPlayer(this);
         }
 
         private void OnDrawGizmosSelected()
