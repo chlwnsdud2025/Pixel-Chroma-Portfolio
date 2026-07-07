@@ -65,7 +65,7 @@ namespace PixelChroma
             Debug.LogWarning("[GameManager] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
 
             if (InGameManager.Instance != null)
-                InGameManager.Instance.ClearSpawnPoints();
+                InGameManager.Instance.ResetState();
 
             if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
                 LobbyManager.Instance.LeaveLobby();

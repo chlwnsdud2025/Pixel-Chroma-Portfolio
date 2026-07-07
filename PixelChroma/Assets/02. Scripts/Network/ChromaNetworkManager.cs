@@ -115,8 +115,9 @@ namespace PixelChroma
 
                 if (InGameManager.Instance != null)
                 {
-                    bool isWaiting = (assignedRole == PlayerRole.Seeker);
-                    spawnPos = InGameManager.Instance.GetSpawnPosition(assignedRole, isWaiting);
+                    spawnPos = (assignedRole == PlayerRole.Seeker)
+                        ? InGameManager.Instance.GetWaitingPosition()
+                        : InGameManager.Instance.GetSpawnPosition();
                 }
                 else
                 {

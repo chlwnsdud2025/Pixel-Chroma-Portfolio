@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using UnityEngine;
 using Mirror;
 using Cysharp.Threading.Tasks;
+using System.Linq;
 
 namespace PixelChroma
 {
@@ -13,99 +13,202 @@ namespace PixelChroma
         [Header("Countdown")]
         public float countdownDuration = 5f;
 
-        public static event Action<int> OnCountdownTick;
-        public static event Action OnCountdownEnd;
-        public static event Action<TimeState, float, PlayerRole> OnTimeStateChanged;
+        private const float LobbyReturnDelayOnWipe = 5f;
+        private const float LobbyReturnDelayOnCheckEnd = 0.5f;
 
-        // 게임 시작 시점에 LobbyManager.CurrentRoomOption의 참조를 확정하여 이 라운드의 규칙으로 사용한다.
-        // 확정 후에는 LobbyManager와 독립적으로 사용하며, 서버에서만 읽는다(클라이언트에서는 null).
+        public static event Action<TimeState, int> OnTimeStateChanged;
+        public static event Action<PlayerRole> OnWinnerDecided;
+        public static event Action<int> OnTimerTick;
+
+        private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
+        private bool _isLobbyReturningStarted = false;
+        private CancellationTokenSource _timerCts;
+
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public PlayerRole CurrentWinner { get; private set; } = PlayerRole.None;
-        public float CurrentTimer { get; private set; }
+        public int CurrentTimer { get; private set; }
 
-        private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
-        private bool _isCountingDown;
-        private CancellationTokenSource _countdownCts;
+        private float OptionHideTime => CurrentRoomOption?.hideTime ?? RoomOption.DefaultHideTime;
+        private float OptionSeekTime => CurrentRoomOption?.seekTime ?? RoomOption.DefaultSeekTime;
+        private float OptionCheckTime => CurrentRoomOption?.checkTime ?? RoomOption.DefaultCheckTime;
+        private int OptionSeekerCount => CurrentRoomOption?.seekerCount ?? RoomOption.DefaultSeekerCount;
 
-        private bool _isLobbyReturningStarted = false;
+        // ── Unity 생명주기 ──────────────────────────────────────────────
+
+        private void OnDestroy()
+        {
+            CancelTimer();
+        }
+
+        // ── Public ──────────────────────────────────────────────────────
+
         public void Initialize()
         {
-            NetworkClient.RegisterHandler<CountdownTickMessage>(OnClientCountdownTick);
-            NetworkClient.RegisterHandler<CountdownEndMessage>(OnClientCountdownEnd);
             NetworkClient.RegisterHandler<TimeStateMessage>(OnClientTimeStateChanged);
+            NetworkClient.RegisterHandler<WinnerDecidedMessage>(OnClientWinnerDecided);
         }
 
         public void Cleanup()
         {
-            CancelCountdown();
-            NetworkClient.UnregisterHandler<CountdownTickMessage>();
-            NetworkClient.UnregisterHandler<CountdownEndMessage>();
+            CancelTimer();
             NetworkClient.UnregisterHandler<TimeStateMessage>();
+            NetworkClient.UnregisterHandler<WinnerDecidedMessage>();
         }
 
-        private void OnDestroy()
+        [Server]
+        public void StartGameWithOption(RoomOption option)
         {
-            CancelCountdown();
+            if (CurrentTimeState == TimeState.Countdown) return;
+
+            CurrentRoomOption = option;
+            SetTimeState(TimeState.Countdown, countdownDuration);
         }
 
-        // ── 타이머 ──────────────────────────────────────────────────────
-
-        private void Update()
+        [Server]
+        public void BeginRound()
         {
-            if (CurrentTimeState != TimeState.HideTime &&
-                CurrentTimeState != TimeState.SeekTime &&
-                CurrentTimeState != TimeState.CheckTime)
-                return;
+            SetTimeState(TimeState.HideTime, OptionHideTime);
+            Debug.Log($"[GameRound] 인게임 씬 진입 확인. 타이머 가동 시작: {OptionHideTime}초");
+        }
 
+        [Server]
+        public void NotifyRunnerDead()
+        {
+            if (CurrentTimeState != TimeState.SeekTime) return;
+            CheckRunnerWipeout();
+        }
+
+        public bool TryGetRole(int connectionId, out PlayerRole role)
+        {
+            return _assignedRoles.TryGetValue(connectionId, out role);
+        }
+
+        public void RemovePlayer(int connectionId)
+        {
+            _assignedRoles.Remove(connectionId);
+        }
+
+        // ── Private ─────────────────────────────────────────────────────
+
+        [Server]
+        private void SetTimeState(TimeState newState, float time)
+        {
+            CurrentTimeState = newState;
+            CurrentTimer = Mathf.CeilToInt(time);
+
+            NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
+            Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초, 승자: {CurrentWinner}");
+
+            CancelTimer();
             if (CurrentTimer > 0)
-                CurrentTimer = Mathf.Max(0f, CurrentTimer - Time.deltaTime);
+                RunTimerAsync().Forget();
+        }
 
-            if (!NetworkServer.active)
-                return;
+        [Server]
+        private void SetWinner(PlayerRole winner)
+        {
+            CurrentWinner = winner;
+            NetworkServer.SendToAll(new WinnerDecidedMessage { winner = winner });
+        }
 
-            // 1. 실시간 생존 검사 (술래 시간 도중)
-            if (CurrentTimeState == TimeState.SeekTime)
+        [Server]
+        private void CheckRunnerWipeout()
+        {
+            if (InGameManager.Instance == null) return;
+            int aliveRunners = InGameManager.Instance.GetAliveRunnerCount();
+            if (aliveRunners == 0 && InGameManager.Instance.HasAnyRunner())
             {
-                int aliveRunners = RunnerPlayer.AllRunners.Count(r => r != null && !r.isDead && !r.IsSpectating);
-
-                // 도망자가 전멸했다면? 즉시 술래 승리 판정 및 조기 종료
-                if (aliveRunners == 0 && RunnerPlayer.AllRunners.Count > 0)
-                {
-                    SetTimeState(TimeState.GameEnd, 0f, PlayerRole.Seeker);
-                    StartReturnToLobbyTimer(5f).Forget(); // 5초 뒤 로비 복귀
-                    return;
-                }
+                SetWinner(PlayerRole.Seeker);
+                SetTimeState(TimeState.GameEnd, 0f);
+                StartReturnToLobbyTimer(LobbyReturnDelayOnWipe).Forget();
             }
+        }
 
-            // 2. 타이머 만료에 따른 페이즈 전환
-            if (CurrentTimer <= 0)
+        [Server]
+        private void HandleTimerExpired()
+        {
+            switch (CurrentTimeState)
             {
-                if (CurrentTimeState == TimeState.HideTime)
-                {
-                    float seekTime = CurrentRoomOption != null ? CurrentRoomOption.seekTime : RoomOption.DefaultSeekTime;
-                    SetTimeState(TimeState.SeekTime, seekTime, PlayerRole.None);
-
-                    if (InGameManager.Instance != null)
-                    {
-                        Vector3 seekerMainSpawn = InGameManager.Instance.GetSpawnPosition(PlayerRole.Seeker, false);
-                        foreach (var seeker in SeekerPlayer.AllSeekers)
-                            seeker.RpcTeleport(seekerMainSpawn);
-                    }
-                }
-                else if (CurrentTimeState == TimeState.SeekTime)
-                {
-                    // 시간 끝까지 살아남았으므로 도망자 승리 -> 위치 확인 시간(CheckTime)으로 전환
-                    float checkTime = CurrentRoomOption != null ? CurrentRoomOption.checkTime : 15f;
-                    SetTimeState(TimeState.CheckTime, checkTime, PlayerRole.Runner);
-                }
-                else if (CurrentTimeState == TimeState.CheckTime)
-                {
-                    // 확인 시간 종료 -> 로비로 복귀
-                    SetTimeState(TimeState.GameEnd, 0f, PlayerRole.Runner);
-                    StartReturnToLobbyTimer(0.5f).Forget();
-                }
+                case TimeState.Countdown:
+                    OnCountdownExpired();
+                    break;
+                case TimeState.HideTime:
+                    OnHideTimeExpired();
+                    break;
+                case TimeState.SeekTime:
+                    OnSeekTimeExpired();
+                    break;
+                case TimeState.CheckTime:
+                    OnCheckTimeExpired();
+                    break;
             }
+        }
+
+        [Server]
+        private void OnCountdownExpired()
+        {
+            AssignRoles();
+
+            var networkManager = (ChromaNetworkManager)NetworkManager.singleton;
+            string targetScene = networkManager.ResolveMapScene();
+            networkManager.ServerChangeScene(targetScene);
+        }
+
+        [Server]
+        private void OnHideTimeExpired()
+        {
+            SetTimeState(TimeState.SeekTime, OptionSeekTime);
+
+            if (InGameManager.Instance != null)
+            {
+                Vector3 seekerMainSpawn = InGameManager.Instance.GetSpawnPosition();
+                foreach (var seeker in InGameManager.Instance.Seekers)
+                    seeker.RpcTeleport(seekerMainSpawn);
+            }
+        }
+
+        [Server]
+        private void OnSeekTimeExpired()
+        {
+            SetWinner(PlayerRole.Runner);
+            SetTimeState(TimeState.CheckTime, OptionCheckTime);
+        }
+
+        [Server]
+        private void OnCheckTimeExpired()
+        {
+            SetTimeState(TimeState.GameEnd, 0f);
+            StartReturnToLobbyTimer(LobbyReturnDelayOnCheckEnd).Forget();
+        }
+
+        private async UniTaskVoid RunTimerAsync()
+        {
+            _timerCts = new CancellationTokenSource();
+            var token = _timerCts.Token;
+
+            try
+            {
+                OnTimerTick?.Invoke(CurrentTimer);
+
+                while (CurrentTimer > 0)
+                {
+                    await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: token);
+                    CurrentTimer--;
+                    OnTimerTick?.Invoke(CurrentTimer);
+                }
+
+                if (NetworkServer.active)
+                    HandleTimerExpired();
+            }
+            catch (OperationCanceledException) { }
+        }
+
+        private void CancelTimer()
+        {
+            _timerCts?.Cancel();
+            _timerCts?.Dispose();
+            _timerCts = null;
         }
 
         private async UniTaskVoid StartReturnToLobbyTimer(float delaySeconds)
@@ -126,105 +229,6 @@ namespace PixelChroma
         }
 
         [Server]
-        private void SetTimeState(TimeState newState, float time, PlayerRole winner = PlayerRole.None)
-        {
-            CurrentTimeState = newState;
-            CurrentTimer = time;
-            CurrentWinner = winner; // 승자 저장
-
-            NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time, winner = winner });
-            Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초, 승자: {winner}");
-        }
-
-        private void OnClientTimeStateChanged(TimeStateMessage msg)
-        {
-            CurrentTimeState = msg.state;
-            CurrentTimer = msg.timer;
-            CurrentWinner = msg.winner;
-
-            OnTimeStateChanged?.Invoke(msg.state, msg.timer, msg.winner);
-        }
-
-        // ── 게임 시작 / 카운트다운 ─────────────────────────────────────
-
-        [Server]
-        public void StartGameWithOption(RoomOption option)
-        {
-            if (!NetworkServer.active || _isCountingDown) return;
-
-            CurrentRoomOption = option;
-            StartCountdownAsync().Forget();
-        }
-
-        [Server]
-        public void BeginRound()
-        {
-            float hideTime = CurrentRoomOption != null ? CurrentRoomOption.hideTime : RoomOption.DefaultHideTime;
-            SetTimeState(TimeState.HideTime, hideTime);
-            Debug.Log($"[GameRound] 인게임 씬 진입 확인. 타이머 가동 시작: {hideTime}초");
-        }
-
-        private async UniTaskVoid StartCountdownAsync()
-        {
-            _isCountingDown = true;
-            _countdownCts?.Cancel();
-            _countdownCts?.Dispose();
-            _countdownCts = new CancellationTokenSource();
-
-            try
-            {
-                int remaining = Mathf.CeilToInt(countdownDuration);
-
-                while (remaining > 0)
-                {
-                    NetworkServer.SendToAll(new CountdownTickMessage { remainingSeconds = remaining });
-                    await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: _countdownCts.Token);
-                    remaining--;
-                }
-
-                NetworkServer.SendToAll(new CountdownEndMessage());
-            }
-            catch (OperationCanceledException)
-            {
-                Debug.Log("[GameRound] 카운트다운이 취소되었습니다.");
-                return;
-            }
-            finally
-            {
-                _isCountingDown = false;
-                _countdownCts?.Dispose();
-                _countdownCts = null;
-            }
-
-            AssignRoles();
-            ApplyRolesToLobbyPlayers();
-
-            var networkManager = (ChromaNetworkManager)NetworkManager.singleton;
-            string targetScene = networkManager.ResolveMapScene();
-            networkManager.ServerChangeScene(targetScene);
-        }
-
-        private void CancelCountdown()
-        {
-            _countdownCts?.Cancel();
-            _countdownCts?.Dispose();
-            _countdownCts = null;
-            _isCountingDown = false;
-        }
-
-        // ── 역할 배정 ──────────────────────────────────────────────────
-
-        public bool TryGetRole(int connectionId, out PlayerRole role)
-        {
-            return _assignedRoles.TryGetValue(connectionId, out role);
-        }
-
-        public void RemovePlayer(int connectionId)
-        {
-            _assignedRoles.Remove(connectionId);
-        }
-
-        [Server]
         private void AssignRoles()
         {
             _assignedRoles.Clear();
@@ -232,7 +236,7 @@ namespace PixelChroma
             var conns = NetworkServer.connections.Values.ToList();
             if (conns.Count == 0) return;
 
-            int seekerCount = CurrentRoomOption != null ? CurrentRoomOption.seekerCount : RoomOption.DefaultSeekerCount;
+            int seekerCount = OptionSeekerCount;
             var shuffled = conns.OrderBy(_ => UnityEngine.Random.value).ToList();
 
             for (int i = 0; i < shuffled.Count; i++)
@@ -242,29 +246,24 @@ namespace PixelChroma
             }
         }
 
-        [Server]
-        private void ApplyRolesToLobbyPlayers()
-        {
-            foreach (var conn in NetworkServer.connections.Values)
-            {
-                if (conn.identity == null) continue;
+        // ── 이벤트 핸들러 ───────────────────────────────────────────────
 
-                var playerBase = conn.identity.GetComponent<PlayerBase>();
-                if (playerBase != null && _assignedRoles.TryGetValue(conn.connectionId, out var role))
-                    playerBase.role = role;
-            }
+        private void OnClientTimeStateChanged(TimeStateMessage msg)
+        {
+            CurrentTimeState = msg.state;
+            CurrentTimer = Mathf.CeilToInt(msg.timer);
+
+            CancelTimer();
+            if (CurrentTimer > 0)
+                RunTimerAsync().Forget();
+
+            OnTimeStateChanged?.Invoke(msg.state, CurrentTimer);
         }
 
-        // ── 카운트다운 클라이언트 핸들러 ────────────────────────────────
-
-        private static void OnClientCountdownTick(CountdownTickMessage msg)
+        private void OnClientWinnerDecided(WinnerDecidedMessage msg)
         {
-            OnCountdownTick?.Invoke(msg.remainingSeconds);
-        }
-
-        private static void OnClientCountdownEnd(CountdownEndMessage msg)
-        {
-            OnCountdownEnd?.Invoke();
+            CurrentWinner = msg.winner;
+            OnWinnerDecided?.Invoke(msg.winner);
         }
     }
 }

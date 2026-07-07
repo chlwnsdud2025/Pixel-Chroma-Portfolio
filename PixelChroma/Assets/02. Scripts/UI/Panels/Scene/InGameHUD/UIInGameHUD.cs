@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using Unity.VisualScripting;
 
 namespace PixelChroma.UI
 {
@@ -22,37 +23,33 @@ namespace PixelChroma.UI
         {
             base.Initialize();
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
-            if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false); // 초기엔 숨김
+            if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false);
+        }
+
+        protected virtual void Update()
+        {
         }
 
         protected virtual void OnEnable()
         {
             GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
+            GameRoundManager.OnTimerTick += HandleTimerTick;
+            GameRoundManager.OnWinnerDecided += HandleWinnerDecided;
 
             var round = GameRoundManager.Instance;
             if (round != null)
             {
-                UpdateStateUI(round.CurrentTimeState, round.CurrentTimer, round.CurrentWinner);
+                UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
+                if (round.CurrentWinner != PlayerRole.None)
+                    ShowWinnerOverlay(round.CurrentWinner);
             }
         }
 
         protected virtual void OnDisable()
         {
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
-        }
-
-        protected virtual void Update()
-        {
-            var round = GameRoundManager.Instance;
-            if (round != null)
-            {
-                if (round.CurrentTimeState == TimeState.HideTime ||
-                    round.CurrentTimeState == TimeState.SeekTime ||
-                    round.CurrentTimeState == TimeState.CheckTime)
-                {
-                    UpdateTimerText(round.CurrentTimer);
-                }
-            }
+            GameRoundManager.OnTimerTick -= HandleTimerTick;
+            GameRoundManager.OnWinnerDecided -= HandleWinnerDecided;
         }
 
         public void TogglePaintMode()
@@ -65,12 +62,22 @@ namespace PixelChroma.UI
             if (paintModeRoot != null) paintModeRoot.SetActive(active);
         }
 
-        private void HandleTimeStateChanged(TimeState state, float remainingTime, PlayerRole winner)
+        private void HandleTimeStateChanged(TimeState state, int remainingSeconds)
         {
-            UpdateStateUI(state, remainingTime, winner);
+            UpdateStateUI(state, remainingSeconds);
         }
 
-        private void UpdateStateUI(TimeState state, float remainingTime, PlayerRole winner)
+        private void HandleTimerTick(int remainingSeconds)
+        {
+            UpdateTimerText(remainingSeconds);
+        }
+
+        private void HandleWinnerDecided(PlayerRole winner)
+        {
+            ShowWinnerOverlay(winner);
+        }
+
+        private void UpdateStateUI(TimeState state, int remainingSeconds)
         {
             if (stateText != null)
             {
@@ -84,44 +91,29 @@ namespace PixelChroma.UI
                 }
             }
 
-            // 💡 [승리 오버레이 연출 분기점]
-            if (gameResultOverlayText != null)
-            {
-                if (state == TimeState.CheckTime)
-                {
-                    // 찾는 시간이 끝났을 때 도망자가 한 명이라도 살았다면 "도망자 승리!" 텍스트 가시화
-                    gameResultOverlayText.gameObject.SetActive(true);
-                    gameResultOverlayText.text = "<color=#00FFFF>도망자 승리!</color>";
-                }
-                else if (state == TimeState.GameEnd)
-                {
-                    gameResultOverlayText.gameObject.SetActive(true);
-                    if (winner == PlayerRole.Seeker)
-                    {
-                        gameResultOverlayText.text = "<color=#FF2222>술래 승리!</color>";
-                    }
-                    else if (winner == PlayerRole.Runner)
-                    {
-                        gameResultOverlayText.text = "<color=#00FFFF>도망자 승리!</color>";
-                    }
-                }
-                else
-                {
-                    // 평상시엔 가려두기
-                    gameResultOverlayText.gameObject.SetActive(false);
-                }
-            }
+            if (gameResultOverlayText != null && state != TimeState.CheckTime && state != TimeState.GameEnd)
+                gameResultOverlayText.gameObject.SetActive(false);
 
-            UpdateTimerText(remainingTime);
+            UpdateTimerText(remainingSeconds);
         }
 
-        private void UpdateTimerText(float remainingTime)
+        private void ShowWinnerOverlay(PlayerRole winner)
+        {
+            if (gameResultOverlayText == null) return;
+
+            gameResultOverlayText.gameObject.SetActive(true);
+            gameResultOverlayText.text = winner == PlayerRole.Seeker
+                ? "<color=#FF2222>술래 승리!</color>"
+                : "<color=#00FFFF>도망자 승리!</color>";
+        }
+
+        private void UpdateTimerText(int remainingSeconds)
         {
             if (timerText != null)
             {
-                float displayTime = Mathf.Max(0, remainingTime);
-                int minutes = Mathf.FloorToInt(displayTime / 60f);
-                int seconds = Mathf.FloorToInt(displayTime % 60f);
+                int display = Mathf.Max(0, remainingSeconds);
+                int minutes = display / 60;
+                int seconds = display % 60;
                 timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
             }
         }
