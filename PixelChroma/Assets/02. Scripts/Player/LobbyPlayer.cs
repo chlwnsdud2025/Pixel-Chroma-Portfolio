@@ -22,12 +22,12 @@ namespace PixelChroma
 
         private void OnEnable()
         {
-            LobbyPlayerState.OnLobbyPlayersChanged += UpdateReadyImage;
+            LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
         }
 
         private void OnDisable()
         {
-            LobbyPlayerState.OnLobbyPlayersChanged -= UpdateReadyImage;
+            LobbyPlayerState.OnReadyChanged -= UpdateReadyImage;
         }
 
         public override void OnStartClient()
