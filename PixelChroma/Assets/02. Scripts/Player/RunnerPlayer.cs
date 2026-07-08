@@ -235,7 +235,11 @@ namespace PixelChroma
         [Command(requiresAuthority = false)]
         public void CmdNotifyCaught()
         {
+            if (isDead) return;
+
             Debug.Log($"[Runner] {netId}번 플레이어 아웃! (처형당함)");
+
+            isDead = true;
 
             RpcBecomeSpectator();
 
@@ -246,10 +250,9 @@ namespace PixelChroma
         [ClientRpc]
         private void RpcBecomeSpectator()
         {
-            isDead = true;
             _isFrozen = true;
 
-            // 💡 관전 전환 시 닉네임 가시성 재평가 (사망한 로컬 플레이어는 모든 닉네임이 보임)
+            // 관전 전환 시 닉네임 가시성 재평가 (사망한 로컬 플레이어는 모든 닉네임이 보임)
             RaiseNicknameVisibilityChanged();
 
             if (visual != null) visual.SetActive(false);
