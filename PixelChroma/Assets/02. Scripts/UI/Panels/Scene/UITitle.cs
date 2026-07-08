@@ -4,6 +4,8 @@ using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Localization;                 
+using UnityEngine.Localization.Settings;
 
 namespace PixelChroma.UI
 {
@@ -14,12 +16,21 @@ namespace PixelChroma.UI
         [SerializeField] private Button createRoomButton;
         [SerializeField] private Button findRoomButton;
         [SerializeField] private Button joinRoomButton;
+
+        [Header("Setting Buttons")]
         [SerializeField] private Button nicknameSettingButton;
+        [SerializeField] private Button languageSettingButton;
+
 
         [Header("Status")]
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private float statusDisplayDuration = 2f;
         [SerializeField] private float statusFadeDuration = 0.5f;
+
+        [Header("Status Localization")]          
+        [SerializeField] private LocalizedString findingRoomStatus;   
+        [SerializeField] private LocalizedString notFoundStatus;      
+
 
         private CancellationTokenSource _statusCts;
 
@@ -32,6 +43,8 @@ namespace PixelChroma.UI
             if (findRoomButton != null) findRoomButton.onClick.AddListener(OnClickFindRoom);
             if (joinRoomButton != null) joinRoomButton.onClick.AddListener(OnClickJoinRoom);
             if (nicknameSettingButton != null) nicknameSettingButton.onClick.AddListener(OnClickNicknameSetting);
+            if (languageSettingButton != null) languageSettingButton.onClick.AddListener(OnClickLanguageButton);
+
 
             SetStatus(string.Empty);
         }
@@ -59,6 +72,8 @@ namespace PixelChroma.UI
             if (findRoomButton != null) findRoomButton.interactable = value;
             if (joinRoomButton != null) joinRoomButton.interactable = value;
             if (nicknameSettingButton != null) nicknameSettingButton.interactable = value;
+            if (languageSettingButton != null) languageSettingButton.interactable = value;
+
         }
 
         private void SetStatus(string message)
@@ -97,14 +112,14 @@ namespace PixelChroma.UI
         private void HandleQuickJoinFailed()
         {
             LobbyManager.Instance.OnLobbyFailed -= HandleQuickJoinFailed;
-            SetStatus("공개방을 찾을 수 없습니다.");
+            SetStatus(notFoundStatus.GetLocalizedString());
             SetInteractable(true);
         }
 
         private void OnClickQuickJoin()
         {
             SetInteractable(false);
-            SetStatus("공개방 찾는 중...");
+            SetStatus(findingRoomStatus.GetLocalizedString());
             LobbyManager.Instance.OnLobbyFailed += HandleQuickJoinFailed;
             LobbyManager.Instance.JoinQuickMatch();
         }
@@ -126,6 +141,11 @@ namespace PixelChroma.UI
         private void OnClickNicknameSetting()
         {
             UIManager.Instance.ShowPopup<UIMainMenuNickname>().Forget();
+        }
+
+        public void OnClickLanguageButton()
+        {
+            UIManager.Instance.ShowPopup<UILanguageSelectPopup>().Forget();
         }
     }
 }
