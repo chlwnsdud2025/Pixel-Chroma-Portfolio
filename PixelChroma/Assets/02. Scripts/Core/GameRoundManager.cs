@@ -62,6 +62,8 @@ namespace PixelChroma
             if (CurrentTimeState == TimeState.Countdown) return;
 
             CurrentRoomOption = option;
+            CurrentWinner = PlayerRole.None;
+
             SetTimeState(TimeState.Countdown, countdownDuration);
         }
 

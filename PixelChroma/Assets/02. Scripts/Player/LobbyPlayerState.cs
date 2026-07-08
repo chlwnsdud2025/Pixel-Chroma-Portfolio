@@ -7,10 +7,19 @@ namespace PixelChroma
 {
     public class LobbyPlayerState : NetworkBehaviour
     {
-        public static readonly List<LobbyPlayerState> AllPlayers = new();
+        private static readonly List<LobbyPlayerState> _allPlayers = new();
         public static event Action OnLobbyPlayersChanged;
         public static event Action OnReadyChanged;
         public static event Action<RoomOption> OnRoomOptionSynced;
+
+        public static IReadOnlyList<LobbyPlayerState> AllPlayers
+        {
+            get
+            {
+                _allPlayers.RemoveAll(p => p == null || !NetworkClient.spawned.ContainsKey(p.netId));
+                return _allPlayers;
+            }
+        }
 
 
         [SyncVar(hook = nameof(OnReadyStateChanged))]
@@ -24,13 +33,15 @@ namespace PixelChroma
 
         public override void OnStartClient()
         {
-            AllPlayers.Add(this);
+            if (!_allPlayers.Contains(this))
+                _allPlayers.Add(this);
+
             OnLobbyPlayersChanged?.Invoke();
         }
 
         public override void OnStopClient()
         {
-            AllPlayers.Remove(this);
+            _allPlayers.Remove(this);
             OnLobbyPlayersChanged?.Invoke();
         }
 
