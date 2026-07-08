@@ -4,6 +4,7 @@ using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.Localization.Settings;
 
 namespace PixelChroma
 {
@@ -32,7 +33,10 @@ namespace PixelChroma
                 Application.Quit();
                 return;
             }
-
+            // Localization대기 및 설정 복원
+            var initOp = LocalizationSettings.InitializationOperation;
+            await UniTask.WaitUntil(() => initOp.IsDone); LocalizationManager.ApplySavedLocale();
+            LocalizationManager.ApplySavedLocale();
             await UIManager.Instance.InitializeAsync();
 
             // [변경] UIManager를 통해 초기 로딩 화면을 숨깁니다.

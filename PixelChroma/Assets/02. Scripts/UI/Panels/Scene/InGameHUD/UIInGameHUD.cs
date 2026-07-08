@@ -40,7 +40,11 @@ namespace PixelChroma.UI
             if (round != null)
             {
                 UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
-                if (round.CurrentWinner != PlayerRole.None)
+
+                bool isResultState = round.CurrentTimeState == TimeState.CheckTime
+                           || round.CurrentTimeState == TimeState.GameEnd;
+
+                if (isResultState && round.CurrentWinner != PlayerRole.None)
                     ShowWinnerOverlay(round.CurrentWinner);
             }
         }

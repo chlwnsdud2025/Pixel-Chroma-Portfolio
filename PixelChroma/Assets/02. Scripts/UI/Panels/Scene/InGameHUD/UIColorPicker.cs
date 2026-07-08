@@ -10,12 +10,6 @@ namespace PixelChroma.UI
     {
         private const int DefaultMaxBrushSize = 20;
 
-        [Header("Tools")]
-        [SerializeField] private Button eraserButton;
-        [SerializeField] private Button eyedropperButton;
-        [SerializeField] private Color activeToolColor = new Color(0.8f, 0.8f, 0.8f);
-        [SerializeField] private Color inactiveToolColor = Color.white;
-
         [Header("SV Rectangle")]
         [SerializeField] private RectTransform svArea;
         [SerializeField] private RawImage svImage;
@@ -29,9 +23,12 @@ namespace PixelChroma.UI
         [SerializeField] private Image colorPreview;
         [SerializeField] private TMP_Text hexLabel;
 
-        [Header("Eyedropper")]
-        [SerializeField] private Outline eyedropperOutline;
-        [SerializeField] private Image eyedropperPreviewColor;
+        [Header("Tools")]
+        [SerializeField] private Outline brushToolOutline;
+        [SerializeField] private Outline eraserToolOutline;
+        [SerializeField] private Outline eyedropperToolOutline;
+        [SerializeField] private Color activeOutlineColor = Color.blue;
+        [SerializeField] private Color inactiveOutlineColor = Color.white;
 
         [Header("Brush Size")]
         [SerializeField] private Slider brushSizeSlider;
@@ -43,17 +40,12 @@ namespace PixelChroma.UI
         private float _saturation = 1f;
         private float _value = 1f;
 
-        public bool IsEraserMode { get; private set; }
-        public bool IsEyedropperMode { get; private set; }
-
         public Color SelectedColor => Color.HSVToRGB(_hue, _saturation, _value);
         public int BrushSize => brushSizeSlider != null ? (int)brushSizeSlider.value : 1;
         public int MaxBrushSize => maxBrushSize > 0 ? maxBrushSize : DefaultMaxBrushSize;
 
         public event Action<Color> OnColorChanged;
         public event Action<int> OnBrushSizeChanged;
-        public event Action<bool> OnEyedropperModeChanged;
-        public event Action<bool> OnEraserModeChanged; // 💡 지우개 이벤트 추가!
 
         private void Awake()
         {
@@ -67,59 +59,8 @@ namespace PixelChroma.UI
             SetupHueDrag();
             SetupBrushSizeSliders();
             SetColor(Color.white);
+            SetActiveTool(BrushMode.Brush);
 
-            if (eraserButton != null) eraserButton.onClick.AddListener(ToggleEraser);
-            if (eyedropperButton != null) eyedropperButton.onClick.AddListener(ToggleEyedropper);
-        }
-
-        private void ToggleEraser()
-        {
-            IsEraserMode = !IsEraserMode;
-            if (IsEraserMode) SetEyedropper(false);
-            UpdateToolButtons();
-
-            // 💡 PlayerBase에 지우개 모드가 바뀌었다고 알림
-            OnEraserModeChanged?.Invoke(IsEraserMode);
-        }
-
-        private void ToggleEyedropper()
-        {
-            SetEyedropper(!IsEyedropperMode);
-        }
-
-        public void SetEyedropper(bool active)
-        {
-            IsEyedropperMode = active;
-            if (IsEyedropperMode)
-            {
-                IsEraserMode = false;
-                OnEraserModeChanged?.Invoke(false); // 스포이드 켜지면 지우개 끄기 알림
-            }
-
-            if (eyedropperOutline != null) eyedropperOutline.enabled = active;
-            if (!active && eyedropperPreviewColor != null) eyedropperPreviewColor.color = SelectedColor;
-
-            UpdateToolButtons();
-            OnEyedropperModeChanged?.Invoke(active);
-        }
-
-        private void UpdateToolButtons()
-        {
-            if (eraserButton != null)
-                eraserButton.image.color = IsEraserMode ? activeToolColor : inactiveToolColor;
-
-            if (eyedropperButton != null)
-                eyedropperButton.image.color = IsEyedropperMode ? activeToolColor : inactiveToolColor;
-        }
-
-        private void CancelToolsIfColorPicked()
-        {
-            if (IsEraserMode || IsEyedropperMode)
-            {
-                IsEraserMode = false;
-                OnEraserModeChanged?.Invoke(false);
-                SetEyedropper(false);
-            }
         }
 
         private void SetupSVDrag()
@@ -152,7 +93,6 @@ namespace PixelChroma.UI
                     svArea, eventData.position, eventData.pressEventCamera, out var localPoint))
                 return;
 
-            CancelToolsIfColorPicked();
 
             var rect = svArea.rect;
             _saturation = Mathf.Clamp01((localPoint.x - rect.x) / rect.width);
@@ -168,7 +108,6 @@ namespace PixelChroma.UI
                     hueBarArea, eventData.position, eventData.pressEventCamera, out var localPoint))
                 return;
 
-            CancelToolsIfColorPicked();
 
             var rect = hueBarArea.rect;
             _hue = Mathf.Clamp01((localPoint.x - rect.x) / rect.width);
@@ -201,9 +140,6 @@ namespace PixelChroma.UI
             UpdateSVSelectorPosition();
             UpdateHueSelectorPosition();
             UpdateDisplay();
-
-            if (!IsEyedropperMode && eyedropperPreviewColor != null)
-                eyedropperPreviewColor.color = color;
         }
 
         private void RegenerateSVTexture()
@@ -260,12 +196,23 @@ namespace PixelChroma.UI
                 brushSizeLabel.text = $"{(int)brushSizeSlider.value}px";
         }
 
-        public void SetEyedropperActive(bool active) { SetEyedropper(active); }
+        public void SetActiveTool(BrushMode mode)
+        {
+            SetOutline(brushToolOutline, mode == BrushMode.Brush);
+            SetOutline(eraserToolOutline, mode == BrushMode.Eraser);
+            SetOutline(eyedropperToolOutline, mode == BrushMode.Eyedropper);
+        }
 
         public void SetEyedropperPreview(Color color)
         {
-            if (eyedropperPreviewColor != null)
-                eyedropperPreviewColor.color = color;
+            if (colorPreview != null)
+                colorPreview.color = color;
+        }
+
+        private void SetOutline(Outline outline, bool active)
+        {
+            if (outline == null) return;
+            outline.effectColor = active ? activeOutlineColor : inactiveOutlineColor;
         }
 
         private void OnDestroy()

@@ -47,6 +47,8 @@ namespace PixelChroma
         /// <summary>물총 페이드가 모두 끝나 더 이상 지워질 픽셀이 없을 때 호출됩니다. (아웃 판정용)</summary>
         public event System.Action OnEraseFadeCompleted;
 
+        private int _totalOpaquePixels;
+
         public int BrushSize { get => brushSize; set => brushSize = value; }
         public int TextureWidth => _texWidth;
         public int TextureHeight => _texHeight;
@@ -126,6 +128,13 @@ namespace PixelChroma
             _fadingPixels.Clear();
 
             BuildShadeMasks();
+
+            _totalOpaquePixels = 0;
+            for (int i = 0; i < pixelCount; i++)
+            {
+                if (_originalPixels[0][i].a >= 0.01f)
+                    _totalOpaquePixels++;
+            }
 
             if (readableCopy != null) Destroy(readableCopy);
         }
@@ -341,6 +350,25 @@ namespace PixelChroma
         /// 캔버스 전체를 검사하여 덧칠된 페인트가 하나라도 남아있는지 확인합니다.
         /// (true = 살아있음 / false = 다 씻겨서 죽음)
         /// </summary>
+        public float GetPaintRatio()
+        {
+            if (_runtimeTextures == null || _totalOpaquePixels == 0) return 0f;
+
+            int paintedCount = 0;
+            for (int y = 0; y < _texHeight; y++)
+            {
+                for (int x = 0; x < _texWidth; x++)
+                {
+                    int idx = y * _texWidth + x;
+                    if (_originalPixels[0][idx].a < 0.01f) continue;
+                    if (_runtimeTextures[0].GetPixel(x, y) != _originalPixels[0][idx])
+                        paintedCount++;
+                }
+            }
+
+            return (float)paintedCount / _totalOpaquePixels;
+        }
+
         public bool HasAnyPaintedPixels()
         {
             if (_runtimeTextures == null || _runtimeTextures.Length == 0) return true;
