@@ -2,16 +2,11 @@ using UnityEngine;
 using Mirror;
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
-using UnityEngine.InputSystem;
 
 namespace PixelChroma
 {
     public class RunnerPlayer : PlayerBase
     {
-        [Header("Runner Settings")]
-        [Tooltip("캐릭터의 이동 속도를 설정합니다.")]
-        public float runnerMoveSpeed = 5f;
-
         [Header("Free Cam Settings")]
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         public float freeCamSpeed = 15f;
@@ -20,8 +15,13 @@ namespace PixelChroma
         [SerializeField] private Collider2D bodyCollider;
 
         [SyncVar] public bool isDead = false;
+        [SyncVar] public float paintRatio;
+
         private bool _isFrozen = false;
         private GameObject _freeCamTarget;
+
+        // 디버프 계산의 기준이 되는 원본 이동 속도 (프리팹의 moveSpeed 값)
+        private float _baseMoveSpeed;
 
         // 관전 대상을 순회하기 위한 인덱스
         private int _spectateRunnerIndex = -1;
@@ -49,39 +49,27 @@ namespace PixelChroma
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
         [SerializeField] private float paintModeSpeedMultiplier = 0.2f;
 
+        [Header("Camouflage")]
+        [Tooltip("위장으로 인정되는 최소 색칠 비율 (0.3 = 30%)")]
+        [SerializeField] private float camouflagedThreshold = 0.3f;
+
         [Header("Expose Skill")]
         public float exposeDuration = 1f;  // 화살표가 떠있는 시간
         public float exposeCooldown = 1f; // 스킬 쿨타임
         private float _lastExposeTime = -100f;
+        private float _lastPaintRatioSyncTime;
 
         public override bool IsSpectator => isDead;
-        public bool IsSpectating => IsSpectator;
+        public bool IsCamouflaged => paintRatio >= camouflagedThreshold;
 
-        // ── 네트워크 스폰 시 명부(캐싱 리스트)에 등록/해제 ────────────────
-        public override void OnStartClient()
+        protected override void Awake()
         {
-            base.OnStartClient();
-            if (InGameManager.Instance != null)
-                InGameManager.Instance.RegisterPlayer(this);
-
-            if (paintCanvas != null)
-                paintCanvas.OnEraseFadeCompleted += HandleEraseFadeCompleted;
+            base.Awake();
+            _baseMoveSpeed = moveSpeed;
         }
-
-        public override void OnStopClient()
-        {
-            base.OnStopClient();
-            if (InGameManager.Instance != null)
-                InGameManager.Instance.UnregisterPlayer(this);
-
-            if (paintCanvas != null)
-                paintCanvas.OnEraseFadeCompleted -= HandleEraseFadeCompleted;
-        }
-        // ──────────────────────────────────────────────────────────────────
 
         protected override void OnLocalPlayerStarted()
         {
-            moveSpeed = runnerMoveSpeed;
             ShowHUDAsync().Forget();
 
             _freeCamTarget = new GameObject("FreeCamTarget");
@@ -120,22 +108,44 @@ namespace PixelChroma
             // 내 로컬 플레이어가 아니면 아래 입력 로직 무시
             if (!isLocalPlayer) return;
 
+            SyncPaintRatioIfNeeded();
+
+            // 채팅 입력 중에는 단축키가 동작하면 안 됩니다.
+            if (IsChatActive) return;
+
             // [생존/관전 공통 단축키 로직]
-            if (Keyboard.current != null)
-            {
-                if (Keyboard.current.eKey.wasPressedThisFrame)
-                {
-                    TryUseExposeSkill();
-                }
+            if (Input.ExposeSkill.WasPressedThisFrame())
+                TryUseExposeSkill();
 
-                // P키: 살아있을 때만 자유 시점 토글 허용
-                if (!isDead && Keyboard.current.pKey.wasPressedThisFrame)
-                    ToggleFreezeMode();
+            // 살아있을 때만 자유 시점 토글 허용
+            if (!isDead && Input.ToggleFreeCam.WasPressedThisFrame())
+                ToggleFreezeMode();
 
-                // O키, I키: 죽었든 살았든 다른 유저 관전 허용
-                if (Keyboard.current.oKey.wasPressedThisFrame) CycleSpectateRunner();
-                if (Keyboard.current.iKey.wasPressedThisFrame) CycleSpectateSeeker();
-            }
+            // 죽었든 살았든 다른 유저 관전 허용
+            if (Input.SpectateRunner.WasPressedThisFrame()) CycleSpectateRunner();
+            if (Input.SpectateSeeker.WasPressedThisFrame()) CycleSpectateSeeker();
+        }
+
+        // ── 색칠 비율 동기화 ────────────────────────────────────────────────
+
+        private const float PaintRatioSyncInterval = 0.5f;
+
+        private void SyncPaintRatioIfNeeded()
+        {
+            if (paintCanvas == null) return;
+            if (Time.time - _lastPaintRatioSyncTime < PaintRatioSyncInterval) return;
+
+            _lastPaintRatioSyncTime = Time.time;
+            float ratio = paintCanvas.GetPaintRatio();
+
+            if (!Mathf.Approximately(paintRatio, ratio))
+                CmdUpdatePaintRatio(ratio);
+        }
+
+        [Command]
+        private void CmdUpdatePaintRatio(float ratio)
+        {
+            paintRatio = ratio;
         }
 
         // ── 물총 피격 및 상태이상 로직 ──────────────────────────────────────
@@ -168,7 +178,7 @@ namespace PixelChroma
         // 현재 중첩(wetStack)에 비례해서 실제 이동속도를 깎아내는 함수
         private void RecalculateMoveSpeed()
         {
-            float targetSpeed = runnerMoveSpeed; // 원래 속도에서 시작
+            float targetSpeed = _baseMoveSpeed; // 원래 속도에서 시작
 
             // 1. 물에 젖었을 때 이속 감소 적용
             if (isWet && wetStack > 0)
@@ -211,29 +221,11 @@ namespace PixelChroma
             paintCanvas.EraseArea(centerPixel, pixelRadius);
         }
 
-        private void HandleEraseFadeCompleted()
-        {
-            if (isLocalPlayer)
-            {
-                // 픽셀이 다 지워졌다고 죽는 로직은 어몽어스 킬 기획에 의해 비활성화합니다.
-                // CheckIfCaught(); 
-            }
-        }
+        // ── 체포/사망 처리 및 관전 모드 전환 ────────────────────────────────
 
-        /* 기존의 픽셀 0개 아웃 로직 (사용 안 함)
-        private void CheckIfCaught()
-        {
-            if (paintCanvas == null) return;
-            bool isAlive = paintCanvas.HasAnyPaintedPixels();
-            if (!isAlive) CmdNotifyCaught();
-        }
-        */
-
-        // ── 킬/사망 처리 및 관전 모드 전환 ────────────────────────────────
-
-        // Seeker가 호출할 수 있도록 requiresAuthority = false 설정 필수!
-        [Command(requiresAuthority = false)]
-        public void CmdNotifyCaught()
+        // 서버 전용 사망 처리. 체포 요청의 검증(거리/젖음)은 SeekerPlayer.CmdExecuteCatch가 담당합니다.
+        [Server]
+        public void ServerNotifyCaught()
         {
             Debug.Log($"[Runner] {netId}번 플레이어 아웃! (처형당함)");
 
@@ -299,9 +291,9 @@ namespace PixelChroma
                     cinemachineCamera.Follow = _freeCamTarget.transform;
                 }
 
-                if (GetComponent<Rigidbody2D>() != null)
+                if (Rb != null)
                 {
-                    GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+                    Rb.linearVelocity = Vector2.zero;
                 }
             }
             else
@@ -358,7 +350,7 @@ namespace PixelChroma
             if (targetPlayer == null || cinemachineCamera == null) return;
 
             _isFrozen = true;
-            if (GetComponent<Rigidbody2D>() != null) GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+            if (Rb != null) Rb.linearVelocity = Vector2.zero;
 
             cinemachineCamera.Follow = targetPlayer.transform;
 
@@ -368,13 +360,14 @@ namespace PixelChroma
         // 통합 및 최적화된 이동 로직 (생존/사망 공용)
         protected override void HandleMovement()
         {
-            if (GetComponent<Rigidbody2D>() == null) return;
+            if (Rb == null) return;
 
+            // 프리즈 상태에서도 관전 해제/자유캠 이동 판단을 위해 가공되지 않은 입력이 필요합니다.
             Vector2 input = Input.Move.ReadValue<Vector2>();
 
             if (_isFrozen) // 고정 모드이거나 죽었을 때
             {
-                GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
+                Rb.linearVelocity = Vector2.zero;
 
                 if (input.sqrMagnitude > 0.01f)
                 {
@@ -419,20 +412,10 @@ namespace PixelChroma
             }
         }
 
-        protected override void UpdateAnimation()
+        // 고정 모드면 입력값을 강제로 (0,0)으로 만들어서 이동/애니메이션에 전달
+        protected override Vector2 GetMoveInput()
         {
-            if (animator == null) return;
-
-            // 고정 모드면 입력값을 강제로 (0,0)으로 만들어서 애니메이터에 전달
-            Vector2 input = _isFrozen ? Vector2.zero : Input.Move.ReadValue<Vector2>();
-            bool moving = input.sqrMagnitude > 0.01f;
-
-            animator.SetBool(IsMoving, moving);
-            if (moving)
-            {
-                animator.SetFloat(MoveX, input.x);
-                animator.SetFloat(MoveY, input.y);
-            }
+            return _isFrozen ? Vector2.zero : base.GetMoveInput();
         }
 
         private async UniTaskVoid ShowHUDAsync()
@@ -444,6 +427,9 @@ namespace PixelChroma
 
         private void TryUseExposeSkill()
         {
+            // 사망(관전) 상태에서는 위치 노출 스킬을 사용할 수 없습니다.
+            if (isDead) return;
+
             if (Time.time < _lastExposeTime + exposeCooldown)
             {
                 //Debug.Log($"스킬 쿨타임 중입니다! 남은 시간: {(_lastExposeTime + exposeCooldown) - Time.time:F1}초");
@@ -466,7 +452,7 @@ namespace PixelChroma
             if (InGameManager.Instance == null) return;
             foreach (var seeker in InGameManager.Instance.Seekers)
             {
-                seeker.RpcShowRunnerIndicator(this.netIdentity, duration);
+                seeker.TargetShowRunnerIndicator(this.netIdentity, duration);
             }
         }
 

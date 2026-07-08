@@ -22,7 +22,7 @@ namespace PixelChroma
                 _text.text = _owner.playerName;
         }
 
-        // 매 프레임 호출: 로컬 플레이어 관점에서 이 닉네임을 보여줄지 결정합니다.
+        // 역할/사망 상태가 바뀔 때 이벤트로 호출: 로컬 플레이어 관점에서 이 닉네임을 보여줄지 결정합니다.
         public void UpdateVisibility()
         {
             if (_text == null) return;

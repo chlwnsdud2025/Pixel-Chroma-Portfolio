@@ -24,6 +24,8 @@ namespace PixelChroma
                 case SeekerPlayer seeker when !_seekers.Contains(seeker):
                     _seekers.Add(seeker);
                     break;
+                case LobbyPlayer:
+                    break; // 로비 플레이어는 인게임 명부 대상이 아닙니다.
             }
         }
 

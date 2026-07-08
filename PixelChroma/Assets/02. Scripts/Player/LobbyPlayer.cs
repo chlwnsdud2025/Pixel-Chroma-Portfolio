@@ -14,8 +14,9 @@ namespace PixelChroma
 
         private LobbyPlayerState _lobbyState;
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
             // 같은 프리팹에 있는 상태 관리 스크립트를 찾아옵니다.
             _lobbyState = GetComponent<LobbyPlayerState>();
         }
