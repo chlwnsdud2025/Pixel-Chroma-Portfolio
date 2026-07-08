@@ -168,6 +168,8 @@ namespace PixelChroma
         // 현재 중첩(wetStack)에 비례해서 실제 이동속도를 깎아내는 함수
         private void RecalculateMoveSpeed()
         {
+            if (!isLocalPlayer) return;
+
             float targetSpeed = runnerMoveSpeed; // 원래 속도에서 시작
 
             // 1. 물에 젖었을 때 이속 감소 적용
