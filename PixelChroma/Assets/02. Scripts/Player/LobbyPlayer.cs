@@ -20,37 +20,28 @@ namespace PixelChroma
             _lobbyState = GetComponent<LobbyPlayerState>();
         }
 
-        private void OnEnable()
-        {
-            LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
-        }
-
-        private void OnDisable()
-        {
-            LobbyPlayerState.OnReadyChanged -= UpdateReadyImage;
-        }
-
         public override void OnStartClient()
         {
             base.OnStartClient();
-            UpdateReadyImage(); // 처음 스폰되었을 때 상태 동기화
+            LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
+            UpdateReadyImage();
+        }
+
+        public override void OnStopClient()
+        {
+            LobbyPlayerState.OnReadyChanged -= UpdateReadyImage;
+            base.OnStopClient();
         }
 
         protected override void OnLocalPlayerStarted()
         {
             var lobby = UIManager.Instance.CurrentScene as UILobby;
-            BindPaintHUD(lobby);
+            PaintController.BindHUD(lobby);
         }
 
         protected override void OnLocalPlayerStopped()
         {
-            UnbindPaintHUD();
-        }
-
-        protected override void UpdateNicknameText()
-        {
-            if (nicknameText == null) return;
-            nicknameText.text = playerName;
+            PaintController.UnbindHUD();
         }
 
         private void UpdateReadyImage()

@@ -54,7 +54,8 @@ namespace PixelChroma
         public float exposeCooldown = 1f; // 스킬 쿨타임
         private float _lastExposeTime = -100f;
 
-        public bool IsSpectating => isDead;
+        public override bool IsSpectator => isDead;
+        public bool IsSpectating => IsSpectator;
 
         // ── 네트워크 스폰 시 명부(캐싱 리스트)에 등록/해제 ────────────────
         public override void OnStartClient()
@@ -81,23 +82,23 @@ namespace PixelChroma
         protected override void OnLocalPlayerStarted()
         {
             moveSpeed = runnerMoveSpeed;
-            ShowHUDAsync().Forget(); // HUD 정상 호출
+            ShowHUDAsync().Forget();
 
             _freeCamTarget = new GameObject("FreeCamTarget");
             _freeCamTarget.transform.position = transform.position;
 
-            OnPaintModeChanged += HandlePaintModeChanged;
+            PaintController.OnPaintModeChanged += HandlePaintModeChanged;
         }
 
         protected override void OnLocalPlayerStopped()
         {
-            UnbindPaintHUD();
+            PaintController.UnbindHUD();
             _runnerHUD = null;
 
             if (_freeCamTarget != null)
                 Destroy(_freeCamTarget);
 
-            OnPaintModeChanged -= HandlePaintModeChanged;
+            PaintController.OnPaintModeChanged -= HandlePaintModeChanged;
         }
 
         // 통합된 Update: 서버 타이머 처리 + 클라이언트 입력 감지
@@ -178,7 +179,7 @@ namespace PixelChroma
             }
 
             // 2. 페인트 모드일 때 정밀 조준을 위해 속도 대폭 감소 (물에 젖은 상태와 중첩됨)
-            if (isPaintMode)
+            if (PaintController.IsPaintMode)
             {
                 targetSpeed *= paintModeSpeedMultiplier;
             }
@@ -247,6 +248,9 @@ namespace PixelChroma
         {
             isDead = true;
             _isFrozen = true;
+
+            // 💡 관전 전환 시 닉네임 가시성 재평가 (사망한 로컬 플레이어는 모든 닉네임이 보임)
+            RaiseNicknameVisibilityChanged();
 
             if (visual != null) visual.SetActive(false);
             if (bodyCollider != null) bodyCollider.enabled = false;
@@ -366,7 +370,7 @@ namespace PixelChroma
         {
             if (GetComponent<Rigidbody2D>() == null) return;
 
-            Vector2 input = moveAction.ReadValue<Vector2>();
+            Vector2 input = Input.Move.ReadValue<Vector2>();
 
             if (_isFrozen) // 고정 모드이거나 죽었을 때
             {
@@ -420,7 +424,7 @@ namespace PixelChroma
             if (animator == null) return;
 
             // 고정 모드면 입력값을 강제로 (0,0)으로 만들어서 애니메이터에 전달
-            Vector2 input = _isFrozen ? Vector2.zero : moveAction.ReadValue<Vector2>();
+            Vector2 input = _isFrozen ? Vector2.zero : Input.Move.ReadValue<Vector2>();
             bool moving = input.sqrMagnitude > 0.01f;
 
             animator.SetBool(IsMoving, moving);
@@ -435,7 +439,7 @@ namespace PixelChroma
         {
             // 어드레서블 명부에 등록된 "도망자 전용 HUD 프리팹"을 스폰합니다.
             _runnerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Runner>();
-            BindPaintHUD(_runnerHUD);
+            PaintController.BindHUD(_runnerHUD);
         }
 
         private void TryUseExposeSkill()

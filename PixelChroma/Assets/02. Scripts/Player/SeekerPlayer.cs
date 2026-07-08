@@ -61,14 +61,14 @@ namespace PixelChroma
                 _weaponRenderers = weaponPivot.GetComponentsInChildren<SpriteRenderer>(true);
             }
 
-            OnPaintModeChanged += HandleLocalPaintModeChanged;
+            PaintController.OnPaintModeChanged += HandleLocalPaintModeChanged;
             ShowHUDAsync().Forget();
         }
 
         protected override void OnLocalPlayerStopped()
         {
-            UnbindPaintHUD();
-            OnPaintModeChanged -= HandleLocalPaintModeChanged;
+            PaintController.UnbindHUD();
+            PaintController.OnPaintModeChanged -= HandleLocalPaintModeChanged;
 
             if (CursorManager.Instance != null)
                 CursorManager.Instance.overrideScreenPosition = null;
@@ -91,7 +91,7 @@ namespace PixelChroma
         {
             // 어드레서블 명부에 등록된 "술래 전용 HUD 프리팹"을 스폰합니다.
             _seekerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Seeker>();
-            BindPaintHUD(_seekerHUD);
+            PaintController.BindHUD(_seekerHUD);
         }
 
         protected override void Update()
@@ -192,7 +192,7 @@ namespace PixelChroma
             Vector2 targetWorldPos = mouseWorldPos;
             Vector2 aimDirection = (targetWorldPos - currentPos).normalized;
 
-            if (!isPaintMode)
+            if (!PaintController.IsPaintMode)
             {
                 float distanceToTarget = Vector2.Distance(currentPos, targetWorldPos);
 
@@ -269,7 +269,7 @@ namespace PixelChroma
         {
             if (Mouse.current == null) return;
 
-            if (!isPaintMode && Mouse.current.leftButton.wasPressedThisFrame)
+            if (!PaintController.IsPaintMode && Mouse.current.leftButton.wasPressedThisFrame)
             {
                 if (Time.time - _lastFireTime >= fireCooldown)
                 {
@@ -445,7 +445,7 @@ namespace PixelChroma
             Destroy(target);
         }
 
-        protected override CursorType GetDefaultCursorType()
+        public override CursorType GetDefaultCursorType()
         {
             return CursorType.Crosshair;
         }
