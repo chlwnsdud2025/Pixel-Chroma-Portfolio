@@ -191,20 +191,23 @@ MonoBehaviour:
   inputActions: {fileID: -944628639613478452, guid: dae94752ad76752479be012774c50f69, type: 3}
   animator: {fileID: 3278017070318577123}
   paintCanvas: {fileID: 7416666179242397531}
-  moveSpeed: 4
+  moveSpeed: 7.5
   maxPPU: 64
   zoomStepPPU: 2
   nicknameText: {fileID: 1342934170316467064}
   playerName: Player
   role: 1
-  freeCamSpeed: 20
+  freeCamSpeed: 15
   visual: {fileID: 8515753638654249472}
   bodyCollider: {fileID: 2522633609704509906}
-  wetSpeedMultiplier: 0.2
+  isDead: 0
+  isWet: 0
+  wetStack: 0
+  speedDebuffPerHit: 0.2
+  minSpeedMultiplier: 0.1
   paintModeSpeedMultiplier: 0.005
-  camouflagedThreshold: 0.3
-  exposeDuration: 2
-  exposeCooldown: 2
+  exposeDuration: 1.5
+  exposeCooldown: 1.5
 --- !u!114 &-5294142182456280051
 MonoBehaviour:
   m_ObjectHideFlags: 0
