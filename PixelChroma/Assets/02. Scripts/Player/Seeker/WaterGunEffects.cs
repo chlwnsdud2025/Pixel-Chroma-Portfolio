@@ -19,12 +19,12 @@ namespace PixelChroma
         [Tooltip("물 스플래시 이펙트가 서서히 사라지는 시간(초)")]
         [SerializeField] private float splashFadeDuration = 0.6f;
 
-        public void PlayFireEffect(Transform firePoint, Vector2 targetPos)
+        public void PlayFireEffect(Transform firePoint, Vector2 targetPos, float aoeRadius)
         {
-            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos));
+            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, aoeRadius));
         }
 
-        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos)
+        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, float aoeRadius)
         {
             GameObject laserObj = null;
             LineRenderer lr = null;
@@ -67,10 +67,24 @@ namespace PixelChroma
             {
                 GameObject splash = Instantiate(waterSplashPrefab, targetPos, Quaternion.identity);
                 var splashRenderer = splash.GetComponentInChildren<SpriteRenderer>();
+
+                // 스프라이트 원본 크기를 기준으로 역산해 "보이는 반지름 = aoeRadius"가 되도록 맞춥니다.
+                // 이렇게 하면 aoeRadius가 단일 기준이 되어 값이나 아트를 바꿔도 시각/판정이 항상 일치합니다.
                 if (splashRenderer != null)
+                {
+                    float baseRadius = splashRenderer.sprite.bounds.extents.x;
+                    if (baseRadius > 0.0001f)
+                    {
+                        float factor = aoeRadius / baseRadius;
+                        splash.transform.localScale = new Vector3(factor, factor, 1f);
+                    }
+
                     StartCoroutine(FadeOutAndDestroy(splash, splashRenderer, splashFadeDuration));
+                }
                 else
+                {
                     Destroy(splash, splashFadeDuration);
+                }
             }
         }
 

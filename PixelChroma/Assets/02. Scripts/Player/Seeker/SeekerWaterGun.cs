@@ -2,6 +2,9 @@ using UnityEngine;
 using Mirror;
 using UnityEngine.InputSystem;
 using PixelChroma.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace PixelChroma
 {
@@ -30,6 +33,16 @@ namespace PixelChroma
 
         [Tooltip("피격된 도망자가 젖음 상태로 유지되는 시간(초)")]
         [SerializeField] private float wetDuration = 5f;
+
+        [Header("Debug")]
+        [Tooltip("발사 시 실제 피격 범위(aoeRadius)를 씬 뷰에 잠시 표시합니다. (에디터 전용)")]
+        [SerializeField] private bool drawAoeGizmo = true;
+        [Tooltip("피격 범위 기즈모가 표시되는 시간(초)")]
+        [SerializeField] private float gizmoDisplayDuration = 1f;
+
+        // 마지막 발사의 착탄 지점과 시각. 기즈모를 발사 직후 잠깐만 그리기 위한 값입니다.
+        private Vector2 _lastImpactPos;
+        private float _lastImpactGizmoTime = -100f;
 
         [SyncVar(hook = nameof(OnAimAngleChanged))]
         private float _syncAimAngle;
@@ -203,8 +216,29 @@ namespace PixelChroma
         [ClientRpc]
         private void RpcPlayFireEffect(Vector2 targetPos)
         {
+            // targetPos는 서버가 OverlapCircle 판정에 쓴 impactPos와 동일하므로, 기즈모 표시 기준으로 재사용합니다.
+            _lastImpactPos = targetPos;
+            _lastImpactGizmoTime = Time.time;
+
+            // 스플래시가 실제 피격 범위(aoeRadius)와 정확히 일치하도록 반지름을 함께 넘깁니다.
             if (_effects != null)
-                _effects.PlayFireEffect(firePoint, targetPos);
+                _effects.PlayFireEffect(firePoint, targetPos, aoeRadius);
         }
+
+#if UNITY_EDITOR
+        // 발사 직후 gizmoDisplayDuration 동안 실제 피격 판정 원을 씬 뷰에 그립니다.
+        // 물 스플래시 이펙트 크기와 이 원이 겹치면 시각/판정이 일치한다는 뜻입니다.
+        private void OnDrawGizmos()
+        {
+            if (!drawAoeGizmo) return;
+            if (Time.time - _lastImpactGizmoTime > gizmoDisplayDuration) return;
+
+            Color baseColor = Color.cyan;
+            Handles.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0.12f);
+            Handles.DrawSolidDisc(_lastImpactPos, Vector3.forward, aoeRadius);
+            Handles.color = baseColor;
+            Handles.DrawWireDisc(_lastImpactPos, Vector3.forward, aoeRadius);
+        }
+#endif
     }
 }
