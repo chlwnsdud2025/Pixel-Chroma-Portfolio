@@ -45,15 +45,8 @@ namespace PixelChroma
                 return;
             }
 
-            // 관전(사망) 상태에서는 모든 닉네임이 보입니다.
-            if (localPlayer.IsSpectator)
-            {
-                _text.enabled = true;
-                return;
-            }
-
-            // 술래(Seeker)는 도망자 위치가 노출되면 안 되므로 같은 술래끼리만 닉네임이 보입니다.
-            // 도망자(Runner)는 다른 도망자와 술래의 닉네임을 모두 볼 수 있습니다.
+            // Seeker에게는 Runner 닉네임을 숨깁니다 (숨은 위치 노출 방지).
+            // Runner는 모든 닉네임을 볼 수 있습니다.
             _text.enabled = localPlayer.role == PlayerRole.Runner || _owner.role == PlayerRole.Seeker;
         }
     }

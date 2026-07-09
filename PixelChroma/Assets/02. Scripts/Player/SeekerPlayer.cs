@@ -69,10 +69,10 @@ namespace PixelChroma
         [Command]
         public void CmdExecuteCatch(RunnerPlayer target)
         {
-            if (target == null || target.isDead)
+            if (target == null || target.IsDead)
                 return;
 
-            if (target.IsCamouflaged && !target.isWet)
+            if (target.IsCamouflaged && !target.IsWet)
                 return;
 
             float dist = Vector2.Distance(transform.position, target.transform.position);
@@ -128,7 +128,7 @@ namespace PixelChroma
 
             foreach (var runner in InGameManager.Instance.Runners)
             {
-                if (runner != null && !runner.isDead && (!runner.IsCamouflaged || runner.isWet))
+                if (runner != null && !runner.IsDead && (!runner.IsCamouflaged || runner.IsWet))
                 {
                     float dist = Vector2.Distance(transform.position, runner.transform.position);
                     if (dist <= closestDist)

@@ -16,6 +16,8 @@ namespace PixelChroma
         private const string ActionToggleFreeCam = "ToggleFreeCam";
         private const string ActionSpectateRunner = "SpectateRunner";
         private const string ActionSpectateSeeker = "SpectateSeeker";
+        private const string ActionCyclePrev = "CyclePrev";
+        private const string ActionCycleNext = "CycleNext";
 
         private readonly InputActionMap _map;
 
@@ -30,6 +32,8 @@ namespace PixelChroma
         public InputAction ToggleFreeCam { get; }
         public InputAction SpectateRunner { get; }
         public InputAction SpectateSeeker { get; }
+        public InputAction CyclePrev { get; }
+        public InputAction CycleNext { get; }
 
         public PlayerInputActions(InputActionAsset asset)
         {
@@ -45,6 +49,8 @@ namespace PixelChroma
             ToggleFreeCam = _map.FindAction(ActionToggleFreeCam);
             SpectateRunner = _map.FindAction(ActionSpectateRunner);
             SpectateSeeker = _map.FindAction(ActionSpectateSeeker);
+            CyclePrev = _map.FindAction(ActionCyclePrev);
+            CycleNext = _map.FindAction(ActionCycleNext);
         }
 
         public void EnableAll() => _map.Enable();

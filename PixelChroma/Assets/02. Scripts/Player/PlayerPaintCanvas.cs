@@ -346,10 +346,6 @@ namespace PixelChroma
 
         // ── 물총 피격 생존 검사 ──────────────────────────────────────────────────
 
-        /// <summary>
-        /// 캔버스 전체를 검사하여 덧칠된 페인트가 하나라도 남아있는지 확인합니다.
-        /// (true = 살아있음 / false = 다 씻겨서 죽음)
-        /// </summary>
         public float GetPaintRatio()
         {
             if (_runtimeTextures == null || _totalOpaquePixels == 0) return 0f;

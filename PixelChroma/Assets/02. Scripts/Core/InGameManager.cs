@@ -44,7 +44,7 @@ namespace PixelChroma
 
         public int GetAliveRunnerCount()
         {
-            return _runners.Count(r => r != null && !r.isDead);
+            return _runners.Count(r => r != null && !r.IsDead);
         }
 
         public bool HasAnyRunner()

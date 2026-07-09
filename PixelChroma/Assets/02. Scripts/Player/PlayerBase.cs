@@ -50,8 +50,6 @@ namespace PixelChroma
 
         private static event Action NicknameVisibilityChanged;
 
-        public virtual bool IsSpectator => false;
-
         protected PlayerInputActions Input => _input;
         protected PlayerPaintController PaintController => _paintController;
         protected Rigidbody2D Rb { get; private set; }
