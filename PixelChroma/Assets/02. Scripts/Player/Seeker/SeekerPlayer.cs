@@ -165,6 +165,8 @@ namespace PixelChroma
             _seekerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Seeker>();
             PaintController.BindHUD(_seekerHUD);
 
+            if (_waterGun != null)
+                _seekerHUD.SetWaterGunCooldownDuration(_waterGun.FireCooldownDuration);
         }
 
         private void HandleLocalPaintModeChanged(bool isPaint)
