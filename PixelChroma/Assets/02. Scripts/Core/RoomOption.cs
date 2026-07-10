@@ -12,14 +12,14 @@ namespace PixelChroma
     [Serializable]
     public class RoomOption
     {
-        public const int DefaultMaxPlayers = 10;
+        public const int DefaultMaxPlayers = 12;
         public const int DefaultSeekerCount = 1;
         public const float DefaultHideTime = 60f;
         public const float DefaultSeekTime = 300f;
         public const float DefaultCheckTime = 30f;
 
         public const int MinPlayers = 2;
-        public const int MaxPlayersLimit = 10;
+        public const int MaxPlayersLimit = 12;
         public const int MinSeekerCount = 1;
         public const int MaxSeekerCount = 5;
         public const float MinHideTime = 10f;
