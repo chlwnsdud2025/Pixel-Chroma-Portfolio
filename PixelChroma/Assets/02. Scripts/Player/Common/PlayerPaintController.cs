@@ -22,6 +22,7 @@ namespace PixelChroma
         private Color _eyedropperColor;
         private Texture2D _eyedropperCapture;
         private Coroutine _eyedropperCoroutine;
+        private bool _waitForMouseRelease;
 
         public event Action<bool> OnPaintModeChanged;
         public event Action<int> OnBrushSizeScrolled;
@@ -44,7 +45,10 @@ namespace PixelChroma
             HandleModeInput();
 
             if (_brushMode == BrushMode.Eyedropper)
+            {
                 TickEyedropper();
+                return;
+            }
 
             HandlePainting();
         }
@@ -169,6 +173,7 @@ namespace PixelChroma
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             _boundPicker?.SetColor(_eyedropperColor);
+            _waitForMouseRelease = true;
             SetBrushMode(BrushMode.Brush);
         }
 
@@ -176,6 +181,14 @@ namespace PixelChroma
         {
             if (_brushMode == BrushMode.Eyedropper) return;
             if (_paintCanvas == null || Mouse.current == null) return;
+
+            if (_waitForMouseRelease)
+            {
+                if (!Mouse.current.leftButton.isPressed)
+                    _waitForMouseRelease = false;
+                return;
+            }
+
             if (!Mouse.current.leftButton.isPressed) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
