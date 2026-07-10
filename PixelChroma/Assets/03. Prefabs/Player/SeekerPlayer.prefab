@@ -196,7 +196,7 @@ MonoBehaviour:
   inputActions: {fileID: -944628639613478452, guid: dae94752ad76752479be012774c50f69, type: 3}
   animator: {fileID: 3278017070318577123}
   paintCanvas: {fileID: 7416666179242397531}
-  moveSpeed: 10
+  moveSpeed: 5
   maxPPU: 64
   zoomStepPPU: 2
   nicknameText: {fileID: 6469292086262516784}
@@ -204,7 +204,7 @@ MonoBehaviour:
   role: 2
   catchRadius: 1.5
   indicatorPrefab: {fileID: 1947588112852113063, guid: fa1af3b30dcd5df429ab718b131434ca, type: 3}
-  indicatorRadius: 1
+  indicatorRadius: 2
 --- !u!114 &6018463696899070509
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -221,11 +221,12 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  weaponRenderer: {fileID: 4008578922109286030}
   weaponPivot: {fileID: 3992759080059206177}
   firePoint: {fileID: 6584640510411324336}
   fireCooldown: 1.5
   fireRange: 8
-  aoeRadius: 2
+  aoeRadius: 1
   runnerLayer:
     serializedVersion: 2
     m_Bits: 256
@@ -233,6 +234,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 2048
   wetDuration: 5
+  drawAoeGizmo: 1
+  gizmoDisplayDuration: 1
 --- !u!114 &5070955367709632214
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -587,6 +590,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5bfd88c021af68748a25c4adc4caf4ad, type: 3}
+--- !u!212 &4008578922109286030 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 8517114697265846141, guid: 5bfd88c021af68748a25c4adc4caf4ad, type: 3}
+  m_PrefabInstance: {fileID: 4725274346807566835}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &5094712816300647291 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 515527655525827208, guid: 5bfd88c021af68748a25c4adc4caf4ad, type: 3}
