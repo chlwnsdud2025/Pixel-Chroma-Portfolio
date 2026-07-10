@@ -16,6 +16,9 @@ namespace PixelChroma
 
         public void RegisterPlayer(PlayerBase player)
         {
+            _runners.RemoveAll(r => r == null);
+            _seekers.RemoveAll(s => s == null);
+
             switch (player)
             {
                 case RunnerPlayer runner when !_runners.Contains(runner):

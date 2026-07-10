@@ -68,10 +68,10 @@ namespace PixelChroma.UI
                 spectatorPanel.SetActiveMode(mode);
         }
 
-        public void SetSpectateTargetName(string name)
+        public void SetSpectateTargetName(string name, bool isSelf)
         {
             if (spectatorPanel != null)
-                spectatorPanel.SetTargetName(name);
+                spectatorPanel.SetTargetName(name, isSelf);
         }
 
 

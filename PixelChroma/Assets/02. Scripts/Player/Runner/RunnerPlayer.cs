@@ -43,6 +43,8 @@ namespace PixelChroma
         private float _lastExposeTime = float.NegativeInfinity;
         private float _lastExposeTimeServer = float.NegativeInfinity;
         private float _lastPaintRatioSyncTime;
+
+        private bool _isDeathSpectatorLocked;
         private SpectatorController _spectator;
         private UIInGameHUD_Runner _runnerHUD;
 
@@ -168,7 +170,7 @@ namespace PixelChroma
 
             if (Input.ToggleSpectate.WasPressedThisFrame())
             {
-                if (_spectator.IsSpectating && !_isDead)
+                if (_spectator.IsSpectating && !_isDeathSpectatorLocked)
                 {
                     _spectator.ExitSpectate();
                     _runnerHUD?.SetSpectatorMode(false);
@@ -263,6 +265,11 @@ namespace PixelChroma
 
             if (isLocalPlayer)
             {
+                _isDeathSpectatorLocked = true;
+
+                if (PaintController.IsPaintMode)
+                    PaintController.TogglePaintMode();
+
                 _spectator?.EnterDeathSpectator();
                 _runnerHUD?.SetSpectatorMode(true);
             }
@@ -291,6 +298,18 @@ namespace PixelChroma
             CmdExposeLocation();
         }
 
+        [Server]
+        public void ServerForceExpose(float duration)
+        {
+            if (_isDead) return;
+            if (InGameManager.Instance == null) return;
+
+            foreach (var seeker in InGameManager.Instance.Seekers)
+            {
+                seeker.TargetShowRunnerIndicator(this.netIdentity, duration);
+            }
+        }
+
         [Command]
         private void CmdExposeLocation()
         {
@@ -305,14 +324,16 @@ namespace PixelChroma
             }
         }
 
+
+
         private void OnWetStateChanged(bool oldVal, bool newVal)
         {
             RecalculateMoveSpeed();
         }
 
-        private void HandleSpectateTargetChanged(string targetName)
+        private void HandleSpectateTargetChanged(string targetName, bool isSelf)
         {
-            _runnerHUD?.SetSpectateTargetName(targetName);
+            _runnerHUD?.SetSpectateTargetName(targetName, isSelf);
         }
 
         private void HandlePaintModeChanged(bool isPaint)
