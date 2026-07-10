@@ -52,6 +52,8 @@ namespace PixelChroma
         private Camera _mainCam;
         private WaterGunEffects _effects;
 
+        public float FireCooldownDuration => fireCooldown;
+
         // HUD 쿨타임 오버레이용: 발사 직후 1 → 쿨타임이 끝나면 0.
         public float CooldownFill01 =>
             fireCooldown <= 0f ? 0f : 1f - Mathf.Clamp01((Time.time - _lastFireTime) / fireCooldown);

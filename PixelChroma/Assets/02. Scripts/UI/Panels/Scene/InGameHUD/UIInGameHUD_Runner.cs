@@ -11,7 +11,7 @@ namespace PixelChroma.UI
         [SerializeField] private UISpectatorModePanel spectatorPanel;
 
         [Header("Runner Expose Skill UI Only")]
-        [SerializeField] private Image exposeSkillCooldownImage;
+        [SerializeField] private Image exposeSkillCooldownOverlay;
         [SerializeField] private TMP_Text exposeSkillCooldownText;
 
         private bool _isExposeCounting;
@@ -24,7 +24,7 @@ namespace PixelChroma.UI
 
             if (spectatorPanel != null) spectatorPanel.Hide();
 
-            if (exposeSkillCooldownImage != null) exposeSkillCooldownImage.gameObject.SetActive(false);
+            if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
             if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
         }
 
@@ -40,13 +40,13 @@ namespace PixelChroma.UI
                 if (_exposeTimer <= 0f)
                 {
                     _isExposeCounting = false;
-                    if (exposeSkillCooldownImage != null) exposeSkillCooldownImage.gameObject.SetActive(false);
+                    if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
                     if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
                 }
                 else
                 {
-                    if (exposeSkillCooldownImage != null)
-                        exposeSkillCooldownImage.fillAmount = _exposeTimer / _exposeCooldownDuration;
+                    if (exposeSkillCooldownOverlay != null)
+                        exposeSkillCooldownOverlay.fillAmount = _exposeTimer / _exposeCooldownDuration;
 
                     if (exposeSkillCooldownText != null)
                         exposeSkillCooldownText.text = _exposeTimer.ToString("F1");
@@ -81,10 +81,10 @@ namespace PixelChroma.UI
             _exposeTimer = duration;
             _isExposeCounting = true;
 
-            if (exposeSkillCooldownImage != null)
+            if (exposeSkillCooldownOverlay != null)
             {
-                exposeSkillCooldownImage.gameObject.SetActive(true);
-                exposeSkillCooldownImage.fillAmount = 1f;
+                exposeSkillCooldownOverlay.gameObject.SetActive(true);
+                exposeSkillCooldownOverlay.fillAmount = 1f;
             }
             if (exposeSkillCooldownText != null)
             {

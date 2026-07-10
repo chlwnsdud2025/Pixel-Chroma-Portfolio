@@ -1,35 +1,57 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace PixelChroma.UI
 {
     public class UIInGameHUD_Seeker : UIInGameHUD
     {
         [Header("Catch Icon")]
-        [SerializeField] private Image catchIcon;
-        [SerializeField] private Color catchActiveColor = Color.white;
-        [SerializeField] private Color catchInactiveColor = new Color(0.7843f, 0.7843f, 0.7843f, 0.5f);
+        [SerializeField] private GameObject catchInactiveOverlay;
 
         [Header("Water Gun")]
         [SerializeField] private Image waterGunCooldownOverlay;
+        [SerializeField] private TMP_Text waterGunCooldownText;
+
+        private float _cooldownDuration;
+        private bool _wasCooling;
 
         public void SetCatchIconActive(bool isActive)
         {
-            if (catchIcon == null) 
-                return;
+            if (catchInactiveOverlay != null)
+                catchInactiveOverlay.SetActive(!isActive);
+        }
 
-            Color target = isActive ? catchActiveColor : catchInactiveColor;
-            if (catchIcon.color != target)
-                catchIcon.color = target;
+        public void SetWaterGunCooldownDuration(float duration)
+        {
+            _cooldownDuration = duration;
         }
 
         public void UpdateWaterGunCooldown(float fillAmount)
         {
-            if (waterGunCooldownOverlay == null)
+            if (waterGunCooldownOverlay != null &&
+                !Mathf.Approximately(waterGunCooldownOverlay.fillAmount, fillAmount))
+                waterGunCooldownOverlay.fillAmount = fillAmount;
+
+            if (waterGunCooldownText == null)
                 return;
 
-            if (!Mathf.Approximately(waterGunCooldownOverlay.fillAmount, fillAmount))
-                waterGunCooldownOverlay.fillAmount = fillAmount;
+            bool isCooling = fillAmount > 0f;
+
+            if (isCooling)
+            {
+                if (!_wasCooling)
+                    waterGunCooldownText.gameObject.SetActive(true);
+
+                float remaining = fillAmount * _cooldownDuration;
+                waterGunCooldownText.text = remaining.ToString("F1");
+            }
+            else if (_wasCooling)
+            {
+                waterGunCooldownText.gameObject.SetActive(false);
+            }
+
+            _wasCooling = isCooling;
         }
     }
 }
