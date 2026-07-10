@@ -86,6 +86,7 @@ namespace PixelChroma
             ShowHUDAsync().Forget();
 
             _spectator = new SpectatorController(this, cinemachineCamera, freeCamSpeed);
+            _spectator.OnTargetNameChanged += HandleSpectateTargetChanged;
             PaintController.OnPaintModeChanged += HandlePaintModeChanged;
         }
 
@@ -97,6 +98,8 @@ namespace PixelChroma
             _spectator?.Dispose();
             _spectator = null;
 
+            if (_spectator != null)
+                _spectator.OnTargetNameChanged -= HandleSpectateTargetChanged;
             PaintController.OnPaintModeChanged -= HandlePaintModeChanged;
         }
 
@@ -163,30 +166,45 @@ namespace PixelChroma
         {
             if (_spectator == null) return;
 
-            if (Input.ToggleFreeCam.WasPressedThisFrame())
+            if (Input.ToggleSpectate.WasPressedThisFrame())
             {
-                if (_spectator.Mode == SpectateMode.Free && !_isDead)
+                if (_spectator.IsSpectating && !_isDead)
+                {
                     _spectator.ExitSpectate();
+                    _runnerHUD?.SetSpectatorMode(false);
+                }
                 else
-                    _spectator.EnterFreeMode();
-                return;
-            }
+                {
+                    if (PaintController.IsPaintMode)
+                        PaintController.TogglePaintMode();
 
-            if (Input.SpectateRunner.WasPressedThisFrame())
-            {
-                if (_spectator.Mode == SpectateMode.Runner && !_isDead)
-                    _spectator.ExitSpectate();
-                else
-                    _spectator.EnterRunnerMode();
-                return;
-            }
-
-            if (Input.SpectateSeeker.WasPressedThisFrame())
-            {
-                if (_spectator.Mode == SpectateMode.Seeker && !_isDead)
-                    _spectator.ExitSpectate();
-                else
                     _spectator.EnterSeekerMode();
+                    _runnerHUD?.SetSpectatorMode(true);
+                    _runnerHUD?.SetActiveSpectateMode(SpectateMode.Seeker);
+                }
+                return;
+            }
+
+            if (!_spectator.IsSpectating) return;
+
+            if (Input.SpectateSeeker.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Seeker)
+            {
+                _spectator.EnterSeekerMode();
+                _runnerHUD?.SetActiveSpectateMode(SpectateMode.Seeker);
+                return;
+            }
+
+            if (Input.SpectateRunner.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Runner)
+            {
+                _spectator.EnterRunnerMode();
+                _runnerHUD?.SetActiveSpectateMode(SpectateMode.Runner);
+                return;
+            }
+
+            if (Input.SpectateFree.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Free)
+            {
+                _spectator.EnterFreeMode();
+                _runnerHUD?.SetActiveSpectateMode(SpectateMode.Free);
                 return;
             }
 
@@ -244,7 +262,10 @@ namespace PixelChroma
             if (bodyCollider != null) bodyCollider.enabled = false;
 
             if (isLocalPlayer)
+            {
                 _spectator?.EnterDeathSpectator();
+                _runnerHUD?.SetSpectatorMode(true);
+            }
         }
 
         private async UniTaskVoid ShowHUDAsync()
@@ -289,9 +310,20 @@ namespace PixelChroma
             RecalculateMoveSpeed();
         }
 
+        private void HandleSpectateTargetChanged(string targetName)
+        {
+            _runnerHUD?.SetSpectateTargetName(targetName);
+        }
+
         private void HandlePaintModeChanged(bool isPaint)
         {
             RecalculateMoveSpeed();
+
+            if (isPaint && _spectator != null && _spectator.IsSpectating)
+            {
+                _spectator.ExitSpectate();
+                _runnerHUD?.SetSpectatorMode(false);
+            }
         }
     }
 }

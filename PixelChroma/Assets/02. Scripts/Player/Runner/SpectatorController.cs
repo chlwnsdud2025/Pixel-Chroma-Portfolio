@@ -1,7 +1,6 @@
+using System;
 using UnityEngine;
 using Unity.Cinemachine;
-using Cysharp.Threading.Tasks;
-using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -22,11 +21,10 @@ namespace PixelChroma
         private SpectateMode _mode = SpectateMode.None;
         private GameObject _freeCamTarget;
         private int _targetIndex = -1;
-        private UISpectatorPopup _popup;
-        private bool _isLoadingPopup;
 
         public SpectateMode Mode => _mode;
         public bool IsSpectating => _mode != SpectateMode.None;
+        public event Action<string> OnTargetNameChanged;
 
         public SpectatorController(RunnerPlayer owner, CinemachineCamera camera, float freeCamSpeed)
         {
@@ -41,7 +39,7 @@ namespace PixelChroma
         public void Dispose()
         {
             if (_freeCamTarget != null)
-                Object.Destroy(_freeCamTarget);
+                UnityEngine.Object.Destroy(_freeCamTarget);
         }
 
         public void EnterDeathSpectator()
@@ -67,7 +65,7 @@ namespace PixelChroma
             if (_camera != null)
                 _camera.Follow = _freeCamTarget.transform;
 
-            UpdatePopupAsync("자유 시점").Forget();
+            OnTargetNameChanged?.Invoke("자유 시점");
         }
 
         public void EnterRunnerMode()
@@ -91,12 +89,6 @@ namespace PixelChroma
 
             if (_camera != null)
                 _camera.Follow = _owner.transform;
-
-            if (_popup != null)
-            {
-                _popup.OnClickBack();
-                _popup = null;
-            }
         }
 
         public void CycleTarget(int direction)
@@ -149,20 +141,7 @@ namespace PixelChroma
         {
             if (target == null || _camera == null) return;
             _camera.Follow = target.transform;
-            UpdatePopupAsync(target.playerName).Forget();
-        }
-
-        private async UniTaskVoid UpdatePopupAsync(string targetName)
-        {
-            if (_popup == null && !_isLoadingPopup)
-            {
-                _isLoadingPopup = true;
-                _popup = await UIManager.Instance.ShowPopup<UISpectatorPopup>();
-                _isLoadingPopup = false;
-            }
-
-            if (_popup != null)
-                _popup.SetTargetName(targetName);
+            OnTargetNameChanged?.Invoke(target.playerName);
         }
     }
 }
