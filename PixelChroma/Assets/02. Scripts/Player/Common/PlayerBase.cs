@@ -228,12 +228,12 @@ namespace PixelChroma
 
             if (IsAltHeld())
             {
-                HandleZoom(scroll);
+                if (_paintController != null && _paintController.IsPaintMode)
+                    _paintController.HandleBrushScroll(scroll);
                 return;
             }
 
-            if (_paintController != null && _paintController.IsPaintMode)
-                _paintController.HandleBrushScroll(scroll);
+            HandleZoom(scroll);
         }
 
         private void HandleZoom(float scroll)
@@ -253,7 +253,7 @@ namespace PixelChroma
 
         private bool IsAltHeld()
         {
-            return _input.ZoomModifier.IsPressed();
+            return _input.BrushSizeModifier.IsPressed();
         }
 
         private void OnPlayerNameChanged(string oldName, string newName)
