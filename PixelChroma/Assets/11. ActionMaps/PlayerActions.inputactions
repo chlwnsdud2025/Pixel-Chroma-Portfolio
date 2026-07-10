@@ -79,9 +79,18 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "ToggleFreeCam",
+                    "name": "ToggleSpectate",
                     "type": "Button",
                     "id": "b2c3d4e5-0003-4000-8000-000000000003",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "SpectateSeeker",
+                    "type": "Button",
+                    "id": "b2c3d4e5-0005-4000-8000-000000000005",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -97,9 +106,9 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SpectateSeeker",
+                    "name": "SpectateFree",
                     "type": "Button",
-                    "id": "b2c3d4e5-0005-4000-8000-000000000005",
+                    "id": "b2c3d4e5-0020-4000-8000-000000000020",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -271,18 +280,29 @@
                 {
                     "name": "",
                     "id": "b2c3d4e5-0008-4000-8000-000000000008",
-                    "path": "<Keyboard>/p",
+                    "path": "<Keyboard>/g",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "ToggleFreeCam",
+                    "action": "ToggleSpectate",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c3d4e5-0010-4000-8000-000000000010",
+                    "path": "<Keyboard>/1",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "SpectateSeeker",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
                     "id": "b2c3d4e5-0009-4000-8000-000000000009",
-                    "path": "<Keyboard>/o",
+                    "path": "<Keyboard>/2",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -292,12 +312,12 @@
                 },
                 {
                     "name": "",
-                    "id": "b2c3d4e5-0010-4000-8000-000000000010",
-                    "path": "<Keyboard>/i",
+                    "id": "b2c3d4e5-0021-4000-8000-000000000021",
+                    "path": "<Keyboard>/3",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "SpectateSeeker",
+                    "action": "SpectateFree",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

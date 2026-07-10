@@ -7,6 +7,9 @@ namespace PixelChroma.UI
     // 💡 부모 HUD를 상속받습니다.
     public class UIInGameHUD_Runner : UIInGameHUD
     {
+        [Header("Spectator Mode UI")]
+        [SerializeField] private UISpectatorModePanel spectatorPanel;
+
         [Header("Runner Expose Skill UI Only")]
         [SerializeField] private Image exposeSkillCooldownImage;
         [SerializeField] private TMP_Text exposeSkillCooldownText;
@@ -19,7 +22,8 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            // 시작할 때 기본적으로 Cooldown 레이어들은 가려둡니다.
+            if (spectatorPanel != null) spectatorPanel.Hide();
+
             if (exposeSkillCooldownImage != null) exposeSkillCooldownImage.gameObject.SetActive(false);
             if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
         }
@@ -50,7 +54,27 @@ namespace PixelChroma.UI
             }
         }
 
-        // RunnerPlayer가 스킬을 썼을 때 시동을 걸어주는 퍼블릭 함수
+        public void SetSpectatorMode(bool active)
+        {
+            if (spectatorPanel == null) return;
+
+            if (active) spectatorPanel.Show();
+            else spectatorPanel.Hide();
+        }
+
+        public void SetActiveSpectateMode(SpectateMode mode)
+        {
+            if (spectatorPanel != null)
+                spectatorPanel.SetActiveMode(mode);
+        }
+
+        public void SetSpectateTargetName(string name)
+        {
+            if (spectatorPanel != null)
+                spectatorPanel.SetTargetName(name);
+        }
+
+
         public void StartExposeSkillCooldown(float duration)
         {
             _exposeCooldownDuration = duration;

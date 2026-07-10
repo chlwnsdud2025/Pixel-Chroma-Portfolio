@@ -13,9 +13,10 @@ namespace PixelChroma
         private const string ActionZoomModifier = "ZoomModifier";
         private const string ActionExposeSkill = "ExposeSkill";
         private const string ActionCatch = "Catch";
-        private const string ActionToggleFreeCam = "ToggleFreeCam";
-        private const string ActionSpectateRunner = "SpectateRunner";
+        private const string ActionToggleSpectate = "ToggleSpectate";
         private const string ActionSpectateSeeker = "SpectateSeeker";
+        private const string ActionSpectateRunner = "SpectateRunner";
+        private const string ActionSpectateFree = "SpectateFree";
         private const string ActionCyclePrev = "CyclePrev";
         private const string ActionCycleNext = "CycleNext";
 
@@ -29,9 +30,10 @@ namespace PixelChroma
         public InputAction ZoomModifier { get; }
         public InputAction ExposeSkill { get; }
         public InputAction Catch { get; }
-        public InputAction ToggleFreeCam { get; }
-        public InputAction SpectateRunner { get; }
+        public InputAction ToggleSpectate { get; }
         public InputAction SpectateSeeker { get; }
+        public InputAction SpectateRunner { get; }
+        public InputAction SpectateFree { get; }
         public InputAction CyclePrev { get; }
         public InputAction CycleNext { get; }
 
@@ -46,9 +48,10 @@ namespace PixelChroma
             ZoomModifier = _map.FindAction(ActionZoomModifier);
             ExposeSkill = _map.FindAction(ActionExposeSkill);
             Catch = _map.FindAction(ActionCatch);
-            ToggleFreeCam = _map.FindAction(ActionToggleFreeCam);
-            SpectateRunner = _map.FindAction(ActionSpectateRunner);
+            ToggleSpectate = _map.FindAction(ActionToggleSpectate);
             SpectateSeeker = _map.FindAction(ActionSpectateSeeker);
+            SpectateRunner = _map.FindAction(ActionSpectateRunner);
+            SpectateFree = _map.FindAction(ActionSpectateFree);
             CyclePrev = _map.FindAction(ActionCyclePrev);
             CycleNext = _map.FindAction(ActionCycleNext);
         }
