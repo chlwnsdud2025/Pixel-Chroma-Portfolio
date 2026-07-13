@@ -11,6 +11,10 @@ namespace PixelChroma
 
     public class PlayerPaintController
     {
+        private static readonly Color PreviewFill = new Color(0.5f, 0.5f, 0.5f, 0.3f);
+        private static readonly Color PreviewOutline = new Color(0f, 0f, 0f, 0.8f);
+        private static readonly Color EraserFill = new Color(1f, 0.2f, 0.2f, 0.3f);
+
         private readonly PlayerBase _owner;
         private readonly PlayerPaintCanvas _paintCanvas;
         private readonly PlayerInputActions _input;
@@ -24,12 +28,10 @@ namespace PixelChroma
         private Coroutine _eyedropperCoroutine;
         private bool _waitForMouseRelease;
 
+        private Camera _cachedCamera;
         private GameObject _brushPreview;
         private SpriteRenderer _brushPreviewRenderer;
         private int _previewLastSize = -1;
-        private static readonly Color PreviewFill = new Color(0.5f, 0.5f, 0.5f, 0.3f);
-        private static readonly Color PreviewOutline = new Color(0f, 0f, 0f, 0.8f);
-        private static readonly Color EraserFill = new Color(1f, 0.2f, 0.2f, 0.3f);
 
         public event Action<bool> OnPaintModeChanged;
         public event Action<int> OnBrushSizeScrolled;
@@ -45,6 +47,7 @@ namespace PixelChroma
             _owner = owner;
             _paintCanvas = paintCanvas;
             _input = input;
+            _cachedCamera = Camera.main;
         }
 
         public void Tick()
@@ -53,13 +56,33 @@ namespace PixelChroma
 
             if (_brushMode == BrushMode.Eyedropper)
             {
-                UpdateBrushPreview();
+                HideBrushPreview();
                 TickEyedropper();
                 return;
             }
 
             UpdateBrushPreview();
             HandlePainting();
+        }
+
+        public void Dispose()
+        {
+            StopEyedropperCapture();
+            if (_eyedropperCapture != null)
+            {
+                UnityEngine.Object.Destroy(_eyedropperCapture);
+                _eyedropperCapture = null;
+            }
+
+            if (_brushPreview != null)
+            {
+                if (_brushPreviewRenderer != null && _brushPreviewRenderer.sprite != null)
+                    UnityEngine.Object.Destroy(_brushPreviewRenderer.sprite.texture);
+                UnityEngine.Object.Destroy(_brushPreview);
+                _brushPreview = null;
+                _brushPreviewRenderer = null;
+                _previewLastSize = -1;
+            }
         }
 
         public void BindHUD(IPaintHUD hud)
@@ -155,15 +178,19 @@ namespace PixelChroma
             }
         }
 
+        private void HandleModeInput()
+        {
+            if (_input.SelectBrush != null && _input.SelectBrush.WasPressedThisFrame())
+                SetBrushMode(BrushMode.Brush);
+            else if (_input.SelectEraser != null && _input.SelectEraser.WasPressedThisFrame())
+                SetBrushMode(BrushMode.Eraser);
+            else if (_input.SelectEyedropper != null && _input.SelectEyedropper.WasPressedThisFrame())
+                SetBrushMode(BrushMode.Eyedropper);
+        }
+
         private void UpdateBrushPreview()
         {
-            if (_owner == null || !_owner.isLocalPlayer || _paintCanvas == null || Mouse.current == null)
-            {
-                HideBrushPreview();
-                return;
-            }
-
-            if (!_isPaintMode)
+            if (_owner == null || !_owner.isLocalPlayer || !_isPaintMode)
             {
                 HideBrushPreview();
                 return;
@@ -176,25 +203,15 @@ namespace PixelChroma
                 return;
             }
 
-            Camera cam = Camera.main;
-            if (cam == null)
+            if (!TryGetMousePixel(out var pixel))
             {
                 HideBrushPreview();
                 return;
             }
 
-            int size = _brushMode == BrushMode.Eyedropper
-                ? 1
-                : _boundPicker != null ? _boundPicker.BrushSize : _paintCanvas.BrushSize;
-            size = Mathf.Max(1, size);
-
+            int size = _brushMode == BrushMode.Eyedropper ? 1 : _paintCanvas.BrushSize;
             EnsureBrushPreview(size);
 
-            Vector2 screenPos = Mouse.current.position.ReadValue();
-            Vector3 worldPos = cam.ScreenToWorldPoint(screenPos);
-            worldPos.z = 0f;
-
-            Vector2Int pixel = _paintCanvas.WorldToPixel(worldPos);
             Vector3 center = _paintCanvas.GetBrushWorldCenter(pixel.x, pixel.y, size);
             center.z = 0f;
             float worldSize = _paintCanvas.GetBrushWorldSize(size);
@@ -256,36 +273,6 @@ namespace PixelChroma
                 _brushPreview.SetActive(false);
         }
 
-        public void Dispose()
-        {
-            StopEyedropperCapture();
-            if (_eyedropperCapture != null)
-            {
-                UnityEngine.Object.Destroy(_eyedropperCapture);
-                _eyedropperCapture = null;
-            }
-
-            if (_brushPreview != null)
-            {
-                if (_brushPreviewRenderer != null && _brushPreviewRenderer.sprite != null)
-                    UnityEngine.Object.Destroy(_brushPreviewRenderer.sprite.texture);
-                UnityEngine.Object.Destroy(_brushPreview);
-                _brushPreview = null;
-                _brushPreviewRenderer = null;
-                _previewLastSize = -1;
-            }
-        }
-
-        private void HandleModeInput()
-        {
-            if (_input.SelectBrush != null && _input.SelectBrush.WasPressedThisFrame())
-                SetBrushMode(BrushMode.Brush);
-            else if (_input.SelectEraser != null && _input.SelectEraser.WasPressedThisFrame())
-                SetBrushMode(BrushMode.Eraser);
-            else if (_input.SelectEyedropper != null && _input.SelectEyedropper.WasPressedThisFrame())
-                SetBrushMode(BrushMode.Eyedropper);
-        }
-
         private void TickEyedropper()
         {
             if (Mouse.current == null) return;
@@ -300,7 +287,7 @@ namespace PixelChroma
         private void HandlePainting()
         {
             if (_brushMode == BrushMode.Eyedropper) return;
-            if (_paintCanvas == null || Mouse.current == null) return;
+            if (Mouse.current == null) return;
 
             if (_waitForMouseRelease)
             {
@@ -311,15 +298,8 @@ namespace PixelChroma
 
             if (!Mouse.current.leftButton.isPressed) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+            if (!TryGetMousePixel(out var pixel)) return;
 
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            Vector2 screenPos = Mouse.current.position.ReadValue();
-            Vector3 worldPos = cam.ScreenToWorldPoint(screenPos);
-            worldPos.z = 0;
-
-            Vector2Int pixel = _paintCanvas.WorldToPixel(worldPos);
             if (_paintCanvas.IsInBounds(pixel.x, pixel.y))
             {
                 switch (_brushMode)
@@ -368,6 +348,20 @@ namespace PixelChroma
                 _owner.StopCoroutine(_eyedropperCoroutine);
                 _eyedropperCoroutine = null;
             }
+        }
+
+        private bool TryGetMousePixel(out Vector2Int pixel)
+        {
+            pixel = default;
+
+            if (_cachedCamera == null || Mouse.current == null || _paintCanvas == null)
+                return false;
+
+            Vector2 screenPos = Mouse.current.position.ReadValue();
+            Vector3 worldPos = _cachedCamera.ScreenToWorldPoint(screenPos);
+            worldPos.z = 0f;
+            pixel = _paintCanvas.WorldToPixel(worldPos);
+            return true;
         }
 
         private void OnUIBrushSizeChanged(int size)

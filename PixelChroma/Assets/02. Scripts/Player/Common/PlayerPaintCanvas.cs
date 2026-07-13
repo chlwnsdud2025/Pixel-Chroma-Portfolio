@@ -5,18 +5,75 @@ using Mirror;
 
 namespace PixelChroma
 {
-    public class PlayerPaintCanvas : NetworkBehaviour
+    // ── 셰이더 마스크 방식 페인트 캔버스 ─────────────────────────────────────────
+    //   원본 스프라이트는 건드리지 않고, "어디에 무슨 색을 칠했나"를 페인트 마스크
+    //   텍스처 1장에만 기록한다. 렌더링 시 PlayerPaintMask 셰이더가 현재 표시 중인
+    //   스프라이트 프레임과 마스크를 실시간 합성한다.
+    //   → 프레임(애니메이션) 수와 무관하게 페인트 상태는 포즈당 마스크 1장으로 관리된다.
+    //
+    //   초기화 전용 코드(InitializeForm, 엠보스 법선 계산 등)는
+    //   PlayerPaintCanvas.Init.cs에 분리되어 있다.
+    public partial class PlayerPaintCanvas : NetworkBehaviour
     {
+        // ── 상수 / 내부 타입 ────────────────────────────────────────────────────
+
+        private static readonly int PaintMaskID = Shader.PropertyToID("_PaintMask");
+        private static readonly int EmbossTexID = Shader.PropertyToID("_EmbossTex");
+        private static readonly int MaskRectID = Shader.PropertyToID("_MaskRect");
+        private static readonly int ShadingStrengthID = Shader.PropertyToID("_ShadingStrength");
+        private static readonly int EdgeHighlightID = Shader.PropertyToID("_EdgeHighlight");
+        private static readonly int EdgeShadowID = Shader.PropertyToID("_EdgeShadow");
+        private static readonly int LightAngleID = Shader.PropertyToID("_LightAngle");
+
+        [System.Serializable]
+        public class PaintForm
+        {
+            public string formName = "Default";
+            public Sprite[] sprites;
+
+            [Tooltip("이 폼 전용 AnimatorOverrideController. 기본 폼(index 0)은 비워두면 원본 컨트롤러를 사용합니다.")]
+            public AnimatorOverrideController overrideController;
+
+            [System.NonSerialized] public int texWidth;
+            [System.NonSerialized] public int texHeight;
+            [System.NonSerialized] public Texture2D paintMask;
+            [System.NonSerialized] public Color32[] maskPixels;
+            [System.NonSerialized] public Texture2D[] embossTextures;
+            [System.NonSerialized] public Vector4[] maskRects;
+            [System.NonSerialized] public bool[] unionOpaque;
+            [System.NonSerialized] public bool[] referenceOpaque;
+            [System.NonSerialized] public Dictionary<Sprite, int> spriteIndex;
+            [System.NonSerialized] public int paintedCells;
+            [System.NonSerialized] public int totalOpaquePixels;
+            [System.NonSerialized] public Dictionary<int, Fade> fading;
+            [System.NonSerialized] public bool isDirty;
+        }
+
+        public struct Fade
+        {
+            public byte startAlpha;
+            public float startTime;
+        }
+
+        // ── 직렬화 필드 ─────────────────────────────────────────────────────────
+
         [SerializeField] private SpriteRenderer targetRenderer;
-        [SerializeField] private Sprite[] originalSprites;
+        [SerializeField] private Animator targetAnimator;
+        [SerializeField] private PaintForm[] forms = new PaintForm[]
+        {
+            new PaintForm { formName = "Default" }
+        };
         [SerializeField] private int brushSize = 1;
+
+        [Tooltip("PixelChroma/PlayerPaintMask 셰이더. 비워두면 Shader.Find로 찾습니다(빌드 포함을 위해 배정 권장).")]
+        [SerializeField] private Shader paintShader;
 
         [Header("Erase Fade (물총 서서히 지우기)")]
         [Tooltip("물총에 맞은 물감이 균일하게 옅어지며 완전히 씻겨나가기까지 걸리는 시간(초)")]
         [SerializeField] private float eraseFadeDuration = 0.5f;
 
         [Header("입체감 (외곽선 엠보스)")]
-        [Tooltip("엠보스 효과 전체 세기. 0 = 완전 단색(기존 방식). 몸통 내부는 항상 페인트색 그대로 유지됨")]
+        [Tooltip("엠보스 효과 전체 세기. 0 = 완전 단색. 몸통 내부는 항상 페인트색 그대로 유지됨")]
         [Range(0f, 1f)]
         [SerializeField] private float shadingStrength = 1f;
         [Tooltip("빛(위쪽)을 받는 외곽선이 페인트색에서 흰색 쪽으로 밝아지는 정도")]
@@ -25,213 +82,136 @@ namespace PixelChroma
         [Tooltip("그림자 지는(아래쪽) 외곽선이 페인트색에서 검은색 쪽으로 어두워지는 정도")]
         [Range(0f, 1f)]
         [SerializeField] private float edgeShadow = 0.05f;
-        [Tooltip("빛이 들어오는 각도(도). 90 = 바로 위에서 수직, 135 = 좌상단, 45 = 우상단, 270 = 아래에서 위로")]
+        [Tooltip("빛이 들어오는 각도(도). 90 = 바로 위, 135 = 좌상단, 45 = 우상단")]
         [Range(0f, 360f)]
         [SerializeField] private float lightAngle = 135f;
 
-        private Texture2D[] _runtimeTextures;
-        private Color[][] _originalPixels;
-        private Sprite[] _runtimeSprites;
-        private Dictionary<Sprite, Sprite> _spriteMap;
-        private int _texWidth;
-        private int _texHeight;
-        private bool _isDirty;
-        private Vector2[][] _edgeNormals; // [텍스처][픽셀] 실루엣 테두리의 바깥쪽 법선 (내부 픽셀은 zero)
+        // ── 런타임 필드 / 이벤트 ────────────────────────────────────────────────
 
-        // ── 페이드(서서히 지우기) 상태 · 픽셀 인덱스(idx = y*width + x) 기준 ──
-        private Color[][] _fadeStart;      // [텍스처][픽셀] 페이드 시작색
-        private float[] _fadeStartTime;    // [픽셀] 페이드 시작 절대시간
-        private readonly HashSet<int> _fadingPixels = new();
+        private int _activeFormIndex;
+        private PaintForm ActiveForm => forms[_activeFormIndex];
+        private int _currentIndex = -1;
+        private Material _material;
+        private RuntimeAnimatorController _baseAnimatorController;
         private readonly List<int> _fadeRemoveBuffer = new();
 
-        /// <summary>물총 페이드가 모두 끝나 더 이상 지워질 픽셀이 없을 때 호출됩니다. (아웃 판정용)</summary>
         public event System.Action OnEraseFadeCompleted;
 
-        private int _totalOpaquePixels;
+        // ── Public 프로퍼티 ─────────────────────────────────────────────────────
 
         public int BrushSize { get => brushSize; set => brushSize = value; }
-        public int TextureWidth => _texWidth;
-        public int TextureHeight => _texHeight;
-        public float PixelsPerUnit => _runtimeSprites != null && _runtimeSprites.Length > 0
-            ? _runtimeSprites[0].pixelsPerUnit : 16f;
+        public int TextureWidth => ActiveForm.texWidth;
+        public int TextureHeight => ActiveForm.texHeight;
+        public float PixelsPerUnit
+        {
+            get
+            {
+                var form = ActiveForm;
+                return form.sprites != null && form.sprites.Length > 0
+                    ? form.sprites[0].pixelsPerUnit : 16f;
+            }
+        }
+        public int ActiveFormIndex => _activeFormIndex;
+        public int FormCount => forms != null ? forms.Length : 0;
+        public int SortingLayerID => targetRenderer != null ? targetRenderer.sortingLayerID : 0;
+        public int SortingOrder => targetRenderer != null ? targetRenderer.sortingOrder : 0;
+
+        // ── Unity 라이프사이클 ──────────────────────────────────────────────────
 
         void Start()
         {
-            InitializeRuntimeTextures();
+            InitializeAllForms();
+        }
+
+        void Update()
+        {
+            ProcessFading();
         }
 
         void LateUpdate()
         {
-            if (_spriteMap == null) return;
+            var form = ActiveForm;
+            if (form.spriteIndex == null || _material == null) return;
 
             var current = targetRenderer.sprite;
-            if (current != null && _spriteMap.TryGetValue(current, out var runtimeSprite))
-                targetRenderer.sprite = runtimeSprite;
+            if (current == null) return;
+
+            if (form.spriteIndex.TryGetValue(current, out int index) && index != _currentIndex)
+            {
+                _currentIndex = index;
+                ApplyFrameToMaterial(form, index);
+            }
         }
 
-        private void InitializeRuntimeTextures()
+#if UNITY_EDITOR
+        private void OnValidate()
         {
-            if (originalSprites == null || originalSprites.Length == 0) return;
-
-            int count = originalSprites.Length;
-            var first = originalSprites[0];
-            _texWidth = (int)first.rect.width;
-            _texHeight = (int)first.rect.height;
-
-            _runtimeTextures = new Texture2D[count];
-            _originalPixels = new Color[count][];
-            _runtimeSprites = new Sprite[count];
-            _spriteMap = new Dictionary<Sprite, Sprite>(count);
-
-            Texture2D lastSourceTex = null;
-            Texture2D readableCopy = null;
-
-            for (int i = 0; i < count; i++)
-            {
-                var srcSprite = originalSprites[i];
-                var srcTex = srcSprite.texture;
-                var rect = srcSprite.rect;
-
-                if (srcTex != lastSourceTex)
-                {
-                    if (readableCopy != null) Destroy(readableCopy);
-                    readableCopy = CreateReadableCopy(srcTex);
-                    lastSourceTex = srcTex;
-                }
-
-                _originalPixels[i] = readableCopy.GetPixels(
-                    (int)rect.x, (int)rect.y, _texWidth, _texHeight);
-
-                _runtimeTextures[i] = new Texture2D(_texWidth, _texHeight, TextureFormat.RGBA32, false)
-                {
-                    filterMode = FilterMode.Point,
-                    wrapMode = TextureWrapMode.Clamp
-                };
-                _runtimeTextures[i].SetPixels(_originalPixels[i]);
-                _runtimeTextures[i].Apply();
-
-                _runtimeSprites[i] = Sprite.Create(
-                    _runtimeTextures[i],
-                    new Rect(0, 0, _texWidth, _texHeight),
-                    new Vector2(srcSprite.pivot.x / rect.width, srcSprite.pivot.y / rect.height),
-                    srcSprite.pixelsPerUnit
-                );
-
-                _spriteMap[srcSprite] = _runtimeSprites[i];
-            }
-
-            // 페이드 상태 배열 할당 (텍스처당 픽셀 수 만큼)
-            int pixelCount = _texWidth * _texHeight;
-            _fadeStart = new Color[count][];
-            for (int i = 0; i < count; i++) _fadeStart[i] = new Color[pixelCount];
-            _fadeStartTime = new float[pixelCount];
-            _fadingPixels.Clear();
-
-            BuildShadeMasks();
-
-            _totalOpaquePixels = 0;
-            for (int i = 0; i < pixelCount; i++)
-            {
-                if (_originalPixels[0][i].a >= 0.01f)
-                    _totalOpaquePixels++;
-            }
-
-            if (readableCopy != null) Destroy(readableCopy);
+            PushShadingParams();
         }
+#endif
 
-        // ── 외곽선 엠보스 법선 ───────────────────────────────────────────────────
-        //   투명 픽셀과 맞닿은 실루엣 테두리 픽셀만 골라, 투명한 쪽을 향하는 방향(법선)을
-        //   저장합니다. 칠하는 순간 lightAngle 방향과 내적해서 빛을 받는 테두리는 밝게,
-        //   반대쪽 테두리는 어둡게 하여, 배경과 완전히 같은 색을 칠해도 물체가
-        //   튀어나와 보이는 엠보스 효과를 만듭니다. 몸통 내부(눈 포함)는 법선이 zero라
-        //   페인트색이 그대로 유지됩니다.
-        //   모든 클라이언트가 같은 원본에서 같은 계산을 하므로 네트워크 동기화에 영향이 없습니다.
-
-        private void BuildShadeMasks()
+        private void OnDestroy()
         {
-            int count = _originalPixels.Length;
-            int pixelCount = _texWidth * _texHeight;
-            _edgeNormals = new Vector2[count][];
-
-            for (int i = 0; i < count; i++)
+            if (forms != null)
             {
-                var pixels = _originalPixels[i];
-                var normals = new Vector2[pixelCount];
-                _edgeNormals[i] = normals;
-
-                for (int y = 0; y < _texHeight; y++)
+                foreach (var form in forms)
                 {
-                    for (int x = 0; x < _texWidth; x++)
+                    if (form.embossTextures != null)
                     {
-                        int idx = y * _texWidth + x;
-                        if (pixels[idx].a < 0.01f) continue; // 투명 픽셀은 칠해지지 않음
-
-                        // 8방향 이웃 중 투명한 쪽으로 향하는 벡터를 합산 → 바깥쪽 법선
-                        float nx = 0f, ny = 0f;
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            for (int dy = -1; dy <= 1; dy++)
-                            {
-                                if (dx == 0 && dy == 0) continue;
-                                if (IsTransparentAt(pixels, x + dx, y + dy))
-                                {
-                                    nx += dx;
-                                    ny += dy;
-                                }
-                            }
-                        }
-
-                        float len = Mathf.Sqrt(nx * nx + ny * ny);
-                        if (len < 0.001f) continue; // 테두리가 아닌 내부 픽셀 → zero (페인트색 그대로)
-
-                        normals[idx] = new Vector2(nx / len, ny / len);
+                        for (int i = 0; i < form.embossTextures.Length; i++)
+                            if (form.embossTextures[i] != null) Destroy(form.embossTextures[i]);
                     }
+                    if (form.paintMask != null) Destroy(form.paintMask);
                 }
+            }
+
+            if (_material != null) Destroy(_material);
+        }
+
+        // ── 포즈 전환 ───────────────────────────────────────────────────────────
+
+        public void SwitchForm(int formIndex)
+        {
+            if (forms == null || formIndex < 0 || formIndex >= forms.Length) return;
+            if (formIndex == _activeFormIndex) return;
+
+            ActivateForm(formIndex);
+            CmdSwitchForm(formIndex);
+        }
+
+        private void ActivateForm(int formIndex)
+        {
+            _activeFormIndex = formIndex;
+            _currentIndex = -1;
+
+            var form = ActiveForm;
+            if (_material != null && form.paintMask != null)
+                _material.SetTexture(PaintMaskID, form.paintMask);
+
+            if (targetAnimator != null && _baseAnimatorController != null)
+            {
+                targetAnimator.runtimeAnimatorController =
+                    form.overrideController != null
+                        ? form.overrideController
+                        : _baseAnimatorController;
             }
         }
 
-        /// <summary>인스펙터의 lightAngle(도)을 방향 벡터로 변환합니다. 90도 = 바로 위.</summary>
-        private Vector2 LightDirection =>
-            new Vector2(Mathf.Cos(lightAngle * Mathf.Deg2Rad), Mathf.Sin(lightAngle * Mathf.Deg2Rad));
-
-        /// <summary>텍스처 경계 밖은 투명으로 취급합니다.</summary>
-        private bool IsTransparentAt(Color[] pixels, int x, int y)
+        [Command]
+        private void CmdSwitchForm(int formIndex)
         {
-            if (x < 0 || x >= _texWidth || y < 0 || y >= _texHeight) return true;
-            return pixels[y * _texWidth + x].a < 0.01f;
+            RpcSwitchForm(formIndex);
         }
 
-        /// <summary>
-        /// 페인트색에 외곽선 엠보스를 적용합니다. edge = 법선·빛방향 내적.
-        /// 빛을 받는 테두리(edge > 0)는 흰색 쪽으로, 반대쪽 테두리(edge < 0)는 검은색 쪽으로
-        /// 보정하고, 내부(edge == 0)는 원색 그대로 둡니다.
-        /// </summary>
-        private Color ApplyEdgeEmboss(Color color, float edge)
+        [ClientRpc]
+        private void RpcSwitchForm(int formIndex)
         {
-            if (edge == 0f || shadingStrength <= 0f) return color;
-
-            Color result = edge > 0f
-                ? Color.Lerp(color, Color.white, edge * edgeHighlight * shadingStrength)
-                : Color.Lerp(color, Color.black, -edge * edgeShadow * shadingStrength);
-            result.a = color.a;
-            return result;
+            if (isOwned) return;
+            if (formIndex < 0 || formIndex >= forms.Length) return;
+            ActivateForm(formIndex);
         }
 
-        private static Texture2D CreateReadableCopy(Texture2D source)
-        {
-            var rt = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
-            Graphics.Blit(source, rt);
-            var prev = RenderTexture.active;
-            RenderTexture.active = rt;
-
-            var readable = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
-            readable.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0);
-            readable.Apply(false, false);
-
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(rt);
-            return readable;
-        }
+        // ── 색칠 ────────────────────────────────────────────────────────────────
 
         public bool PaintAt(int px, int py, Color color)
         {
@@ -242,6 +222,43 @@ namespace PixelChroma
                 CmdPaint(px, py, color, brushSize);
             }
             return painted;
+        }
+
+        private bool PaintLocal(int px, int py, Color color, int size)
+        {
+            var form = ActiveForm;
+            if (form.maskPixels == null) return false;
+
+            bool anyPainted = false;
+            GetBrushBounds(form, px, py, size, out int x0, out int y0, out int x1, out int y1);
+
+            for (int x = x0; x < x1; x++)
+            {
+                for (int y = y0; y < y1; y++)
+                {
+                    int idx = y * form.texWidth + x;
+                    if (!form.unionOpaque[idx]) continue;
+
+                    SetMaskCell(form, idx, color);
+
+                    if (form.fading.Count > 0) form.fading.Remove(idx);
+
+                    anyPainted = true;
+                }
+            }
+
+            if (anyPainted) form.isDirty = true;
+            return anyPainted;
+        }
+
+        private static void SetMaskCell(PaintForm form, int idx, Color color)
+        {
+            if (form.maskPixels[idx].a == 0 && form.referenceOpaque[idx]) form.paintedCells++;
+            form.maskPixels[idx] = new Color32(
+                (byte)Mathf.Clamp(Mathf.RoundToInt(color.r * 255f), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt(color.g * 255f), 0, 255),
+                (byte)Mathf.Clamp(Mathf.RoundToInt(color.b * 255f), 0, 255),
+                255);
         }
 
         [Command]
@@ -259,74 +276,42 @@ namespace PixelChroma
                 ApplyChanges();
         }
 
-        private bool PaintLocal(int px, int py, Color color, int size)
-        {
-            if (_runtimeTextures == null) return false;
-
-            bool anyPainted = false;
-            int half = size / 2;
-            Vector2 light = LightDirection;
-
-            for (int bx = -half; bx < size - half; bx++)
-            {
-                for (int by = -half; by < size - half; by++)
-                {
-                    int x = px + bx;
-                    int y = py + by;
-                    if (x < 0 || x >= _texWidth || y < 0 || y >= _texHeight) continue;
-
-                    int idx = y * _texWidth + x;
-
-                    for (int i = 0; i < _runtimeTextures.Length; i++)
-                    {
-                        if (_originalPixels[i][idx].a < 0.01f) continue;
-                        Vector2 n = _edgeNormals[i][idx];
-                        _runtimeTextures[i].SetPixel(x, y, ApplyEdgeEmboss(color, n.x * light.x + n.y * light.y));
-                    }
-
-                    // 페이드 중인 픽셀을 다시 칠하면 지워짐(페이드)을 취소해 러너가 버틸 수 있게 함
-                    if (_fadingPixels.Count > 0) _fadingPixels.Remove(idx);
-
-                    anyPainted = true;
-                }
-            }
-
-            if (anyPainted)
-                _isDirty = true;
-
-            return anyPainted;
-        }
+        // ── 지우기 (즉시) ───────────────────────────────────────────────────────
 
         public void EraseAt(int px, int py)
         {
-            if (_runtimeTextures == null) return;
+            if (!EraseLocal(px, py, brushSize)) return;
 
-            EraseLocal(px, py, brushSize);
             ApplyChanges();
             CmdErase(px, py, brushSize);
         }
 
-        private void EraseLocal(int px, int py, int size)
+        private bool EraseLocal(int px, int py, int size)
         {
-            if (_runtimeTextures == null) return;
+            var form = ActiveForm;
+            if (form.maskPixels == null) return false;
 
-            int half = size / 2;
+            GetBrushBounds(form, px, py, size, out int x0, out int y0, out int x1, out int y1);
+            if (x0 >= x1 || y0 >= y1) return false;
 
-            for (int bx = -half; bx < size - half; bx++)
+            for (int x = x0; x < x1; x++)
             {
-                for (int by = -half; by < size - half; by++)
+                for (int y = y0; y < y1; y++)
                 {
-                    int x = px + bx;
-                    int y = py + by;
-                    if (x < 0 || x >= _texWidth || y < 0 || y >= _texHeight) continue;
-
-                    int idx = y * _texWidth + x;
-                    for (int i = 0; i < _runtimeTextures.Length; i++)
-                        _runtimeTextures[i].SetPixel(x, y, _originalPixels[i][idx]);
+                    int idx = y * form.texWidth + x;
+                    ClearMaskCell(form, idx);
+                    if (form.fading.Count > 0) form.fading.Remove(idx);
                 }
             }
 
-            _isDirty = true;
+            form.isDirty = true;
+            return true;
+        }
+
+        private static void ClearMaskCell(PaintForm form, int idx)
+        {
+            if (form.maskPixels[idx].a != 0 && form.referenceOpaque[idx]) form.paintedCells--;
+            form.maskPixels[idx] = new Color32(0, 0, 0, 0);
         }
 
         [Command]
@@ -340,105 +325,53 @@ namespace PixelChroma
         {
             if (isOwned) return;
 
-            EraseLocal(px, py, size);
-            ApplyChanges();
+            if (EraseLocal(px, py, size))
+                ApplyChanges();
         }
 
-        // ── 물총 피격 생존 검사 ──────────────────────────────────────────────────
+        // ── 페이드 (물총 피격 → 서서히 지우기) ─────────────────────────────────
 
-        public float GetPaintRatio()
+        private void ProcessFading()
         {
-            if (_runtimeTextures == null || _totalOpaquePixels == 0) return 0f;
-
-            int paintedCount = 0;
-            for (int y = 0; y < _texHeight; y++)
-            {
-                for (int x = 0; x < _texWidth; x++)
-                {
-                    int idx = y * _texWidth + x;
-                    if (_originalPixels[0][idx].a < 0.01f) continue;
-                    if (_runtimeTextures[0].GetPixel(x, y) != _originalPixels[0][idx])
-                        paintedCount++;
-                }
-            }
-
-            return (float)paintedCount / _totalOpaquePixels;
-        }
-
-        public bool HasAnyPaintedPixels()
-        {
-            if (_runtimeTextures == null || _runtimeTextures.Length == 0) return true;
-
-            // 메모리 할당(GC)을 막기 위해 GetPixels() 배열 생성 대신 GetPixel() 루프를 돌립니다.
-            for (int y = 0; y < _texHeight; y++)
-            {
-                for (int x = 0; x < _texWidth; x++)
-                {
-                    int idx = y * _texWidth + x;
-                    Color original = _originalPixels[0][idx];
-
-                    // 애초에 칠할 수 없는 투명한 배경 부분은 검사에서 제외합니다.
-                    if (original.a < 0.01f) continue;
-
-                    Color current = _runtimeTextures[0].GetPixel(x, y);
-
-                    // 픽셀 색상이 원본과 다르면 (덧칠해져 있으면) 아직 살아있는 것입니다!
-                    if (current != original)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            // 모든 픽셀이 원본 색상과 동일하다면 페인트가 완전히 씻겨 내려간 것입니다.
-            return false;
-        }
-
-        // ── 물총 피격 "서서히 지우기(페이드)" 로직 ───────────────────────────────
-        //   맞은 원형 영역의 물감이 eraseFadeDuration 동안 균일하게 옅어지며 원본색으로 돌아갑니다.
-
-        void Update()
-        {
-            if (_fadingPixels.Count == 0) return;
+            var form = ActiveForm;
+            if (form.fading == null || form.fading.Count == 0) return;
 
             float now = Time.time;
             _fadeRemoveBuffer.Clear();
 
-            foreach (int idx in _fadingPixels)
+            foreach (var kv in form.fading)
             {
-                int x = idx % _texWidth;
-                int y = idx / _texWidth;
-                float t = eraseFadeDuration <= 0f ? 1f : (now - _fadeStartTime[idx]) / eraseFadeDuration;
+                int idx = kv.Key;
+                Fade f = kv.Value;
+                float t = eraseFadeDuration <= 0f ? 1f : (now - f.startTime) / eraseFadeDuration;
 
                 if (t >= 1f)
                 {
-                    // 마지막 프레임은 부동소수점 오차 없이 원본색으로 정확히 스냅
-                    for (int i = 0; i < _runtimeTextures.Length; i++)
-                        _runtimeTextures[i].SetPixel(x, y, _originalPixels[i][idx]);
+                    ClearMaskCell(form, idx);
                     _fadeRemoveBuffer.Add(idx);
                 }
                 else
                 {
-                    for (int i = 0; i < _runtimeTextures.Length; i++)
-                        _runtimeTextures[i].SetPixel(x, y, Color.Lerp(_fadeStart[i][idx], _originalPixels[i][idx], t));
+                    var c = form.maskPixels[idx];
+                    c.a = (byte)(f.startAlpha * (1f - t));
+                    form.maskPixels[idx] = c;
                 }
             }
 
             for (int i = 0; i < _fadeRemoveBuffer.Count; i++)
-                _fadingPixels.Remove(_fadeRemoveBuffer[i]);
+                form.fading.Remove(_fadeRemoveBuffer[i]);
 
-            for (int i = 0; i < _runtimeTextures.Length; i++)
-                _runtimeTextures[i].Apply();
+            form.isDirty = true;
+            ApplyChanges();
 
-            // 모든 페이드가 끝났으면 아웃 판정 콜백 호출
-            if (_fadingPixels.Count == 0)
+            if (form.fading.Count == 0)
                 OnEraseFadeCompleted?.Invoke();
         }
 
-        /// <summary>물총에 맞은 원형 영역을 서서히 지웁니다. (RunnerPlayer가 호출)</summary>
         public void EraseArea(Vector2Int center, int pixelRadius)
         {
-            if (_runtimeTextures == null) return;
+            var form = ActiveForm;
+            if (form.maskPixels == null) return;
 
             int r2 = pixelRadius * pixelRadius;
             for (int dx = -pixelRadius; dx <= pixelRadius; dx++)
@@ -447,113 +380,126 @@ namespace PixelChroma
                     if (dx * dx + dy * dy > r2) continue;
                     int px = center.x + dx, py = center.y + dy;
                     if (!IsInBounds(px, py)) continue;
-                    EnqueueFade(px, py);
+                    EnqueueFade(form, px, py);
                 }
         }
 
-        /// <summary>
-        /// 픽셀 하나를 페이드 대상으로 등록합니다. 실제로 덧칠된 픽셀만 등록되며,
-        /// 현재 색을 시작색으로 캡처해 eraseFadeDuration 동안 원본색으로 되돌립니다.
-        /// </summary>
-        private void EnqueueFade(int px, int py)
+        private void EnqueueFade(PaintForm form, int px, int py)
         {
-            int idx = py * _texWidth + px;
+            int idx = py * form.texWidth + px;
+            byte a = form.maskPixels[idx].a;
+            if (a == 0) return;
 
-            bool painted = false;
-            for (int i = 0; i < _runtimeTextures.Length; i++)
-            {
-                Color c = _runtimeTextures[i].GetPixel(px, py);
-                _fadeStart[i][idx] = c;
-                if (c != _originalPixels[i][idx]) painted = true;
-            }
-            if (!painted) return; // 원본 그대로면(안 칠해진 픽셀) 지울 것이 없음
-
-            _fadeStartTime[idx] = Time.time;
-            _fadingPixels.Add(idx);
+            form.fading[idx] = new Fade { startAlpha = a, startTime = Time.time };
         }
 
-        // ────────────────────────────────────────────────────────────────────────
+        // ── 판정 ────────────────────────────────────────────────────────────────
 
-        public void ResetTexture()
+        public float GetPaintRatio()
         {
-            if (_runtimeTextures == null) return;
-
-            _fadingPixels.Clear(); // 진행 중이던 페이드도 초기화
-
-            for (int i = 0; i < _runtimeTextures.Length; i++)
-            {
-                _runtimeTextures[i].SetPixels(_originalPixels[i]);
-                _runtimeTextures[i].Apply();
-            }
-
-            _isDirty = false;
+            var form = ActiveForm;
+            if (form.maskPixels == null || form.totalOpaquePixels == 0) return 0f;
+            return (float)form.paintedCells / form.totalOpaquePixels;
         }
 
-        public void ApplyChanges()
+        public bool HasAnyPaintedPixels()
         {
-            if (!_isDirty) return;
-
-            for (int i = 0; i < _runtimeTextures.Length; i++)
-                _runtimeTextures[i].Apply();
-
-            _isDirty = false;
+            var form = ActiveForm;
+            if (form.maskPixels == null) return true;
+            return form.paintedCells > 0;
         }
+
+        // ── 좌표 변환 / 브러시 유틸리티 ─────────────────────────────────────────
 
         public Vector2Int WorldToPixel(Vector3 worldPos)
         {
+            if (targetRenderer == null) return Vector2Int.zero;
+
+            var form = ActiveForm;
             Vector3 localPos = targetRenderer.transform.InverseTransformPoint(worldPos);
             float ppu = PixelsPerUnit;
 
-            int px = Mathf.FloorToInt((localPos.x + 0.5f * _texWidth / ppu) * ppu);
-            int py = Mathf.FloorToInt((localPos.y + 0.5f * _texHeight / ppu) * ppu);
+            int px = Mathf.FloorToInt((localPos.x + 0.5f * form.texWidth / ppu) * ppu);
+            int py = Mathf.FloorToInt((localPos.y + 0.5f * form.texHeight / ppu) * ppu);
 
             return new Vector2Int(px, py);
         }
 
         public bool IsInBounds(int px, int py)
         {
-            return px >= 0 && px < _texWidth && py >= 0 && py < _texHeight;
+            var form = ActiveForm;
+            return px >= 0 && px < form.texWidth && py >= 0 && py < form.texHeight;
         }
 
-        /// <summary>
-        /// 브러시 발자국(size×size)의 월드 중심 좌표. PaintLocal의 오프셋(px-half .. px-half+size)과 동일하게 정렬됩니다.
-        /// </summary>
         public Vector3 GetBrushWorldCenter(int px, int py, int size)
         {
+            if (targetRenderer == null) return Vector3.zero;
+
+            var form = ActiveForm;
             float ppu = PixelsPerUnit;
             int half = size / 2;
-            float localX = (px - half + 0.5f * size) / ppu - 0.5f * _texWidth / ppu;
-            float localY = (py - half + 0.5f * size) / ppu - 0.5f * _texHeight / ppu;
+            float localX = (px - half + 0.5f * size) / ppu - 0.5f * form.texWidth / ppu;
+            float localY = (py - half + 0.5f * size) / ppu - 0.5f * form.texHeight / ppu;
             return targetRenderer.transform.TransformPoint(new Vector3(localX, localY, 0f));
         }
 
-        /// <summary>브러시 발자국의 월드 한 변 길이(정사각형).</summary>
         public float GetBrushWorldSize(int size)
         {
             float scale = targetRenderer != null ? Mathf.Abs(targetRenderer.transform.lossyScale.x) : 1f;
             return size / PixelsPerUnit * scale;
         }
 
-        public int SortingLayerID => targetRenderer != null ? targetRenderer.sortingLayerID : 0;
-        public int SortingOrder => targetRenderer != null ? targetRenderer.sortingOrder : 0;
+        // ── 텍스처 · 머티리얼 유틸리티 ──────────────────────────────────────────
 
-        public Color GetPixelColor(int px, int py)
+        public void ResetTexture()
         {
-            if (_runtimeTextures == null || _runtimeTextures.Length == 0) return Color.white;
-            if (!IsInBounds(px, py)) return Color.white;
+            var form = ActiveForm;
+            if (form.maskPixels == null) return;
 
-            var current = targetRenderer.sprite;
-            if (current != null && _spriteMap != null)
-            {
-                for (int i = 0; i < _runtimeSprites.Length; i++)
-                {
-                    if (_runtimeSprites[i] == current || _spriteMap.ContainsKey(current) && _spriteMap[current] == _runtimeSprites[i])
-                        return _runtimeTextures[i].GetPixel(px, py);
-                }
-            }
-
-            return _runtimeTextures[0].GetPixel(px, py);
+            form.fading.Clear();
+            System.Array.Clear(form.maskPixels, 0, form.maskPixels.Length);
+            form.paintedCells = 0;
+            form.paintMask.SetPixels32(form.maskPixels);
+            form.paintMask.Apply();
+            form.isDirty = false;
         }
+
+        public void ApplyChanges()
+        {
+            var form = ActiveForm;
+            if (!form.isDirty) return;
+
+            form.paintMask.SetPixels32(form.maskPixels);
+            form.paintMask.Apply();
+            form.isDirty = false;
+        }
+
+        private void ApplyFrameToMaterial(PaintForm form, int index)
+        {
+            _material.SetVector(MaskRectID, form.maskRects[index]);
+            _material.SetTexture(EmbossTexID, form.embossTextures[index]);
+        }
+
+        private void PushShadingParams()
+        {
+            if (_material == null) return;
+            _material.SetFloat(ShadingStrengthID, shadingStrength);
+            _material.SetFloat(EdgeHighlightID, edgeHighlight);
+            _material.SetFloat(EdgeShadowID, edgeShadow);
+            _material.SetFloat(LightAngleID, lightAngle);
+        }
+
+        private void GetBrushBounds(PaintForm form, int px, int py, int size,
+            out int x0, out int y0, out int x1, out int y1)
+        {
+            int half = size / 2;
+            x0 = Mathf.Max(px - half, 0);
+            y0 = Mathf.Max(py - half, 0);
+            x1 = Mathf.Min(px + size - half, form.texWidth);
+            y1 = Mathf.Min(py + size - half, form.texHeight);
+        }
+
+        // ── 에디터 전용 ─────────────────────────────────────────────────────────
 
 #if UNITY_EDITOR
         [ContextMenu("Animator에서 스프라이트 자동 수집")]
@@ -599,21 +545,13 @@ namespace PixelChroma
                 return;
             }
 
-            originalSprites = sprites.OrderBy(s => s.name).ToArray();
+            if (forms == null || forms.Length == 0)
+                forms = new PaintForm[] { new PaintForm { formName = "Default" } };
+
+            forms[0].sprites = sprites.OrderBy(s => s.name).ToArray();
             UnityEditor.EditorUtility.SetDirty(this);
-            Debug.Log($"스프라이트 {originalSprites.Length}개를 수집했습니다.", this);
+            Debug.Log($"[{forms[0].formName}] 스프라이트 {forms[0].sprites.Length}개를 수집했습니다.", this);
         }
 #endif
-
-        private void OnDestroy()
-        {
-            if (_runtimeTextures == null) return;
-
-            for (int i = 0; i < _runtimeTextures.Length; i++)
-            {
-                if (_runtimeTextures[i] != null) Destroy(_runtimeTextures[i]);
-                if (_runtimeSprites[i] != null) Destroy(_runtimeSprites[i]);
-            }
-        }
     }
 }
