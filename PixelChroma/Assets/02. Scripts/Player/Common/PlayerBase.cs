@@ -82,6 +82,14 @@ namespace PixelChroma
             if (_paintController.IsPaintMode)
                 _paintController.Tick();
 
+            // TODO: 테스트용 폼 전환 — 나중에 제거
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.f1Key.wasPressedThisFrame) paintCanvas.SwitchForm(0);
+                if (kb.f2Key.wasPressedThisFrame) paintCanvas.SwitchForm(1);
+            }
+
             UpdateAnimation();
         }
 
