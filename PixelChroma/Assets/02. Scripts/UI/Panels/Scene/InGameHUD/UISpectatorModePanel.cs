@@ -12,6 +12,15 @@ namespace PixelChroma.UI
         [SerializeField] private Sprite buttonNormal;
         [SerializeField] private Sprite buttonSelected;
         [SerializeField] private TMP_Text targetNameText;
+        [SerializeField] private Color selfTargetNameColor = Color.yellow;
+
+        private Color _defaultTargetNameColor = Color.white;
+
+        private void Awake()
+        {
+            if (targetNameText != null)
+                _defaultTargetNameColor = targetNameText.color;
+        }
 
         public void Show()
         {
@@ -33,10 +42,12 @@ namespace PixelChroma.UI
                 freeButton.sprite = mode == SpectateMode.Free ? buttonSelected : buttonNormal;
         }
 
-        public void SetTargetName(string name)
+        public void SetTargetName(string name, bool isSelf)
         {
-            if (targetNameText != null)
-                targetNameText.text = name;
+            if (targetNameText == null) return;
+
+            targetNameText.text = name;
+            targetNameText.color = isSelf ? selfTargetNameColor : _defaultTargetNameColor;
         }
     }
 }

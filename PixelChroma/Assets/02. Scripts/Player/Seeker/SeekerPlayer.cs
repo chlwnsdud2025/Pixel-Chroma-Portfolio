@@ -100,7 +100,7 @@ namespace PixelChroma
             Debug.Log("[Seeker] 본진으로 텔레포트 되었습니다!");
         }
 
-        [TargetRpc]
+        [ClientRpc]
         public void TargetShowRunnerIndicator(NetworkIdentity runnerIdentity, float duration)
         {
             if (runnerIdentity == null || indicatorPrefab == null) 

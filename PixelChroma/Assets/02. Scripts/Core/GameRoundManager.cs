@@ -24,6 +24,12 @@ namespace PixelChroma
         private bool _isLobbyReturningStarted = false;
         private CancellationTokenSource _timerCts;
 
+
+        [Header("forced Expose")]
+        [SerializeField] float[] forcedExposeTriggerRatios = { 0.3f };
+        [SerializeField] float forcedExposeDuration;
+        private bool[] _forcedExposeTriggered;
+
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public PlayerRole CurrentWinner { get; private set; } = PlayerRole.None;
@@ -98,6 +104,13 @@ namespace PixelChroma
         {
             CurrentTimeState = newState;
             CurrentTimer = Mathf.CeilToInt(time);
+
+            if (newState == TimeState.SeekTime)
+            {
+                _forcedExposeTriggered = forcedExposeTriggerRatios != null
+                    ? new bool[forcedExposeTriggerRatios.Length]
+                    : null;
+            }
 
             NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
             Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초, 승자: {CurrentWinner}");
@@ -198,6 +211,9 @@ namespace PixelChroma
                     await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: token);
                     CurrentTimer--;
                     OnTimerTick?.Invoke(CurrentTimer);
+
+                    if (NetworkServer.active)
+                        CheckForcedExpose();
                 }
 
                 if (NetworkServer.active)
@@ -266,6 +282,40 @@ namespace PixelChroma
         {
             CurrentWinner = msg.winner;
             OnWinnerDecided?.Invoke(msg.winner);
+        }
+
+        [Server]
+        private void CheckForcedExpose()
+        {
+            if (CurrentTimeState != TimeState.SeekTime) return;
+            if (forcedExposeTriggerRatios == null || forcedExposeTriggerRatios.Length == 0) return;
+            if (_forcedExposeTriggered == null || _forcedExposeTriggered.Length != forcedExposeTriggerRatios.Length)
+                return;
+
+            float ratio = OptionSeekTime > 0f ? CurrentTimer / OptionSeekTime : 0f;
+
+            for (int i = 0; i < forcedExposeTriggerRatios.Length; i++)
+            {
+                if (_forcedExposeTriggered[i]) continue;
+                if (ratio > forcedExposeTriggerRatios[i]) continue;
+
+                _forcedExposeTriggered[i] = true;
+                TriggerForcedExposeForAllRunners();
+            }
+        }
+
+        [Server]
+        private void TriggerForcedExposeForAllRunners()
+        {
+            if (InGameManager.Instance == null) return;
+
+            foreach (var runner in InGameManager.Instance.Runners)
+            {
+                if (runner != null && !runner.IsDead)
+                    runner.ServerForceExpose(forcedExposeDuration);
+            }
+
+            Debug.Log($"[GameRound] 강제 도발 발동! 생존 러너 전원 위치 노출 (지속시간: {forcedExposeDuration}초)");
         }
     }
 }
