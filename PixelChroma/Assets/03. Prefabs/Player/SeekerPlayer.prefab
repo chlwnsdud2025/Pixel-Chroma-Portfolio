@@ -374,7 +374,7 @@ Animator:
   m_GameObject: {fileID: 5076602233018039120}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 6bdc46fe31338df4c8997d473186b116, type: 2}
+  m_Controller: {fileID: 22100000, guid: e264435bc204ed74f8ec78ff097a9b7c, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -403,20 +403,44 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   targetRenderer: {fileID: 1248774305928095882}
-  originalSprites:
-  - {fileID: -6324186549791852965, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: -8558972416990990448, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: 4475053144502616935, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: 4268031633864123400, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: -7053092270506713317, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: 4948741621598095557, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: 7469930869289218763, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: -2239876486344232311, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: -6902844480700306882, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: -5653934593256627241, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: -139388104607612486, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - {fileID: -1718027947735458575, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+  targetAnimator: {fileID: 3278017070318577123}
+  forms:
+  - formType: 0
+    sprites:
+    - {fileID: -6324186549791852965, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: -8558972416990990448, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: 4475053144502616935, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: 4268031633864123400, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: -7053092270506713317, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: 4948741621598095557, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: 7469930869289218763, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: -2239876486344232311, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: -6902844480700306882, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: -5653934593256627241, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: -139388104607612486, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: -1718027947735458575, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    overrideController: {fileID: 22100000, guid: e264435bc204ed74f8ec78ff097a9b7c, type: 2}
+  - formType: 1
+    sprites:
+    - {fileID: -6598946016331564889, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -7675304248189546062, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -6388338761078672736, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -303320121775701381, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: 3729461876300729580, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -672529477206987394, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: 5629586733242638167, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: 7767812757204367948, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: 2249745419088220813, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: 5333771517180107481, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -646623592477257922, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: 5856893256139009897, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: 7043811978007918041, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -7723253972256136601, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -1137364592071911362, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    - {fileID: -3549988229105279555, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
+    overrideController: {fileID: 22100000, guid: b2630cfed3ba927499b80b4577314929, type: 2}
   brushSize: 1
+  paintShader: {fileID: 4800000, guid: f096f447e9424a54284fb6acfed9c89e, type: 3}
   eraseFadeDuration: 0.5
   shadingStrength: 1
   edgeHighlight: 0.05

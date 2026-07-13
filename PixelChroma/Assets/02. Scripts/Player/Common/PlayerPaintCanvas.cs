@@ -17,6 +17,12 @@ namespace PixelChroma
     {
         // ── 상수 / 내부 타입 ────────────────────────────────────────────────────
 
+        public enum PaintFormType
+        {
+            Default,
+            Test1,
+        }
+
         private static readonly int PaintMaskID = Shader.PropertyToID("_PaintMask");
         private static readonly int EmbossTexID = Shader.PropertyToID("_EmbossTex");
         private static readonly int MaskRectID = Shader.PropertyToID("_MaskRect");
@@ -28,7 +34,7 @@ namespace PixelChroma
         [System.Serializable]
         public class PaintForm
         {
-            public string formName = "Default";
+            public PaintFormType formType;
             public Sprite[] sprites;
 
             [Tooltip("이 폼 전용 AnimatorOverrideController. 기본 폼(index 0)은 비워두면 원본 컨트롤러를 사용합니다.")]
@@ -61,7 +67,7 @@ namespace PixelChroma
         [SerializeField] private Animator targetAnimator;
         [SerializeField] private PaintForm[] forms = new PaintForm[]
         {
-            new PaintForm { formName = "Default" }
+            new PaintForm { formType = PaintFormType.Default }
         };
         [SerializeField] private int brushSize = 1;
 
@@ -88,8 +94,8 @@ namespace PixelChroma
 
         // ── 런타임 필드 / 이벤트 ────────────────────────────────────────────────
 
-        private int _activeFormIndex;
-        private PaintForm ActiveForm => forms[_activeFormIndex];
+        private PaintForm _activeForm;
+        private Dictionary<PaintFormType, PaintForm> _formLookup;
         private int _currentIndex = -1;
         private Material _material;
         private RuntimeAnimatorController _baseAnimatorController;
@@ -100,18 +106,18 @@ namespace PixelChroma
         // ── Public 프로퍼티 ─────────────────────────────────────────────────────
 
         public int BrushSize { get => brushSize; set => brushSize = value; }
-        public int TextureWidth => ActiveForm.texWidth;
-        public int TextureHeight => ActiveForm.texHeight;
+        public PaintFormType _activeFormType => _activeForm.formType;
+        public int TextureWidth => _activeForm.texWidth;
+        public int TextureHeight => _activeForm.texHeight;
         public float PixelsPerUnit
         {
             get
             {
-                var form = ActiveForm;
+                var form = _activeForm;
                 return form.sprites != null && form.sprites.Length > 0
                     ? form.sprites[0].pixelsPerUnit : 16f;
             }
         }
-        public int ActiveFormIndex => _activeFormIndex;
         public int FormCount => forms != null ? forms.Length : 0;
         public int SortingLayerID => targetRenderer != null ? targetRenderer.sortingLayerID : 0;
         public int SortingOrder => targetRenderer != null ? targetRenderer.sortingOrder : 0;
@@ -130,8 +136,8 @@ namespace PixelChroma
 
         void LateUpdate()
         {
-            var form = ActiveForm;
-            if (form.spriteIndex == null || _material == null) return;
+            var form = _activeForm;
+            if (form == null || form.spriteIndex == null || _material == null) return;
 
             var current = targetRenderer.sprite;
             if (current == null) return;
@@ -170,21 +176,21 @@ namespace PixelChroma
 
         // ── 포즈 전환 ───────────────────────────────────────────────────────────
 
-        public void SwitchForm(int formIndex)
+        public void SwitchForm(PaintFormType formType)
         {
-            if (forms == null || formIndex < 0 || formIndex >= forms.Length) return;
-            if (formIndex == _activeFormIndex) return;
+            if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
+            if (form == _activeForm) return;
 
-            ActivateForm(formIndex);
-            CmdSwitchForm(formIndex);
+            ActivateForm(formType);
+            CmdSwitchForm(formType);
         }
 
-        private void ActivateForm(int formIndex)
+        private void ActivateForm(PaintFormType formType)
         {
-            _activeFormIndex = formIndex;
-            _currentIndex = -1;
+            if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
 
-            var form = ActiveForm;
+            _activeForm = form;
+
             if (_material != null && form.paintMask != null)
                 _material.SetTexture(PaintMaskID, form.paintMask);
 
@@ -198,17 +204,16 @@ namespace PixelChroma
         }
 
         [Command]
-        private void CmdSwitchForm(int formIndex)
+        private void CmdSwitchForm(PaintFormType formType)
         {
-            RpcSwitchForm(formIndex);
+            RpcSwitchForm(formType);
         }
 
         [ClientRpc]
-        private void RpcSwitchForm(int formIndex)
+        private void RpcSwitchForm(PaintFormType formType)
         {
             if (isOwned) return;
-            if (formIndex < 0 || formIndex >= forms.Length) return;
-            ActivateForm(formIndex);
+            ActivateForm(formType);
         }
 
         // ── 색칠 ────────────────────────────────────────────────────────────────
@@ -226,7 +231,7 @@ namespace PixelChroma
 
         private bool PaintLocal(int px, int py, Color color, int size)
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (form.maskPixels == null) return false;
 
             bool anyPainted = false;
@@ -288,7 +293,7 @@ namespace PixelChroma
 
         private bool EraseLocal(int px, int py, int size)
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (form.maskPixels == null) return false;
 
             GetBrushBounds(form, px, py, size, out int x0, out int y0, out int x1, out int y1);
@@ -333,7 +338,7 @@ namespace PixelChroma
 
         private void ProcessFading()
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (form.fading == null || form.fading.Count == 0) return;
 
             float now = Time.time;
@@ -370,7 +375,7 @@ namespace PixelChroma
 
         public void EraseArea(Vector2Int center, int pixelRadius)
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (form.maskPixels == null) return;
 
             int r2 = pixelRadius * pixelRadius;
@@ -397,14 +402,14 @@ namespace PixelChroma
 
         public float GetPaintRatio()
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (form.maskPixels == null || form.totalOpaquePixels == 0) return 0f;
             return (float)form.paintedCells / form.totalOpaquePixels;
         }
 
         public bool HasAnyPaintedPixels()
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (form.maskPixels == null) return true;
             return form.paintedCells > 0;
         }
@@ -415,7 +420,7 @@ namespace PixelChroma
         {
             if (targetRenderer == null) return Vector2Int.zero;
 
-            var form = ActiveForm;
+            var form = _activeForm;
             Vector3 localPos = targetRenderer.transform.InverseTransformPoint(worldPos);
             float ppu = PixelsPerUnit;
 
@@ -427,7 +432,7 @@ namespace PixelChroma
 
         public bool IsInBounds(int px, int py)
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             return px >= 0 && px < form.texWidth && py >= 0 && py < form.texHeight;
         }
 
@@ -435,7 +440,7 @@ namespace PixelChroma
         {
             if (targetRenderer == null) return Vector3.zero;
 
-            var form = ActiveForm;
+            var form = _activeForm;
             float ppu = PixelsPerUnit;
             int half = size / 2;
             float localX = (px - half + 0.5f * size) / ppu - 0.5f * form.texWidth / ppu;
@@ -453,7 +458,7 @@ namespace PixelChroma
 
         public void ResetTexture()
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (form.maskPixels == null) return;
 
             form.fading.Clear();
@@ -466,7 +471,7 @@ namespace PixelChroma
 
         public void ApplyChanges()
         {
-            var form = ActiveForm;
+            var form = _activeForm;
             if (!form.isDirty) return;
 
             form.paintMask.SetPixels32(form.maskPixels);
@@ -502,17 +507,17 @@ namespace PixelChroma
         // ── 에디터 전용 ─────────────────────────────────────────────────────────
 
 #if UNITY_EDITOR
-        [ContextMenu("Animator에서 스프라이트 자동 수집")]
+        [ContextMenu("Animator에서 스프라이트 수집 (다음 폼에 추가)")]
         private void CollectSpritesFromAnimator()
         {
-            var animator = GetComponent<Animator>();
-            if (animator == null || animator.runtimeAnimatorController == null)
+            var anim = GetComponent<Animator>();
+            if (anim == null || anim.runtimeAnimatorController == null)
             {
                 Debug.LogWarning("Animator 또는 AnimatorController가 없습니다.", this);
                 return;
             }
 
-            var clips = animator.runtimeAnimatorController.animationClips;
+            var clips = anim.runtimeAnimatorController.animationClips;
             if (clips == null || clips.Length == 0)
             {
                 Debug.LogWarning("AnimationClip이 없습니다.", this);
@@ -541,16 +546,31 @@ namespace PixelChroma
 
             if (sprites.Count == 0)
             {
-                Debug.LogWarning("Animator의 AnimationClip에서 스프라이트를 찾을 수 없습니다.", this);
+                Debug.LogWarning("AnimationClip에서 스프라이트를 찾을 수 없습니다.", this);
                 return;
             }
 
-            if (forms == null || forms.Length == 0)
-                forms = new PaintForm[] { new PaintForm { formName = "Default" } };
+            if (forms == null) forms = System.Array.Empty<PaintForm>();
 
-            forms[0].sprites = sprites.OrderBy(s => s.name).ToArray();
+            var usedTypes = new HashSet<PaintFormType>();
+            foreach (var f in forms) usedTypes.Add(f.formType);
+
+            PaintFormType newType = default;
+            foreach (PaintFormType t in System.Enum.GetValues(typeof(PaintFormType)))
+            {
+                if (!usedTypes.Contains(t)) { newType = t; break; }
+            }
+
+            int newIndex = forms.Length;
+            System.Array.Resize(ref forms, newIndex + 1);
+            forms[newIndex] = new PaintForm
+            {
+                formType = newType,
+                sprites = sprites.OrderBy(s => s.name).ToArray()
+            };
+
             UnityEditor.EditorUtility.SetDirty(this);
-            Debug.Log($"[{forms[0].formName}] 스프라이트 {forms[0].sprites.Length}개를 수집했습니다.", this);
+            Debug.Log($"[{newType}] 스프라이트 {sprites.Count}개를 수집하여 인덱스 {newIndex}에 추가했습니다.", this);
         }
 #endif
     }

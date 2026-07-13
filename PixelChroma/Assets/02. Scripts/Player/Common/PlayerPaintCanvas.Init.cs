@@ -27,11 +27,14 @@ namespace PixelChroma
             if (targetAnimator != null)
                 _baseAnimatorController = targetAnimator.runtimeAnimatorController;
 
+            _formLookup = new Dictionary<PaintFormType, PaintForm>(forms.Length);
             for (int i = 0; i < forms.Length; i++)
+            {
                 InitializeForm(forms[i]);
+                _formLookup[forms[i].formType] = forms[i];
+            }
 
-            _activeFormIndex = 0;
-            ActivateForm(0);
+            ActivateForm(PaintFormType.Default);
         }
 
         private void InitializeForm(PaintForm form)

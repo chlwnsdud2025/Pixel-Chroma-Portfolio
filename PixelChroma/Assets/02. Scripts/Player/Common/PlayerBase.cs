@@ -87,8 +87,8 @@ namespace PixelChroma
             var kb = Keyboard.current;
             if (kb != null)
             {
-                if (kb.f1Key.wasPressedThisFrame) paintCanvas.SwitchForm(0);
-                if (kb.f2Key.wasPressedThisFrame) paintCanvas.SwitchForm(1);
+                if (kb.f1Key.wasPressedThisFrame) paintCanvas.SwitchForm(PlayerPaintCanvas.PaintFormType.Default);
+                if (kb.f2Key.wasPressedThisFrame) paintCanvas.SwitchForm(PlayerPaintCanvas.PaintFormType.Test1);
             }
 
             UpdateAnimation();
