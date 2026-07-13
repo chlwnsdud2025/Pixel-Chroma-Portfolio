@@ -14,40 +14,55 @@ namespace PixelChroma
         [SerializeField] private GameObject waterSplashPrefab;
 
         [Header("Timing")]
-        [Tooltip("레이저가 목표 지점까지 뻗어나가는 연출 시간(초)")]
-        [SerializeField] private float laserDuration = 0.1f;
+        [Tooltip("레이저가 초당 뻗어나가는 속도(유닛/초)")]
+        [SerializeField] private float laserSpeed = 40f;
+        [Tooltip("레이저 라인의 두께")]
+        [SerializeField] private float laserWidth = 0.1f;
+        [Tooltip("레이저 빔이 뻗어나갈 때 보이는 선분의 길이(유닛). 사거리와 무관하게 항상 이 길이로 고정됩니다.")]
+        [SerializeField] private float laserSegmentLength = 3f;
         [Tooltip("물 스플래시 이펙트가 서서히 사라지는 시간(초)")]
         [SerializeField] private float splashFadeDuration = 0.6f;
 
-        public void PlayFireEffect(Transform firePoint, Vector2 targetPos, float aoeRadius)
+        public void PlayFireEffect(Transform firePoint, Vector2 targetPos, float aoeRadius, bool didHit)
         {
-            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, aoeRadius));
+            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, aoeRadius, didHit));
         }
 
-        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, float aoeRadius)
+        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, float aoeRadius, bool didHit)
         {
             GameObject laserObj = null;
             LineRenderer lr = null;
 
             if (laserPrefab != null)
             {
-                // 생성 위치는 상관없습니다. 어차피 LineRenderer가 World Space로 덮어씌웁니다.
                 laserObj = Instantiate(laserPrefab, transform.position, Quaternion.identity);
                 lr = laserObj.GetComponent<LineRenderer>();
+
+                if (lr != null)
+                {
+                    lr.startWidth = laserWidth;
+                    lr.endWidth = laserWidth;
+                }
             }
+
+            Vector2 startPos = firePoint != null ? (Vector2)firePoint.position : (Vector2)transform.position;
+            float totalDistance = Vector2.Distance(startPos, targetPos);
+            float duration = laserSpeed > 0f ? Mathf.Max(totalDistance / laserSpeed, 0.01f) : 0.01f;
+
+            // 빔 선분 길이(고정 유닛)를 비율로 환산합니다. 사거리가 짧아 선분 길이보다 짧으면 0으로 클램프됩니다.
+            float tailRatioOffset = totalDistance > 0.0001f ? Mathf.Clamp01(laserSegmentLength / totalDistance) : 0f;
 
             float elapsed = 0f;
 
-            while (elapsed < laserDuration)
+            while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                float ratio = elapsed / laserDuration;
+                float ratio = elapsed / duration;
 
                 // 캐릭터가 이동 중이어도 레이저 꼬리가 총구에 달라붙도록 실시간 위치를 사용합니다.
                 Vector2 dynamicStartPos = firePoint != null ? (Vector2)firePoint.position : (Vector2)transform.position;
 
-                // 레이저의 꼬리(Tail)와 머리(Head)를 실시간 총구 위치 기준으로 부드럽게 뻗어나가게 합니다.
-                Vector2 currentTail = Vector2.Lerp(dynamicStartPos, targetPos, Mathf.Max(0, ratio - 0.5f));
+                Vector2 currentTail = Vector2.Lerp(dynamicStartPos, targetPos, Mathf.Max(0, ratio - tailRatioOffset));
                 Vector2 currentHead = Vector2.Lerp(dynamicStartPos, targetPos, ratio);
 
                 if (lr != null)
@@ -61,15 +76,13 @@ namespace PixelChroma
 
             if (laserObj != null) Destroy(laserObj);
 
-            // 스플래시 이펙트: 생성 후 서서히 사라지다가 스스로 파괴됩니다.
-            // (현재 발사 빈도가 낮아 풀링 없이 Instantiate/Destroy로 처리합니다. 연사형 무기 도입 시 이 지점을 풀로 교체하세요.)
+            if (!didHit) yield break;
+
             if (waterSplashPrefab != null)
             {
                 GameObject splash = Instantiate(waterSplashPrefab, targetPos, Quaternion.identity);
                 var splashRenderer = splash.GetComponentInChildren<SpriteRenderer>();
 
-                // 스프라이트 원본 크기를 기준으로 역산해 "보이는 반지름 = aoeRadius"가 되도록 맞춥니다.
-                // 이렇게 하면 aoeRadius가 단일 기준이 되어 값이나 아트를 바꿔도 시각/판정이 항상 일치합니다.
                 if (splashRenderer != null)
                 {
                     float baseRadius = splashRenderer.sprite.bounds.extents.x;
