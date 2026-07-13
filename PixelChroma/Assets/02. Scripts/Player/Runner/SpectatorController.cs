@@ -108,7 +108,9 @@ namespace PixelChroma
 
         private void CycleRunner(int direction)
         {
-            var runners = InGameManager.Instance?.Runners;
+            var runners = GameRoundManager.Instance?.CurrentRule?.GetSpectatableRunners(_owner) ??
+                            InGameManager.Instance?.Runners;
+
             if (runners == null || runners.Count == 0) return;
 
             int attemptCount = 0;

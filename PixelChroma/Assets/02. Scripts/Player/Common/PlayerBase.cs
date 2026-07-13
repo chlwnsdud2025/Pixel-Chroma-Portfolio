@@ -54,7 +54,7 @@ namespace PixelChroma
         private Coroutine _zoomResetCoroutine;
         private bool _isChatActive = false;
 
-        private static event Action NicknameVisibilityChanged;
+        protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
 
         protected PlayerInputActions Input => _input;
@@ -120,7 +120,7 @@ namespace PixelChroma
 
         public override void OnStartLocalPlayer()
         {
-            _input = new PlayerInputActions(inputActions);
+            _input = new PlayerInputActions(Instantiate(inputActions));
             _input.EnableAll();
 
             _paintController = new PlayerPaintController(this, paintCanvas, _input);

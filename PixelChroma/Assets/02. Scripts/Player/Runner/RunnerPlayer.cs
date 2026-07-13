@@ -13,7 +13,7 @@ namespace PixelChroma
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         [SerializeField] private float freeCamSpeed = 15f;
 
-        [SerializeField] private GameObject visual;
+        //[SerializeField] private GameObject visual;
         [SerializeField] private Collider2D bodyCollider;
 
         [Header("Wet Debuff Settings")]
@@ -32,7 +32,11 @@ namespace PixelChroma
         [SerializeField] private float exposeDuration = 1f;
         [SerializeField] private float exposeCooldown = 1f;
 
+        [Tooltip("서로 안보이게 할때 껏다켯다할 렌더러")]
+        [SerializeField] private SpriteRenderer visualRenderer;
+
         [SyncVar] private bool _isDead;
+        private bool _isVisuallyDead;
         [SyncVar] private float _paintRatio;
 
         [SyncVar(hook = nameof(OnWetStateChanged))]
@@ -56,6 +60,26 @@ namespace PixelChroma
         {
             base.Awake();
             _baseMoveSpeed = moveSpeed;
+        }
+
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+
+            // 닉네임 가시성과 같은 신호를 재사용해서, 누군가의 역할/사망 상태가 바뀔 때마다 내 몸도 다시 판단합니다.
+            NicknameVisibilityChanged += RefreshVisualVisibilityForLocalViewer;
+
+            // Hide→Seek→Check 전환마다 은닉 여부 자체가 바뀌므로, 상태 전환도 직접 구독합니다.
+            GameRoundManager.OnTimeStateChanged += HandleTimeStateChangedForVisibility;
+
+            RefreshVisualVisibilityForLocalViewer();
+        }
+
+        public override void OnStopClient()
+        {
+            NicknameVisibilityChanged -= RefreshVisualVisibilityForLocalViewer;
+            GameRoundManager.OnTimeStateChanged -= HandleTimeStateChangedForVisibility;
+            base.OnStopClient();
         }
 
         protected override void Update()
@@ -150,19 +174,80 @@ namespace PixelChroma
             RpcTakeEraseDamageByPixel(centerPixel, pixelRadius);
         }
 
+        //--------------------------------------사망시 로직(모드따라 다름)------------------------------------------
         [Server]
         public void ServerNotifyCaught()
         {
             if (_isDead) return;
+            Debug.Log($"[Runner] {netId}번 플레이어 아웃!");
+            GameRoundManager.Instance?.CurrentRule?.OnRunnerCaught(this);
+        }
 
-            Debug.Log($"[Runner] {netId}번 플레이어 아웃! (처형당함)");
-
+        [Server]
+        public void ServerBecomeSpectator() // Basic모드
+        {
             _isDead = true;
             RpcBecomeSpectator();
-
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.NotifyRunnerDead();
         }
+
+        [Server]
+        public void ServerConvertToSeeker() // Infection모드
+        {
+            var netManager = NetworkManager.singleton as ChromaNetworkManager;
+            netManager?.ServerConvertRunnerToSeeker(this);
+
+            GameRoundManager.Instance?.NotifyRunnerDead();
+        }
+
+        //----------------------------------------------------------------------------------------------------
+
+        //--------------------------------------가시성 로직(모드따라 다름, 판단은 GameModeRule에 위임)------------------------------------------
+        private void RefreshVisualVisibilityForLocalViewer()
+        {
+            if (visualRenderer == null) return;
+
+            // 1순위: 죽었으면(사망 처리든 감염 전환이든) 무조건 숨김. 모드 규칙보다 항상 우선.
+            if (_isVisuallyDead)
+            {
+                visualRenderer.enabled = false;
+                return;
+            }
+
+            // 로컬 플레이어를 아직 못 찾으면 일단 보이게 (안전한 기본값)
+            if (NetworkClient.localPlayer == null) { visualRenderer.enabled = true; return; }
+
+            // 2순위: "보는 사람"이 러너가 아니거나(=시커),
+            // 나 자신을 보는 경우면 은닉 규칙 대상이 아님 → 항상 보임
+            var localPlayer = NetworkClient.localPlayer.GetComponent<PlayerBase>();
+            if (localPlayer == null || localPlayer == (PlayerBase)this || localPlayer.role != PlayerRole.Runner)
+            {
+                visualRenderer.enabled = true;
+                return;
+            }
+
+            var round = GameRoundManager.Instance;
+
+            // 3순위: 정산 화면(CheckTime)에는 모드 규칙보다 우선해서 무조건 보임
+            if (round != null && round.CurrentTimeState == TimeState.CheckTime)
+            {
+                visualRenderer.enabled = true;
+                return;
+            }
+
+            // 4순위(남은 경우 = 러너가 다른 러너의 몸을 보는 상황): 모드 규칙에 위임
+            bool canSee = round?.CurrentRule == null || round.CurrentRule.CanSeeRunnerBody(round.CurrentTimeState);
+            visualRenderer.enabled = canSee;
+        }
+
+        //GameRoundManager.OnTimeStateChanged 구독용 콜백.시간대가 바뀔 때마다 닉네임 몸 다 
+        private void HandleTimeStateChangedForVisibility(TimeState state, int remainingSeconds)
+        {
+            RaiseNicknameVisibilityChanged();
+            RefreshVisualVisibilityForLocalViewer();
+        }
+        //----------------------------------------------------------------------------------------------------
 
         private void HandleSpectateInput()
         {
@@ -260,8 +345,9 @@ namespace PixelChroma
         {
             RaiseNicknameVisibilityChanged();
 
-            if (visual != null) visual.SetActive(false);
+            _isVisuallyDead = true;
             if (bodyCollider != null) bodyCollider.enabled = false;
+            RefreshVisualVisibilityForLocalViewer();
 
             if (isLocalPlayer)
             {

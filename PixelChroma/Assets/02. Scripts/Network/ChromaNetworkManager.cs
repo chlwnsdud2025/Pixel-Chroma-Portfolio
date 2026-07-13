@@ -189,6 +189,30 @@ namespace PixelChroma
             Debug.Log($"[NetworkManager] 명부에 닉네임 등록 완료 - ConnID: {connId}, Name: {nickname}");
         }
 
+        [Server]
+        public void ServerConvertRunnerToSeeker(RunnerPlayer runner)
+        {
+            if (runner == null) return;
+
+            NetworkConnectionToClient conn = runner.connectionToClient;
+            if (conn == null) return;
+
+            Vector3 spawnPos = InGameManager.Instance != null
+                ? InGameManager.Instance.GetSpawnPosition()
+                : Vector3.zero;
+
+            GameObject seekerInstance = Instantiate(seekerPrefab, spawnPos, Quaternion.identity);
+
+            var seekerBase = seekerInstance.GetComponent<PlayerBase>();
+            if (seekerBase != null)
+            {
+                seekerBase.role = PlayerRole.Seeker;
+                seekerBase.playerName = runner.playerName;
+            }
+
+            NetworkServer.ReplacePlayerForConnection(conn, seekerInstance, ReplacePlayerOptions.Destroy);
+        }
+
         public bool IsInGameScene(string sceneName)
         {
             if (sceneName == GetSceneName(inGameScene))
