@@ -246,6 +246,8 @@ namespace PixelChroma
             }
         }
 
+
+        //--------------------------------역할정하기!-----------------------------------
         [Server]
         private void AssignRoles()
         {
@@ -254,15 +256,44 @@ namespace PixelChroma
             var conns = NetworkServer.connections.Values.ToList();
             if (conns.Count == 0) return;
 
-            int seekerCount = OptionSeekerCount;
-            var shuffled = conns.OrderBy(_ => UnityEngine.Random.value).ToList();
+            var seekerConnIds = DetermineSeekerConnectionIds(conns, OptionSeekerCount);
 
-            for (int i = 0; i < shuffled.Count; i++)
+            foreach (var conn in conns)
             {
-                PlayerRole role = (i < seekerCount) ? PlayerRole.Seeker : PlayerRole.Runner;
-                _assignedRoles[shuffled[i].connectionId] = role;
+                _assignedRoles[conn.connectionId] = seekerConnIds.Contains(conn.connectionId)
+                    ? PlayerRole.Seeker
+                    : PlayerRole.Runner;
             }
         }
+
+        // 술래 지원자를 우선 배정하고, 부족하거나 넘치는 인원은 규칙에 따라 랜덤 처리합니다.
+        [Server]
+        private HashSet<int> DetermineSeekerConnectionIds(List<NetworkConnectionToClient> conns, int seekerCount)
+        {
+            var connIdSet = new HashSet<int>(conns.Select(c => c.connectionId));
+
+            var volunteerZone = FindAnyObjectByType<SeekerVolunteerZone>();
+            var volunteers = volunteerZone != null
+                ? volunteerZone.VolunteerConnectionIds.Where(connIdSet.Contains).ToList()
+                : new List<int>();
+
+            var shuffledVolunteers = volunteers.OrderBy(_ => UnityEngine.Random.value).ToList();
+
+            if (shuffledVolunteers.Count >= seekerCount)
+            {
+                return new HashSet<int>(shuffledVolunteers.Take(seekerCount));
+            }
+
+            var result = new HashSet<int>(shuffledVolunteers);
+            int remaining = seekerCount - result.Count;
+
+            var nonVolunteers = connIdSet.Except(result).OrderBy(_ => UnityEngine.Random.value).ToList();
+            foreach (var connId in nonVolunteers.Take(remaining))
+                result.Add(connId);
+
+            return result;
+        }
+
 
         // ── 이벤트 핸들러 ───────────────────────────────────────────────
 
