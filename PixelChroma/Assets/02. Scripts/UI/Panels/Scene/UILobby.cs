@@ -81,6 +81,7 @@ namespace PixelChroma.UI
             LobbyPlayerState.OnReadyChanged += OnReadyChanged;
             LobbyPlayerState.OnRoomOptionSynced += OnRoomOptionSynced;
 
+            PlayerBase.OnAnyPlayerNameChanged += RefreshMemberList;
             GameRoundManager.OnTimeStateChanged += OnTimeStateChanged;
             GameRoundManager.OnTimerTick += OnTimerTick;
         }
@@ -96,6 +97,7 @@ namespace PixelChroma.UI
             LobbyPlayerState.OnReadyChanged -= OnReadyChanged;
             LobbyPlayerState.OnRoomOptionSynced -= OnRoomOptionSynced;
 
+            PlayerBase.OnAnyPlayerNameChanged -= RefreshMemberList;
             GameRoundManager.OnTimeStateChanged -= OnTimeStateChanged;
             GameRoundManager.OnTimerTick -= OnTimerTick;
         }

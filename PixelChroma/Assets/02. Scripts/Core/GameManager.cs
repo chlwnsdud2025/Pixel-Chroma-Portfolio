@@ -81,6 +81,10 @@ namespace PixelChroma
         {
             CurrentState = GameState.MainMenu;
             EnsureSceneEssentials();
+
+            if (CursorManager.Instance != null)
+                CursorManager.Instance.SetCursorType(CursorType.Default);
+
             await UIManager.Instance.ShowScene<UITitle>();
         }
 
@@ -88,6 +92,10 @@ namespace PixelChroma
         {
             CurrentState = GameState.Lobby;
             EnsureSceneEssentials();
+
+            if (CursorManager.Instance != null)
+                CursorManager.Instance.SetCursorType(CursorType.Default);
+
             await UIManager.Instance.HideAllPopups();
             await UIManager.Instance.ShowScene<UILobby>();
         }

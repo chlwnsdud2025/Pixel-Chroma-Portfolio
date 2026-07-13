@@ -55,6 +55,7 @@ namespace PixelChroma
         private bool _isChatActive = false;
 
         private static event Action NicknameVisibilityChanged;
+        public static event Action OnAnyPlayerNameChanged;
 
         protected PlayerInputActions Input => _input;
         protected PlayerPaintController PaintController => _paintController;
@@ -311,6 +312,7 @@ namespace PixelChroma
         private void OnPlayerNameChanged(string oldName, string newName)
         {
             _nicknameDisplay?.Refresh();
+            OnAnyPlayerNameChanged?.Invoke();
         }
 
         private void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)
