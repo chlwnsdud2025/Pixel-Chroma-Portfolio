@@ -24,6 +24,12 @@ namespace PixelChroma
         private bool _isLobbyReturningStarted = false;
         private CancellationTokenSource _timerCts;
 
+
+        [Header("forced Expose")]
+        [SerializeField] float[] forcedExposeTriggerRatios = { 0.3f };
+        [SerializeField] float forcedExposeDuration;
+        private bool[] _forcedExposeTriggered;
+
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public PlayerRole CurrentWinner { get; private set; } = PlayerRole.None;
@@ -98,6 +104,13 @@ namespace PixelChroma
         {
             CurrentTimeState = newState;
             CurrentTimer = Mathf.CeilToInt(time);
+
+            if (newState == TimeState.SeekTime)
+            {
+                _forcedExposeTriggered = forcedExposeTriggerRatios != null
+                    ? new bool[forcedExposeTriggerRatios.Length]
+                    : null;
+            }
 
             NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
             Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초, 승자: {CurrentWinner}");
@@ -198,6 +211,9 @@ namespace PixelChroma
                     await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: token);
                     CurrentTimer--;
                     OnTimerTick?.Invoke(CurrentTimer);
+
+                    if (NetworkServer.active)
+                        CheckForcedExpose();
                 }
 
                 if (NetworkServer.active)
@@ -230,6 +246,8 @@ namespace PixelChroma
             }
         }
 
+
+        //--------------------------------역할정하기!-----------------------------------
         [Server]
         private void AssignRoles()
         {
@@ -238,15 +256,44 @@ namespace PixelChroma
             var conns = NetworkServer.connections.Values.ToList();
             if (conns.Count == 0) return;
 
-            int seekerCount = OptionSeekerCount;
-            var shuffled = conns.OrderBy(_ => UnityEngine.Random.value).ToList();
+            var seekerConnIds = DetermineSeekerConnectionIds(conns, OptionSeekerCount);
 
-            for (int i = 0; i < shuffled.Count; i++)
+            foreach (var conn in conns)
             {
-                PlayerRole role = (i < seekerCount) ? PlayerRole.Seeker : PlayerRole.Runner;
-                _assignedRoles[shuffled[i].connectionId] = role;
+                _assignedRoles[conn.connectionId] = seekerConnIds.Contains(conn.connectionId)
+                    ? PlayerRole.Seeker
+                    : PlayerRole.Runner;
             }
         }
+
+        // 술래 지원자를 우선 배정하고, 부족하거나 넘치는 인원은 규칙에 따라 랜덤 처리합니다.
+        [Server]
+        private HashSet<int> DetermineSeekerConnectionIds(List<NetworkConnectionToClient> conns, int seekerCount)
+        {
+            var connIdSet = new HashSet<int>(conns.Select(c => c.connectionId));
+
+            var volunteerZone = FindAnyObjectByType<SeekerVolunteerZone>();
+            var volunteers = volunteerZone != null
+                ? volunteerZone.VolunteerConnectionIds.Where(connIdSet.Contains).ToList()
+                : new List<int>();
+
+            var shuffledVolunteers = volunteers.OrderBy(_ => UnityEngine.Random.value).ToList();
+
+            if (shuffledVolunteers.Count >= seekerCount)
+            {
+                return new HashSet<int>(shuffledVolunteers.Take(seekerCount));
+            }
+
+            var result = new HashSet<int>(shuffledVolunteers);
+            int remaining = seekerCount - result.Count;
+
+            var nonVolunteers = connIdSet.Except(result).OrderBy(_ => UnityEngine.Random.value).ToList();
+            foreach (var connId in nonVolunteers.Take(remaining))
+                result.Add(connId);
+
+            return result;
+        }
+
 
         // ── 이벤트 핸들러 ───────────────────────────────────────────────
 
@@ -266,6 +313,40 @@ namespace PixelChroma
         {
             CurrentWinner = msg.winner;
             OnWinnerDecided?.Invoke(msg.winner);
+        }
+
+        [Server]
+        private void CheckForcedExpose()
+        {
+            if (CurrentTimeState != TimeState.SeekTime) return;
+            if (forcedExposeTriggerRatios == null || forcedExposeTriggerRatios.Length == 0) return;
+            if (_forcedExposeTriggered == null || _forcedExposeTriggered.Length != forcedExposeTriggerRatios.Length)
+                return;
+
+            float ratio = OptionSeekTime > 0f ? CurrentTimer / OptionSeekTime : 0f;
+
+            for (int i = 0; i < forcedExposeTriggerRatios.Length; i++)
+            {
+                if (_forcedExposeTriggered[i]) continue;
+                if (ratio > forcedExposeTriggerRatios[i]) continue;
+
+                _forcedExposeTriggered[i] = true;
+                TriggerForcedExposeForAllRunners();
+            }
+        }
+
+        [Server]
+        private void TriggerForcedExposeForAllRunners()
+        {
+            if (InGameManager.Instance == null) return;
+
+            foreach (var runner in InGameManager.Instance.Runners)
+            {
+                if (runner != null && !runner.IsDead)
+                    runner.ServerForceExpose(forcedExposeDuration);
+            }
+
+            Debug.Log($"[GameRound] 강제 도발 발동! 생존 러너 전원 위치 노출 (지속시간: {forcedExposeDuration}초)");
         }
     }
 }

@@ -49,6 +49,7 @@ namespace PixelChroma
 
         private float _lastFireTime;
         private float _lastServerFireTime = -100f;
+        private Vector2 _aimDirection = Vector2.right;
         private Camera _mainCam;
         private WaterGunEffects _effects;
 
@@ -103,9 +104,10 @@ namespace PixelChroma
             Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(mouseScreenPos);
             mouseWorldPos.z = 0;
 
-            Vector2 currentPos = weaponPivot.position;
+            Vector2 currentPos = FireOrigin;
             Vector2 targetWorldPos = mouseWorldPos;
             Vector2 aimDirection = (targetWorldPos - currentPos).normalized;
+            _aimDirection = aimDirection;
             float distanceToTarget = Vector2.Distance(currentPos, targetWorldPos);
 
             // 사거리를 넘으면 커서를 사거리 끝에 고정해 조준 떨림을 없앱니다.
@@ -169,63 +171,67 @@ namespace PixelChroma
             if (!CanFireLocally) return;
 
             // 실제 마우스가 아니라 사거리 끝에 고정된 커서 위치를 향해 쏩니다.
-            Vector2? overridePos = CursorManager.Instance != null ? CursorManager.Instance.overrideScreenPosition : null;
-            Vector2 mouseScreenPos = overridePos ?? Mouse.current.position.ReadValue();
-            Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(mouseScreenPos);
-            mouseWorldPos.z = 0;
+            //Vector2? overridePos = CursorManager.Instance != null ? CursorManager.Instance.overrideScreenPosition : null;
+            //Vector2 mouseScreenPos = overridePos ?? Mouse.current.position.ReadValue();
+            //Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(mouseScreenPos);
+            //mouseWorldPos.z = 0;
 
-            // 클라 예측·서버 판정·이펙트가 모두 총구(FireOrigin) 기준으로 일치하도록 통일합니다.
-            Vector2 targetPos = ResolveImpactPoint(FireOrigin, mouseWorldPos);
+            //// 클라 예측·서버 판정·이펙트가 모두 총구(FireOrigin) 기준으로 일치하도록 통일합니다.
+            //Vector2 targetPos = ResolveImpactPoint(FireOrigin, mouseWorldPos);
 
             _lastFireTime = Time.time;
-            CmdFireWaterGun(targetPos);
+            CmdFireWaterGun(_aimDirection);
         }
 
         [Command]
-        private void CmdFireWaterGun(Vector2 targetPos)
+        private void CmdFireWaterGun(Vector2 direction)
         {
             // 서버에서도 연사 속도를 재검증합니다. (쿨타임을 무시하는 조작된 클라이언트 방지)
             if (Time.time - _lastServerFireTime < fireCooldown - ServerCooldownGrace) return;
             _lastServerFireTime = Time.time;
 
-            Vector2 impactPos = ResolveImpactPoint(FireOrigin, targetPos);
+            if (direction.sqrMagnitude < 0.0001f) direction = Vector2.right;
+            direction.Normalize();
 
-            Collider2D[] hitColliders = Physics2D.OverlapCircleAll(impactPos, aoeRadius, runnerLayer);
+            Vector2 origin = FireOrigin;
+            RaycastHit2D hit = Physics2D.Raycast(origin, direction, fireRange, obstacleLayer | runnerLayer);
+            bool didHit = hit.collider != null;
 
-            foreach (var col in hitColliders)
+            // 레이저가 실제로 뻗어나가는 끝점: 맞았으면 그 지점, 안 맞았으면 사거리 끝.
+            Vector2 laserEndPos = didHit ? hit.point : origin + direction * fireRange;
+
+            if (didHit)
             {
-                var runner = col.GetComponent<RunnerPlayer>();
-                if (runner != null)
+                Collider2D[] hitColliders = Physics2D.OverlapCircleAll(laserEndPos, aoeRadius, runnerLayer);
+                foreach (var col in hitColliders)
                 {
-                    runner.ServerTakeEraseDamage(impactPos, aoeRadius);
-                    runner.ApplyWetState(wetDuration);
+                    var runner = col.GetComponent<RunnerPlayer>();
+                    if (runner != null)
+                    {
+                        runner.ServerTakeEraseDamage(laserEndPos, aoeRadius);
+                        runner.ApplyWetState(wetDuration);
+                    }
                 }
             }
 
-            RpcPlayFireEffect(impactPos);
-        }
-
-        // origin→target 방향으로 사거리·장애물을 반영한 착탄점을 반환합니다. (클라/서버 공용)
-        private Vector2 ResolveImpactPoint(Vector2 origin, Vector2 target)
-        {
-            Vector2 dir = (target - origin).normalized;
-            float dist = Mathf.Min(Vector2.Distance(origin, target), fireRange);
-
-            RaycastHit2D hit = Physics2D.Raycast(origin, dir, dist, obstacleLayer);
-            return hit.collider != null ? hit.point : origin + dir * dist;
+            // 레이저 비주얼은 맞았든 안 맞았든 항상 재생하고, 스플래시/피격 여부는 didHit로 클라에 전달합니다.
+            RpcPlayFireEffect(laserEndPos, didHit);
         }
 
         [ClientRpc]
-        private void RpcPlayFireEffect(Vector2 targetPos)
+        private void RpcPlayFireEffect(Vector2 targetPos, bool didHit)
         {
-            // targetPos는 서버가 OverlapCircle 판정에 쓴 impactPos와 동일하므로, 기즈모 표시 기준으로 재사용합니다.
-            _lastImpactPos = targetPos;
-            _lastImpactGizmoTime = Time.time;
+            if (didHit)
+            {
+                _lastImpactPos = targetPos;
+                _lastImpactGizmoTime = Time.time;
+            }
 
-            // 스플래시가 실제 피격 범위(aoeRadius)와 정확히 일치하도록 반지름을 함께 넘깁니다.
             if (_effects != null)
-                _effects.PlayFireEffect(firePoint, targetPos, aoeRadius);
+                _effects.PlayFireEffect(firePoint, targetPos, aoeRadius, didHit);
         }
+
+
 
 #if UNITY_EDITOR
         // 발사 직후 gizmoDisplayDuration 동안 실제 피격 판정 원을 씬 뷰에 그립니다.

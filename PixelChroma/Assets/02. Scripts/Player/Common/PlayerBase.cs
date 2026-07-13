@@ -4,6 +4,7 @@ using System;
 using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
+using System.Collections;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
 
@@ -29,6 +30,10 @@ namespace PixelChroma
         [SerializeField] private int maxPPU = 64;
         [SerializeField] private int zoomStepPPU = 2;
 
+        [Tooltip("페인트 모드에서 빠져나올 때 최대 줌아웃 상태로 돌아가는 데 걸리는 시간(초)")]
+        [SerializeField] private float forcedZoomOutDuration = 1f;
+
+
         [Header("Nickname UI")]
         [SerializeField] private TMP_Text nicknameText;
 
@@ -46,9 +51,11 @@ namespace PixelChroma
         private PixelPerfectCamera _pixelPerfectCamera;
         private PlayerNicknameDisplay _nicknameDisplay;
         private int _originalPPU;
+        private Coroutine _zoomResetCoroutine;
         private bool _isChatActive = false;
 
         private static event Action NicknameVisibilityChanged;
+        public static event Action OnAnyPlayerNameChanged;
 
         protected PlayerInputActions Input => _input;
         protected PlayerPaintController PaintController => _paintController;
@@ -117,6 +124,7 @@ namespace PixelChroma
             _input.EnableAll();
 
             _paintController = new PlayerPaintController(this, paintCanvas, _input);
+            _paintController.OnPaintModeChanged += HandlePaintModeChangedForZoom;
 
             UIChat.OnChatToggled += HandleChatToggled;
 
@@ -134,6 +142,9 @@ namespace PixelChroma
         {
             _input?.DisableAll();
             UIChat.OnChatToggled -= HandleChatToggled;
+
+            if (_paintController != null)
+                _paintController.OnPaintModeChanged -= HandlePaintModeChangedForZoom;
             _paintController?.Dispose();
 
             OnLocalPlayerStopped();
@@ -228,12 +239,13 @@ namespace PixelChroma
 
             if (IsAltHeld())
             {
-                HandleZoom(scroll);
+                if (_paintController != null && _paintController.IsPaintMode)
+                    _paintController.HandleBrushScroll(scroll);
                 return;
             }
 
             if (_paintController != null && _paintController.IsPaintMode)
-                _paintController.HandleBrushScroll(scroll);
+                HandleZoom(scroll);
         }
 
         private void HandleZoom(float scroll)
@@ -245,6 +257,39 @@ namespace PixelChroma
             _pixelPerfectCamera.assetsPPU = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
         }
 
+        private void HandlePaintModeChangedForZoom(bool isPaintMode)
+        {
+            if (isPaintMode) return;
+            StartForcedZoomOut();
+        }
+
+        private void StartForcedZoomOut()
+        {
+            if (_pixelPerfectCamera == null) return;
+
+            if (_zoomResetCoroutine != null)
+                StopCoroutine(_zoomResetCoroutine);
+
+            _zoomResetCoroutine = StartCoroutine(ZoomOutRoutine());
+        }
+
+        private IEnumerator ZoomOutRoutine()
+        {
+            float startPPU = _pixelPerfectCamera.assetsPPU;
+            float elapsed = 0f;
+
+            while (elapsed < forcedZoomOutDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = forcedZoomOutDuration > 0f ? elapsed / forcedZoomOutDuration : 1f;
+                _pixelPerfectCamera.assetsPPU = Mathf.RoundToInt(Mathf.Lerp(startPPU, _originalPPU, t));
+                yield return null;
+            }
+
+            _pixelPerfectCamera.assetsPPU = _originalPPU;
+            _zoomResetCoroutine = null;
+        }
+
         private float GetScrollValue()
         {
             if (Mouse.current == null) return 0f;
@@ -253,12 +298,13 @@ namespace PixelChroma
 
         private bool IsAltHeld()
         {
-            return _input.ZoomModifier.IsPressed();
+            return _input.BrushSizeModifier.IsPressed();
         }
 
         private void OnPlayerNameChanged(string oldName, string newName)
         {
             _nicknameDisplay?.Refresh();
+            OnAnyPlayerNameChanged?.Invoke();
         }
 
         private void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)

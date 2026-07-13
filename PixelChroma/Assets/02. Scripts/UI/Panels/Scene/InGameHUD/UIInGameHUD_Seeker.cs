@@ -16,6 +16,13 @@ namespace PixelChroma.UI
         private float _cooldownDuration;
         private bool _wasCooling;
 
+        public override void Initialize()
+        {
+            base.Initialize();
+
+            if (waterGunCooldownText != null) waterGunCooldownText.gameObject.SetActive(false);
+        }
+
         public void SetCatchIconActive(bool isActive)
         {
             if (catchInactiveOverlay != null)

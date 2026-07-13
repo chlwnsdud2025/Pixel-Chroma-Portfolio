@@ -22,6 +22,14 @@ namespace PixelChroma
         private Color _eyedropperColor;
         private Texture2D _eyedropperCapture;
         private Coroutine _eyedropperCoroutine;
+        private bool _waitForMouseRelease;
+
+        private GameObject _brushPreview;
+        private SpriteRenderer _brushPreviewRenderer;
+        private int _previewLastSize = -1;
+        private static readonly Color PreviewFill = new Color(0.5f, 0.5f, 0.5f, 0.3f);
+        private static readonly Color PreviewOutline = new Color(0f, 0f, 0f, 0.8f);
+        private static readonly Color EraserFill = new Color(1f, 0.2f, 0.2f, 0.3f);
 
         public event Action<bool> OnPaintModeChanged;
         public event Action<int> OnBrushSizeScrolled;
@@ -44,8 +52,13 @@ namespace PixelChroma
             HandleModeInput();
 
             if (_brushMode == BrushMode.Eyedropper)
+            {
+                UpdateBrushPreview();
                 TickEyedropper();
+                return;
+            }
 
+            UpdateBrushPreview();
             HandlePainting();
         }
 
@@ -142,6 +155,107 @@ namespace PixelChroma
             }
         }
 
+        private void UpdateBrushPreview()
+        {
+            if (_owner == null || !_owner.isLocalPlayer || _paintCanvas == null || Mouse.current == null)
+            {
+                HideBrushPreview();
+                return;
+            }
+
+            if (!_isPaintMode)
+            {
+                HideBrushPreview();
+                return;
+            }
+
+            // UI 위에서는 색칠이 막히므로 프리뷰도 숨김
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                HideBrushPreview();
+                return;
+            }
+
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                HideBrushPreview();
+                return;
+            }
+
+            int size = _brushMode == BrushMode.Eyedropper
+                ? 1
+                : _boundPicker != null ? _boundPicker.BrushSize : _paintCanvas.BrushSize;
+            size = Mathf.Max(1, size);
+
+            EnsureBrushPreview(size);
+
+            Vector2 screenPos = Mouse.current.position.ReadValue();
+            Vector3 worldPos = cam.ScreenToWorldPoint(screenPos);
+            worldPos.z = 0f;
+
+            Vector2Int pixel = _paintCanvas.WorldToPixel(worldPos);
+            Vector3 center = _paintCanvas.GetBrushWorldCenter(pixel.x, pixel.y, size);
+            center.z = 0f;
+            float worldSize = _paintCanvas.GetBrushWorldSize(size);
+
+            _brushPreview.transform.position = center;
+            _brushPreview.transform.localScale = new Vector3(worldSize, worldSize, 1f);
+
+            _brushPreviewRenderer.color = _brushMode == BrushMode.Eraser
+                ? EraserFill   // 지우개: 빨간 반투명 (외곽선은 텍스처에 내장)
+                : Color.white; // 브러시: 텍스처 원색 그대로 (회색 내부 + 검정 외곽선)
+
+            if (!_brushPreview.activeSelf)
+                _brushPreview.SetActive(true);
+        }
+
+        private void EnsureBrushPreview(int size)
+        {
+            if (_brushPreview == null)
+            {
+                _brushPreview = new GameObject("BrushAreaPreview");
+                _brushPreviewRenderer = _brushPreview.AddComponent<SpriteRenderer>();
+                _brushPreviewRenderer.sortingLayerID = _paintCanvas.SortingLayerID;
+                _brushPreviewRenderer.sortingOrder = _paintCanvas.SortingOrder + 1000;
+                _brushPreview.SetActive(false);
+                _previewLastSize = -1;
+            }
+
+            if (_previewLastSize == size) return;
+            _previewLastSize = size;
+
+            const int res = 4;
+            int brushPx = Mathf.Max(size, 1);
+            int texSize = brushPx * res;
+            var tex = new Texture2D(texSize, texSize, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+
+            for (int y = 0; y < texSize; y++)
+            {
+                for (int x = 0; x < texSize; x++)
+                {
+                    bool isBorder = x == 0 || y == 0 || x == texSize - 1 || y == texSize - 1;
+                    tex.SetPixel(x, y, isBorder ? PreviewOutline : PreviewFill);
+                }
+            }
+            tex.Apply();
+
+            if (_brushPreviewRenderer.sprite != null)
+                UnityEngine.Object.Destroy(_brushPreviewRenderer.sprite.texture);
+
+            _brushPreviewRenderer.sprite = Sprite.Create(
+                tex, new Rect(0f, 0f, texSize, texSize),
+                new Vector2(0.5f, 0.5f), texSize);
+        }
+
+        private void HideBrushPreview()
+        {
+            if (_brushPreview != null && _brushPreview.activeSelf)
+                _brushPreview.SetActive(false);
+        }
+
         public void Dispose()
         {
             StopEyedropperCapture();
@@ -149,6 +263,16 @@ namespace PixelChroma
             {
                 UnityEngine.Object.Destroy(_eyedropperCapture);
                 _eyedropperCapture = null;
+            }
+
+            if (_brushPreview != null)
+            {
+                if (_brushPreviewRenderer != null && _brushPreviewRenderer.sprite != null)
+                    UnityEngine.Object.Destroy(_brushPreviewRenderer.sprite.texture);
+                UnityEngine.Object.Destroy(_brushPreview);
+                _brushPreview = null;
+                _brushPreviewRenderer = null;
+                _previewLastSize = -1;
             }
         }
 
@@ -169,6 +293,7 @@ namespace PixelChroma
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             _boundPicker?.SetColor(_eyedropperColor);
+            _waitForMouseRelease = true;
             SetBrushMode(BrushMode.Brush);
         }
 
@@ -176,6 +301,14 @@ namespace PixelChroma
         {
             if (_brushMode == BrushMode.Eyedropper) return;
             if (_paintCanvas == null || Mouse.current == null) return;
+
+            if (_waitForMouseRelease)
+            {
+                if (!Mouse.current.leftButton.isPressed)
+                    _waitForMouseRelease = false;
+                return;
+            }
+
             if (!Mouse.current.leftButton.isPressed) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 

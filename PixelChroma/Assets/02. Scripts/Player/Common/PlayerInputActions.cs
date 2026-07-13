@@ -10,7 +10,7 @@ namespace PixelChroma
         private const string ActionSelectBrush = "SelectBrush";
         private const string ActionSelectEraser = "SelectEraser";
         private const string ActionSelectEyedropper = "SelectEyedropper";
-        private const string ActionZoomModifier = "ZoomModifier";
+        private const string ActionBrushSizeModifier = "BrushSizeModifier";
         private const string ActionExposeSkill = "ExposeSkill";
         private const string ActionCatch = "Catch";
         private const string ActionToggleSpectate = "ToggleSpectate";
@@ -27,7 +27,7 @@ namespace PixelChroma
         public InputAction SelectBrush { get; }
         public InputAction SelectEraser { get; }
         public InputAction SelectEyedropper { get; }
-        public InputAction ZoomModifier { get; }
+        public InputAction BrushSizeModifier { get; }
         public InputAction ExposeSkill { get; }
         public InputAction Catch { get; }
         public InputAction ToggleSpectate { get; }
@@ -45,7 +45,7 @@ namespace PixelChroma
             SelectBrush = _map.FindAction(ActionSelectBrush);
             SelectEraser = _map.FindAction(ActionSelectEraser);
             SelectEyedropper = _map.FindAction(ActionSelectEyedropper);
-            ZoomModifier = _map.FindAction(ActionZoomModifier);
+            BrushSizeModifier = _map.FindAction(ActionBrushSizeModifier);
             ExposeSkill = _map.FindAction(ActionExposeSkill);
             Catch = _map.FindAction(ActionCatch);
             ToggleSpectate = _map.FindAction(ActionToggleSpectate);

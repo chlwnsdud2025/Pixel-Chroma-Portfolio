@@ -27,7 +27,7 @@ namespace PixelChroma.UI
 
         public static event Action<bool> OnChatToggled;
 
-        // 💡 [수정] 풀링 시스템 세분화 (화면에 떠있는 큐, 렌더링이 꺼진 대기 큐)
+        // 풀링 시스템 세분화 (화면에 떠있는 큐, 렌더링이 꺼진 대기 큐)
         private Queue<TMP_Text> _activeMessages = new Queue<TMP_Text>();
         private Queue<TMP_Text> _inactivePool = new Queue<TMP_Text>();
 
@@ -82,7 +82,7 @@ namespace PixelChroma.UI
             ClearChat();
         }
 
-        // 💡 [수정] Destroy 없이 순수 풀링으로만 관리하는 클린업 로직
+        // Destroy 없이 순수 풀링으로만 관리하는 클린업 로직
         public void ClearChat()
         {
             // 화면에 떠있는 메시지들을 모두 대기열(Pool)로 반환합니다.

@@ -24,7 +24,7 @@ namespace PixelChroma
 
         public SpectateMode Mode => _mode;
         public bool IsSpectating => _mode != SpectateMode.None;
-        public event Action<string> OnTargetNameChanged;
+        public event Action<string, bool> OnTargetNameChanged;
 
         public SpectatorController(RunnerPlayer owner, CinemachineCamera camera, float freeCamSpeed)
         {
@@ -65,7 +65,7 @@ namespace PixelChroma
             if (_camera != null)
                 _camera.Follow = _freeCamTarget.transform;
 
-            OnTargetNameChanged?.Invoke("자유 시점");
+            OnTargetNameChanged?.Invoke("자유 시점", false);
         }
 
         public void EnterRunnerMode()
@@ -117,7 +117,7 @@ namespace PixelChroma
                 _targetIndex = (_targetIndex + direction + runners.Count) % runners.Count;
                 var target = runners[_targetIndex];
 
-                if (target != null && target != _owner && !target.IsDead)
+                if (target != null && !target.IsDead)
                 {
                     FollowTarget(target);
                     return;
@@ -131,17 +131,27 @@ namespace PixelChroma
             var seekers = InGameManager.Instance?.Seekers;
             if (seekers == null || seekers.Count == 0) return;
 
-            _targetIndex = (_targetIndex + direction + seekers.Count) % seekers.Count;
-            var target = seekers[_targetIndex];
-            if (target != null)
-                FollowTarget(target);
+            int attemptCount = 0;
+            while (attemptCount < seekers.Count)
+            {
+                _targetIndex = (_targetIndex + direction + seekers.Count) % seekers.Count;
+                var target = seekers[_targetIndex];
+
+                if (target != null)
+                {
+                    FollowTarget(target);
+                    return;
+                }
+                attemptCount++;
+            }
         }
 
         private void FollowTarget(PlayerBase target)
         {
             if (target == null || _camera == null) return;
             _camera.Follow = target.transform;
-            OnTargetNameChanged?.Invoke(target.playerName);
+            OnTargetNameChanged?.Invoke(target.playerName, target == _owner);
         }
+
     }
 }
