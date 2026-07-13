@@ -515,6 +515,28 @@ namespace PixelChroma
             return px >= 0 && px < _texWidth && py >= 0 && py < _texHeight;
         }
 
+        /// <summary>
+        /// 브러시 발자국(size×size)의 월드 중심 좌표. PaintLocal의 오프셋(px-half .. px-half+size)과 동일하게 정렬됩니다.
+        /// </summary>
+        public Vector3 GetBrushWorldCenter(int px, int py, int size)
+        {
+            float ppu = PixelsPerUnit;
+            int half = size / 2;
+            float localX = (px - half + 0.5f * size) / ppu - 0.5f * _texWidth / ppu;
+            float localY = (py - half + 0.5f * size) / ppu - 0.5f * _texHeight / ppu;
+            return targetRenderer.transform.TransformPoint(new Vector3(localX, localY, 0f));
+        }
+
+        /// <summary>브러시 발자국의 월드 한 변 길이(정사각형).</summary>
+        public float GetBrushWorldSize(int size)
+        {
+            float scale = targetRenderer != null ? Mathf.Abs(targetRenderer.transform.lossyScale.x) : 1f;
+            return size / PixelsPerUnit * scale;
+        }
+
+        public int SortingLayerID => targetRenderer != null ? targetRenderer.sortingLayerID : 0;
+        public int SortingOrder => targetRenderer != null ? targetRenderer.sortingOrder : 0;
+
         public Color GetPixelColor(int px, int py)
         {
             if (_runtimeTextures == null || _runtimeTextures.Length == 0) return Color.white;
