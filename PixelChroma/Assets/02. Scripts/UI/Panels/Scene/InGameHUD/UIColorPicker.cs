@@ -6,6 +6,14 @@ using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
+    [Serializable]
+    public class ToolSlot
+    {
+        public BrushMode mode;
+        public Button button;
+        public GameObject selectImage;
+    }
+
     public class UIColorPicker : MonoBehaviour
     {
         private const int DefaultMaxBrushSize = 20;
@@ -24,11 +32,11 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text hexLabel;
 
         [Header("Tools")]
-        [SerializeField] private Outline brushToolOutline;
-        [SerializeField] private Outline eraserToolOutline;
-        [SerializeField] private Outline eyedropperToolOutline;
-        [SerializeField] private Color activeOutlineColor = Color.blue;
-        [SerializeField] private Color inactiveOutlineColor = Color.white;
+        [SerializeField] private ToolSlot[] toolSlots;
+
+        [Header("History")]
+        [SerializeField] private Button undoButton;
+        [SerializeField] private Button redoButton;
 
         [Header("Brush Size")]
         [SerializeField] private Slider brushSizeSlider;
@@ -46,6 +54,9 @@ namespace PixelChroma.UI
 
         public event Action<Color> OnColorChanged;
         public event Action<int> OnBrushSizeChanged;
+        public event Action<BrushMode> OnToolButtonClicked;
+        public event Action OnUndoButtonClicked;
+        public event Action OnRedoButtonClicked;
 
         private void Awake()
         {
@@ -58,9 +69,9 @@ namespace PixelChroma.UI
             SetupSVDrag();
             SetupHueDrag();
             SetupBrushSizeSliders();
+            SetupToolButtons();
             SetColor(Color.white);
             SetActiveTool(BrushMode.Brush);
-
         }
 
         private void SetupSVDrag()
@@ -198,9 +209,12 @@ namespace PixelChroma.UI
 
         public void SetActiveTool(BrushMode mode)
         {
-            SetOutline(brushToolOutline, mode == BrushMode.Brush);
-            SetOutline(eraserToolOutline, mode == BrushMode.Eraser);
-            SetOutline(eyedropperToolOutline, mode == BrushMode.Eyedropper);
+            if (toolSlots == null) return;
+            foreach (var slot in toolSlots)
+            {
+                if (slot.selectImage != null)
+                    slot.selectImage.SetActive(slot.mode == mode);
+            }
         }
 
         public void SetEyedropperPreview(Color color)
@@ -209,10 +223,24 @@ namespace PixelChroma.UI
                 colorPreview.color = color;
         }
 
-        private void SetOutline(Outline outline, bool active)
+        private void SetupToolButtons()
         {
-            if (outline == null) return;
-            outline.effectColor = active ? activeOutlineColor : inactiveOutlineColor;
+            if (toolSlots != null)
+            {
+                foreach (var slot in toolSlots)
+                {
+                    if (slot.button != null)
+                    {
+                        var mode = slot.mode;
+                        slot.button.onClick.AddListener(() => OnToolButtonClicked?.Invoke(mode));
+                    }
+                }
+            }
+
+            if (undoButton != null)
+                undoButton.onClick.AddListener(() => OnUndoButtonClicked?.Invoke());
+            if (redoButton != null)
+                redoButton.onClick.AddListener(() => OnRedoButtonClicked?.Invoke());
         }
 
         private void OnDestroy()

@@ -101,6 +101,9 @@ namespace PixelChroma
             {
                 OnBrushSizeScrolled += _boundPicker.SetBrushSize;
                 _boundPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
+                _boundPicker.OnToolButtonClicked += OnUIToolButtonClicked;
+                _boundPicker.OnUndoButtonClicked += OnUIUndoClicked;
+                _boundPicker.OnRedoButtonClicked += OnUIRedoClicked;
                 if (_paintCanvas != null)
                     _paintCanvas.BrushSize = _boundPicker.BrushSize;
             }
@@ -114,6 +117,9 @@ namespace PixelChroma
             {
                 OnBrushSizeScrolled -= _boundPicker.SetBrushSize;
                 _boundPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
+                _boundPicker.OnToolButtonClicked -= OnUIToolButtonClicked;
+                _boundPicker.OnUndoButtonClicked -= OnUIUndoClicked;
+                _boundPicker.OnRedoButtonClicked -= OnUIRedoClicked;
             }
 
             OnPaintModeChanged = null;
@@ -413,6 +419,27 @@ namespace PixelChroma
                 _paintCanvas.BrushSize = size;
 
             RefreshCursor();
+        }
+
+        private void OnUIToolButtonClicked(BrushMode mode)
+        {
+            SetBrushMode(mode);
+        }
+
+        private void OnUIUndoClicked()
+        {
+            if (_paintCanvas == null) return;
+            if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
+            _paintCanvas.EndStroke();
+            _paintCanvas.Undo();
+        }
+
+        private void OnUIRedoClicked()
+        {
+            if (_paintCanvas == null) return;
+            if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
+            _paintCanvas.EndStroke();
+            _paintCanvas.Redo();
         }
     }
 }
