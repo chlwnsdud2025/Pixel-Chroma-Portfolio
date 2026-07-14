@@ -1,6 +1,7 @@
 using Mirror;
 using PixelChroma.UI;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace PixelChroma
 {
@@ -43,6 +44,20 @@ namespace PixelChroma
         protected override void OnLocalPlayerStopped()
         {
             PaintController.UnbindHUD();
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            if (!isLocalPlayer) return;
+
+            // TODO: 테스트용 폼 전환 — 나중에 제거
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.f1Key.wasPressedThisFrame) paintCanvas.SwitchForm(PlayerPaintCanvas.PaintFormType.Default);
+                if (kb.f2Key.wasPressedThisFrame) paintCanvas.SwitchForm(PlayerPaintCanvas.PaintFormType.Test1);
+            }
         }
 
         private void UpdateReadyImage()
