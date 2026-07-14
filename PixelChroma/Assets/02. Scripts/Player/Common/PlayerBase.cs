@@ -17,6 +17,7 @@ namespace PixelChroma
         protected static readonly int MoveY = Animator.StringToHash("MoveY");
         protected static readonly int IsMoving = Animator.StringToHash("IsMoving");
 
+
         [Header("Input")]
         public InputActionAsset inputActions;
 
@@ -34,6 +35,9 @@ namespace PixelChroma
         [Tooltip("페인트 모드에서 빠져나올 때 최대 줌아웃 상태로 돌아가는 데 걸리는 시간(초)")]
         [SerializeField] private float forcedZoomOutDuration = 0.4f;
         private Tween _zoomTween;
+
+
+        protected virtual bool CanTogglePaintMode => true;//PaintMode 진입가능여부
 
         [Header("Nickname UI")]
         [SerializeField] private TMP_Text nicknameText;
@@ -58,6 +62,7 @@ namespace PixelChroma
         protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
 
+
         protected PlayerInputActions Input => _input;
         protected PlayerPaintController PaintController => _paintController;
         protected Rigidbody2D Rb { get; private set; }
@@ -76,7 +81,7 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
 
-            if (_input.TogglePaint.WasPressedThisFrame())
+            if (CanTogglePaintMode && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
 
             HandleScrollWheel();
