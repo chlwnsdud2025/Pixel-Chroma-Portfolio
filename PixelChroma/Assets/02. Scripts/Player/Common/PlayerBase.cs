@@ -29,10 +29,10 @@ namespace PixelChroma
 
         [Header("Zoom (PPU)")]
         [SerializeField] private int maxPPU = 64;
-        [SerializeField] private int zoomStepPPU = 2;
+        [SerializeField] private int zoomStepPPU = 5;
         [SerializeField] private float manualZoomTweenDuration = 0.15f;
         [Tooltip("페인트 모드에서 빠져나올 때 최대 줌아웃 상태로 돌아가는 데 걸리는 시간(초)")]
-        [SerializeField] private float forcedZoomOutDuration = 1f;
+        [SerializeField] private float forcedZoomOutDuration = 0.4f;
         private Tween _zoomTween;
 
         [Header("Nickname UI")]
