@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -34,6 +35,11 @@ namespace PixelChroma.UI
 
         public Sprite crosshairCursor;
         public Vector2 crosshairPivot = new Vector2(0.5f, 0.5f);
+
+        [Header("Eyedropper Preview")]
+        public RectTransform eyedropperPreview;
+        public Image eyedropperColorSwatch;
+        public TMP_Text eyedropperHexLabel;
 
         private Canvas _parentCanvas;
 
@@ -73,6 +79,15 @@ namespace PixelChroma.UI
             }
         }
 
+        public void UpdateEyedropperPreview(Color color)
+        {
+            if (eyedropperColorSwatch != null)
+                eyedropperColorSwatch.color = color;
+
+            if (eyedropperHexLabel != null)
+                eyedropperHexLabel.text = $"#{ColorUtility.ToHtmlStringRGB(color)}";
+        }
+
         public void SetCursorType(CursorType type, float brushScale = 1f)
         {
             if (cursorImage == null || cursorRect == null) return;
@@ -104,8 +119,10 @@ namespace PixelChroma.UI
                     cursorRect.pivot = crosshairPivot;
                     break;
             }
-        }
 
-        
+            // 미리보기는 스포이드 커서일 때만 보이도록 커서 타입에 종속시킨다.
+            if (eyedropperPreview != null)
+                eyedropperPreview.gameObject.SetActive(type == CursorType.Eyedropper);
+        }
     }
 }

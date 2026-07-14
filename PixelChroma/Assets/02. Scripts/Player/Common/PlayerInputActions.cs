@@ -19,6 +19,8 @@ namespace PixelChroma
         private const string ActionSpectateFree = "SpectateFree";
         private const string ActionCyclePrev = "CyclePrev";
         private const string ActionCycleNext = "CycleNext";
+        private const string ActionUndo = "Undo";
+        private const string ActionRedo = "Redo";
 
         private readonly InputActionMap _map;
 
@@ -36,6 +38,8 @@ namespace PixelChroma
         public InputAction SpectateFree { get; }
         public InputAction CyclePrev { get; }
         public InputAction CycleNext { get; }
+        public InputAction Undo { get; }
+        public InputAction Redo { get; }
 
         public PlayerInputActions(InputActionAsset asset)
         {
@@ -54,6 +58,8 @@ namespace PixelChroma
             SpectateFree = _map.FindAction(ActionSpectateFree);
             CyclePrev = _map.FindAction(ActionCyclePrev);
             CycleNext = _map.FindAction(ActionCycleNext);
+            Undo = _map.FindAction(ActionUndo);
+            Redo = _map.FindAction(ActionRedo);
         }
 
         public void EnableAll() => _map.Enable();

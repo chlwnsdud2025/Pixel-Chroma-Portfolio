@@ -5,14 +5,9 @@ using Mirror;
 
 namespace PixelChroma
 {
-    // ── 셰이더 마스크 방식 페인트 캔버스 ─────────────────────────────────────────
-    //   원본 스프라이트는 건드리지 않고, "어디에 무슨 색을 칠했나"를 페인트 마스크
-    //   텍스처 1장에만 기록한다. 렌더링 시 PlayerPaintMask 셰이더가 현재 표시 중인
-    //   스프라이트 프레임과 마스크를 실시간 합성한다.
-    //   → 프레임(애니메이션) 수와 무관하게 페인트 상태는 포즈당 마스크 1장으로 관리된다.
-    //
-    //   초기화 전용 코드(InitializeForm, 엠보스 법선 계산 등)는
-    //   PlayerPaintCanvas.Init.cs에 분리되어 있다.
+    // 셰이더 마스크 방식 페인트 캔버스. 원본 스프라이트는 그대로 두고 "어디에 무슨 색을
+    // 칠했나"만 마스크 텍스처 1장에 기록, PlayerPaintMask 셰이더가 렌더링 시 합성한다.
+    // 초기화는 .Init.cs, Undo/Redo는 .History.cs 참고.
     public partial class PlayerPaintCanvas : NetworkBehaviour
     {
         // ── 상수 / 내부 타입 ────────────────────────────────────────────────────
@@ -53,6 +48,10 @@ namespace PixelChroma
             [System.NonSerialized] public int totalOpaquePixels;
             [System.NonSerialized] public Dictionary<int, Fade> fading;
             [System.NonSerialized] public bool isDirty;
+
+            // Undo/Redo 스택(폼=도화지마다 독립). 구현은 PlayerPaintCanvas.History.cs 참고.
+            [System.NonSerialized] internal List<PaintCommand> undo;
+            [System.NonSerialized] internal List<PaintCommand> redo;
         }
 
         public struct Fade
@@ -189,7 +188,9 @@ namespace PixelChroma
         {
             if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
 
+            EndStroke();      // 떠나는 폼에 진행 중이던 스트로크를 확정(폼별 히스토리는 유지)
             _activeForm = form;
+            _currentIndex = -1;
 
             if (_material != null && form.paintMask != null)
                 _material.SetTexture(PaintMaskID, form.paintMask);
@@ -211,6 +212,81 @@ namespace PixelChroma
 
         [ClientRpc]
         private void RpcSwitchForm(PaintFormType formType)
+        {
+            if (isOwned) return;
+            ActivateForm(formType);
+        }
+
+        // ── Late-join 동기화 ─────────────────────────────────────────────────────
+        //   접속 전에 칠해진 내용을 새 클라에 반영. 호스트 maskPixels가 최신 상태이므로
+        //   요청자에게만 스냅샷 전송(마스크가 커서 청크 분할). 트리거는 PlayerBase.
+
+        [Server]
+        public void SendPaintSnapshotTo(NetworkConnectionToClient conn)
+        {
+            if (_formLookup == null) return;
+
+            var idxBuf = new List<int>(RelayMaxCells);
+            var colBuf = new List<Color32>(RelayMaxCells);
+
+            foreach (var form in _formLookup.Values)
+            {
+                if (form.maskPixels == null) continue;
+
+                var pixels = form.maskPixels;
+                bool firstChunk = true;
+
+                for (int i = 0; i < pixels.Length; i++)
+                {
+                    if (pixels[i].a == 0) continue;
+
+                    idxBuf.Add(i);
+                    colBuf.Add(pixels[i]);
+
+                    if (idxBuf.Count == RelayMaxCells)
+                    {
+                        TargetLoadSnapshot(conn, form.formType, firstChunk, idxBuf.ToArray(), colBuf.ToArray());
+                        firstChunk = false;
+                        idxBuf.Clear();
+                        colBuf.Clear();
+                    }
+                }
+
+                if (idxBuf.Count > 0)
+                {
+                    TargetLoadSnapshot(conn, form.formType, firstChunk, idxBuf.ToArray(), colBuf.ToArray());
+                    idxBuf.Clear();
+                    colBuf.Clear();
+                }
+            }
+
+            TargetRestoreActiveForm(conn, _activeForm.formType);
+        }
+
+        [TargetRpc]
+        private void TargetLoadSnapshot(NetworkConnectionToClient target,
+            PaintFormType formType, bool activateForm, int[] indices, Color32[] colors)
+        {
+            if (isOwned) return;
+            if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
+            if (form.maskPixels == null || indices == null) return;
+
+            int count = Mathf.Min(indices.Length, colors.Length);
+            for (int i = 0; i < count; i++)
+            {
+                int idx = indices[i];
+                if (idx < 0 || idx >= form.maskPixels.Length) continue;
+                ApplyCellRaw(form, idx, colors[i]);
+            }
+
+            form.paintMask.SetPixels32(form.maskPixels);
+            form.paintMask.Apply();
+            form.isDirty = false;
+        }
+
+        [TargetRpc]
+        private void TargetRestoreActiveForm(NetworkConnectionToClient target,
+            PaintFormType formType)
         {
             if (isOwned) return;
             ActivateForm(formType);
@@ -244,6 +320,7 @@ namespace PixelChroma
                     int idx = y * form.texWidth + x;
                     if (!form.unionOpaque[idx]) continue;
 
+                    RecordBefore(form, idx);
                     SetMaskCell(form, idx, color);
 
                     if (form.fading.Count > 0) form.fading.Remove(idx);
@@ -304,6 +381,7 @@ namespace PixelChroma
                 for (int y = y0; y < y1; y++)
                 {
                     int idx = y * form.texWidth + x;
+                    RecordBefore(form, idx);
                     ClearMaskCell(form, idx);
                     if (form.fading.Count > 0) form.fading.Remove(idx);
                 }
@@ -378,6 +456,7 @@ namespace PixelChroma
             var form = _activeForm;
             if (form.maskPixels == null) return;
 
+            ClearHistory();   // 물총 피격 = 되돌리기 히스토리 무효화 (로컬 전용)
             int r2 = pixelRadius * pixelRadius;
             for (int dx = -pixelRadius; dx <= pixelRadius; dx++)
                 for (int dy = -pixelRadius; dy <= pixelRadius; dy++)
@@ -461,6 +540,7 @@ namespace PixelChroma
             var form = _activeForm;
             if (form.maskPixels == null) return;
 
+            ClearHistory();
             form.fading.Clear();
             System.Array.Clear(form.maskPixels, 0, form.maskPixels.Length);
             form.paintedCells = 0;

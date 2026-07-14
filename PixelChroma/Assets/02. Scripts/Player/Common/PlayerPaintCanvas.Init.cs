@@ -3,10 +3,7 @@ using UnityEngine;
 
 namespace PixelChroma
 {
-    // ── 초기화 전용 ─────────────────────────────────────────────────────────────
-    //   Start에서 한 번 실행되는 초기화 로직을 모아둔 partial 파일.
-    //   원본 픽셀 읽기, 엠보스 법선 계산, 실루엣 빌드, 마스크 생성 등
-    //   런타임에는 다시 호출되지 않는 코드만 포함한다.
+    // Start에서 한 번만 실행되는 초기화(원본 픽셀 읽기, 엠보스 법선, 실루엣, 마스크 생성).
     public partial class PlayerPaintCanvas
     {
         private void InitializeAllForms()
@@ -51,12 +48,11 @@ namespace PixelChroma
             form.maskRects = new Vector4[count];
             form.spriteIndex = new Dictionary<Sprite, int>(count);
             form.fading = new Dictionary<int, Fade>();
+            form.undo = new List<PaintCommand>();
+            form.redo = new List<PaintCommand>();
 
-            // ── 1) 원본 픽셀 읽기 ──────────────────────────────────────────────
-            // 스프라이트 시트의 Read/Write가 꺼져 있어도 읽을 수 있도록 GPU→CPU 복사본을
-            // 만든 뒤, 프레임별 영역을 잘라 originalPixels[프레임][픽셀]에 저장한다.
-            // 같은 시트를 공유하는 프레임이 연속되면 복사본을 재사용한다.
-            // 이 데이터는 아래 2·3단계에서만 쓰이고, 이 메서드가 끝나면 GC 대상이 된다.
+            // 1) 원본 픽셀 읽기. Read/Write 꺼진 시트도 읽도록 GPU→CPU 복사본을 만들어
+            //    프레임별로 잘라 originalPixels에 저장(연속된 같은 시트는 복사본 재사용).
             var originalPixels = new Color[count][];
             Texture2D lastSourceTex = null;
             Texture2D readableCopy = null;
@@ -82,12 +78,8 @@ namespace PixelChroma
 
             if (readableCopy != null) Destroy(readableCopy);
 
-            // ── 2) 엠보스 법선 + 실루엣 빌드 ──────────────────────────────────
-            // 프레임별 원본 픽셀의 알파를 보고 테두리 법선을 계산한다.
-            // 동시에 프레임별 불투명 픽셀을 순회하며:
-            //   - unionOpaque: 어느 프레임에서든 몸인 칸 (칠 허용 판정용)
-            //   - referenceOpaque: 프레임 0의 실루엣 (칠한 비율 판정 기준)
-            //   - embossTextures[i]: 법선을 텍스처로 구워 셰이더에 전달
+            // 2) 엠보스 법선 + 실루엣 빌드. unionOpaque=어느 프레임에서든 몸인 칸(칠 허용),
+            //    referenceOpaque=프레임0 실루엣(칠 비율 기준), embossTextures=법선을 구운 텍스처.
             var edgeNormals = BuildEdgeNormals(originalPixels, form.texWidth, form.texHeight);
 
             form.unionOpaque = new bool[pixelCount];
@@ -111,15 +103,12 @@ namespace PixelChroma
                 form.embossTextures[i] = tex;
             }
 
-            // ── 3) 기준 실루엣의 불투명 픽셀 수 카운트 ────────────────────────
-            // GetPaintRatio()에서 paintedCells / totalOpaquePixels 로 O(1) 비율 판정에 사용
+            // 3) 기준 실루엣 불투명 픽셀 수(GetPaintRatio의 분모).
             form.totalOpaquePixels = 0;
             for (int i = 0; i < pixelCount; i++)
                 if (form.referenceOpaque[i]) form.totalOpaquePixels++;
 
-            // ── 4) 빈 페인트 마스크 생성 ───────────────────────────────────────
-            // rgba 전부 0인 텍스처 1장 = "아직 아무것도 안 칠한 상태"
-            // 이후 PaintLocal()이 여기에 색을 기록하고, 셰이더가 원본과 합성한다.
+            // 4) 빈 페인트 마스크(rgba=0) 생성.
             form.paintMask = new Texture2D(form.texWidth, form.texHeight, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
@@ -172,11 +161,8 @@ namespace PixelChroma
             return new Vector4(min.x, min.y, max.x - min.x, max.y - min.y);
         }
 
-        // ── 외곽선 엠보스 법선 계산 ─────────────────────────────────────────────
-        //   투명 픽셀과 맞닿은 실루엣 테두리 픽셀만 골라, 투명한 쪽을 향하는 방향(법선)을
-        //   계산한다. 결과는 BuildNormalPixels()로 텍스처 픽셀(rg=법선, b=테두리 플래그)로
-        //   인코딩되어 GPU 셰이더(PlayerPaintMask)에 전달된다.
-
+        // 실루엣 테두리 픽셀에서 투명한 쪽을 향하는 법선을 계산(BuildNormalPixels가 셰이더용
+        // 텍스처로 인코딩).
         private static Vector2[][] BuildEdgeNormals(Color[][] originalPixels, int texWidth, int texHeight)
         {
             int count = originalPixels.Length;
