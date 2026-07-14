@@ -136,6 +136,10 @@ namespace PixelChroma
         {
             _isPaintMode = !_isPaintMode;
             OnPaintModeChanged?.Invoke(_isPaintMode);
+
+            if (!_isPaintMode)
+                HideBrushPreview();
+
             RefreshCursor();
         }
 
