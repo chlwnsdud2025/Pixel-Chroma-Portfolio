@@ -46,6 +46,9 @@ namespace PixelChroma.UI
             {
                 UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
 
+                if (modeText != null)
+                    modeText.text = round.CurrentRule?.DisplayName ?? "";
+
                 bool isResultState = round.CurrentTimeState == TimeState.CheckTime
                            || round.CurrentTimeState == TimeState.GameEnd;
 

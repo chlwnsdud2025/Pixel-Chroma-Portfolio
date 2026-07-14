@@ -408,9 +408,14 @@ namespace PixelChroma
             {
                 seeker.TargetShowRunnerIndicator(this.netIdentity, exposeDuration);
             }
+            TargetActivateSeekerIndicator(exposeDuration);
         }
 
-
+        [TargetRpc]
+        private void TargetActivateSeekerIndicator(float duration)
+        {
+            _runnerHUD?.ActivateSeekerIndicator(duration);
+        }
 
         private void OnWetStateChanged(bool oldVal, bool newVal)
         {

@@ -4,7 +4,6 @@ using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
-    // 💡 부모 HUD를 상속받습니다.
     public class UIInGameHUD_Runner : UIInGameHUD
     {
         [Header("Spectator Mode UI")]
@@ -13,6 +12,9 @@ namespace PixelChroma.UI
         [Header("Runner Expose Skill UI Only")]
         [SerializeField] private Image exposeSkillCooldownOverlay;
         [SerializeField] private TMP_Text exposeSkillCooldownText;
+
+        [Header("Seeker Indicator")]
+        [SerializeField] private SeekerIndicatorPanel seekerIndicatorPanel;
 
         private bool _isExposeCounting;
         private float _exposeCooldownDuration;
@@ -91,6 +93,11 @@ namespace PixelChroma.UI
                 exposeSkillCooldownText.gameObject.SetActive(true);
                 exposeSkillCooldownText.text = duration.ToString("F1");
             }
+        }
+
+        public void ActivateSeekerIndicator(float duration)
+        {
+            seekerIndicatorPanel?.Activate(duration);
         }
     }
 }

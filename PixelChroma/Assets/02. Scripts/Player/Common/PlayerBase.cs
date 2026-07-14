@@ -7,6 +7,7 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
+using DG.Tweening;
 
 namespace PixelChroma
 {
@@ -29,10 +30,10 @@ namespace PixelChroma
         [Header("Zoom (PPU)")]
         [SerializeField] private int maxPPU = 64;
         [SerializeField] private int zoomStepPPU = 2;
-
+        [SerializeField] private float manualZoomTweenDuration = 0.15f;
         [Tooltip("페인트 모드에서 빠져나올 때 최대 줌아웃 상태로 돌아가는 데 걸리는 시간(초)")]
         [SerializeField] private float forcedZoomOutDuration = 1f;
-
+        private Tween _zoomTween;
 
         [Header("Nickname UI")]
         [SerializeField] private TMP_Text nicknameText;
@@ -260,9 +261,18 @@ namespace PixelChroma
         {
             if (_pixelPerfectCamera == null) return;
 
+            _zoomTween?.Kill();
+
             int current = _pixelPerfectCamera.assetsPPU;
             int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
-            _pixelPerfectCamera.assetsPPU = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
+            int target = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
+
+            _zoomTween = DOTween.To(
+                    () => _pixelPerfectCamera.assetsPPU,
+                    v => _pixelPerfectCamera.assetsPPU = v,
+                    target,
+                    manualZoomTweenDuration)
+                .SetEase(Ease.OutQuad);
         }
 
         private void HandlePaintModeChangedForZoom(bool isPaintMode)
@@ -275,27 +285,13 @@ namespace PixelChroma
         {
             if (_pixelPerfectCamera == null) return;
 
-            if (_zoomResetCoroutine != null)
-                StopCoroutine(_zoomResetCoroutine);
-
-            _zoomResetCoroutine = StartCoroutine(ZoomOutRoutine());
-        }
-
-        private IEnumerator ZoomOutRoutine()
-        {
-            float startPPU = _pixelPerfectCamera.assetsPPU;
-            float elapsed = 0f;
-
-            while (elapsed < forcedZoomOutDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = forcedZoomOutDuration > 0f ? elapsed / forcedZoomOutDuration : 1f;
-                _pixelPerfectCamera.assetsPPU = Mathf.RoundToInt(Mathf.Lerp(startPPU, _originalPPU, t));
-                yield return null;
-            }
-
-            _pixelPerfectCamera.assetsPPU = _originalPPU;
-            _zoomResetCoroutine = null;
+            _zoomTween?.Kill();   // 이전에 남아있던 트윈(수동 줌이든 이전 줌아웃이든) 취소
+            _zoomTween = DOTween.To(
+                    () => _pixelPerfectCamera.assetsPPU,
+                    v => _pixelPerfectCamera.assetsPPU = v,
+                    _originalPPU,
+                    forcedZoomOutDuration)
+                .SetEase(Ease.OutQuad);
         }
 
         private float GetScrollValue()

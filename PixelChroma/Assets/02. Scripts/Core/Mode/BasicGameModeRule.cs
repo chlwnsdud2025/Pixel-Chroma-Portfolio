@@ -5,7 +5,7 @@ namespace PixelChroma
     public class BasicGameModeRule : GameModeRule
     {
         public override GameMode Mode => GameMode.Basic;
-
+        public override string DisplayName => "기본 모드";
         public override void OnRunnerCaught(RunnerPlayer runner) => runner.ServerBecomeSpectator();//잡힐시 관전
 
         public override bool CanSeeRunnerNickname(TimeState currentState) => true;//Runner끼리 닉네임 항상 보임

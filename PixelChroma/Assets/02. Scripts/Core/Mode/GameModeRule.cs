@@ -6,7 +6,7 @@ namespace PixelChroma
     public abstract class GameModeRule
     {
         public abstract GameMode Mode { get; }
-
+        public abstract string DisplayName { get; }
         // 술래에게 잡혔을 때 해당 러너를 어떻게 처리할지 결정
         public abstract void OnRunnerCaught(RunnerPlayer runner);
 
