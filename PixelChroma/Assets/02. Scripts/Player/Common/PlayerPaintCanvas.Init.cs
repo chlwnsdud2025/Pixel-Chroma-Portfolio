@@ -51,6 +51,8 @@ namespace PixelChroma
             form.maskRects = new Vector4[count];
             form.spriteIndex = new Dictionary<Sprite, int>(count);
             form.fading = new Dictionary<int, Fade>();
+            form.undo = new List<PaintCommand>();
+            form.redo = new List<PaintCommand>();
 
             // ── 1) 원본 픽셀 읽기 ──────────────────────────────────────────────
             // 스프라이트 시트의 Read/Write가 꺼져 있어도 읽을 수 있도록 GPU→CPU 복사본을

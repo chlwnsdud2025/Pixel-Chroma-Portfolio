@@ -53,6 +53,7 @@ namespace PixelChroma
         public void Tick()
         {
             HandleModeInput();
+            HandleHistoryInput();
 
             if (_brushMode == BrushMode.Eyedropper)
             {
@@ -124,6 +125,8 @@ namespace PixelChroma
         {
             if (_brushMode == mode) return;
 
+            _paintCanvas?.EndStroke();   // 도구 전환 시 진행 중 스트로크 확정
+
             if (_brushMode == BrushMode.Eyedropper)
                 StopEyedropperCapture();
 
@@ -142,7 +145,10 @@ namespace PixelChroma
             OnPaintModeChanged?.Invoke(_isPaintMode);
 
             if (!_isPaintMode)
+            {
+                _paintCanvas?.EndStroke();   // 페인트 모드 종료 시 진행 중 스트로크 확정
                 HideBrushPreview();
+            }
 
             RefreshCursor();
         }
@@ -183,6 +189,26 @@ namespace PixelChroma
                 default:
                     CursorManager.Instance.SetCursorType(CursorType.Brush, 1f + (brushSize * 0.1f));
                     break;
+            }
+        }
+
+        private void HandleHistoryInput()
+        {
+            if (_paintCanvas == null) return;
+            // 드래그(색칠) 중에는 되돌리기를 막는다 — 진행 중 스트로크와 꼬이지 않도록
+            if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
+
+            // Redo를 먼저 검사: Ctrl+Shift+Z는 Undo(Ctrl+Z)의 OneModifier 조건도
+            // 만족하므로, Redo가 우선하도록 해 같은 프레임 중복 발동을 막는다.
+            if (_input.Redo != null && _input.Redo.WasPressedThisFrame())
+            {
+                _paintCanvas.EndStroke();   // 혹시 남은 스트로크가 있으면 먼저 확정
+                _paintCanvas.Redo();
+            }
+            else if (_input.Undo != null && _input.Undo.WasPressedThisFrame())
+            {
+                _paintCanvas.EndStroke();
+                _paintCanvas.Undo();
             }
         }
 
@@ -297,6 +323,10 @@ namespace PixelChroma
             if (_brushMode == BrushMode.Eyedropper) return;
             if (Mouse.current == null) return;
 
+            // 마우스를 떼면 이번 드래그를 1 스트로크로 확정(히스토리 1건)
+            if (Mouse.current.leftButton.wasReleasedThisFrame)
+                _paintCanvas.EndStroke();
+
             if (_waitForMouseRelease)
             {
                 if (!Mouse.current.leftButton.isPressed)
@@ -310,6 +340,7 @@ namespace PixelChroma
 
             if (_paintCanvas.IsInBounds(pixel.x, pixel.y))
             {
+                _paintCanvas.BeginStroke();   // 드래그 첫 프레임에만 실제로 시작(그 외 no-op)
                 switch (_brushMode)
                 {
                     case BrushMode.Eraser:

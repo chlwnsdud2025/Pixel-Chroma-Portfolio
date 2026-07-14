@@ -53,6 +53,10 @@ namespace PixelChroma
             [System.NonSerialized] public int totalOpaquePixels;
             [System.NonSerialized] public Dictionary<int, Fade> fading;
             [System.NonSerialized] public bool isDirty;
+
+            // Undo/Redo 스택(폼=도화지마다 독립). 구현은 PlayerPaintCanvas.History.cs 참고.
+            [System.NonSerialized] internal List<PaintCommand> undo;
+            [System.NonSerialized] internal List<PaintCommand> redo;
         }
 
         public struct Fade
@@ -189,6 +193,7 @@ namespace PixelChroma
         {
             if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
 
+            EndStroke();      // 떠나는 폼에 진행 중이던 스트로크를 확정(폼별 히스토리는 유지)
             _activeForm = form;
 
             if (_material != null && form.paintMask != null)
@@ -244,6 +249,7 @@ namespace PixelChroma
                     int idx = y * form.texWidth + x;
                     if (!form.unionOpaque[idx]) continue;
 
+                    RecordBefore(form, idx);
                     SetMaskCell(form, idx, color);
 
                     if (form.fading.Count > 0) form.fading.Remove(idx);
@@ -304,6 +310,7 @@ namespace PixelChroma
                 for (int y = y0; y < y1; y++)
                 {
                     int idx = y * form.texWidth + x;
+                    RecordBefore(form, idx);
                     ClearMaskCell(form, idx);
                     if (form.fading.Count > 0) form.fading.Remove(idx);
                 }
@@ -378,6 +385,7 @@ namespace PixelChroma
             var form = _activeForm;
             if (form.maskPixels == null) return;
 
+            ClearHistory();   // 물총 피격 = 되돌리기 히스토리 무효화 (로컬 전용)
             int r2 = pixelRadius * pixelRadius;
             for (int dx = -pixelRadius; dx <= pixelRadius; dx++)
                 for (int dy = -pixelRadius; dy <= pixelRadius; dy++)
@@ -461,6 +469,7 @@ namespace PixelChroma
             var form = _activeForm;
             if (form.maskPixels == null) return;
 
+            ClearHistory();
             form.fading.Clear();
             System.Array.Clear(form.maskPixels, 0, form.maskPixels.Length);
             form.paintedCells = 0;
