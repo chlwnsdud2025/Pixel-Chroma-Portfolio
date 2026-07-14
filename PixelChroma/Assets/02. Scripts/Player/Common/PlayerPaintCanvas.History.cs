@@ -4,12 +4,9 @@ using Mirror;
 
 namespace PixelChroma
 {
-    // ── Undo / Redo (스트로크 단위 되돌리기) ─────────────────────────────────────
-    //   한 번의 드래그(마우스 down→up)를 1 스트로크로 묶어, 그 동안 값이 바뀐 셀만
-    //   delta(before/after)로 기록한다. 스택은 폼(도화지)마다 독립이라(PaintForm.undo/redo)
-    //   변신해도 각 폼의 되돌리기가 보존된다. 물총 페이드 · 전체 리셋 시엔 ClearHistory()로
-    //   "활성 폼" 히스토리만 비운다 → 전투 중 되돌리기 악용/페이드 정합성 문제 회피
-    //   (숨는 시간 위주 사용 전제).
+    // Undo/Redo. 드래그 1회(down→up)를 1 스트로크로 묶어 값이 바뀐 셀만 delta로 기록.
+    // 스택은 폼(도화지)마다 독립(PaintForm.undo/redo). 물총 페이드·리셋 시 ClearHistory로
+    // 활성 폼 히스토리만 비운다(되돌리기 악용/페이드 정합성 회피).
     public partial class PlayerPaintCanvas
     {
         private const int MaxHistory = 50;
@@ -26,8 +23,7 @@ namespace PixelChroma
             public CellChange[] changes;
         }
 
-        // 진행 중인 스트로크에서 각 셀의 "칠하기 전" 값을 최초 1회만 저장.
-        // Undo/Redo 스택 자체는 폼별로 PaintForm.undo/redo 에 있다(도화지=폼마다 독립).
+        // 진행 중 스트로크에서 각 셀의 "칠하기 전" 값을 최초 1회만 저장.
         private Dictionary<int, Color32> _strokeBefore;
         private PaintForm _strokeForm;
         private bool _strokeActive;
@@ -117,12 +113,9 @@ namespace PixelChroma
             ApplyChanges();
         }
 
-        // ── 네트워크 릴레이 ─────────────────────────────────────────────────────
-        //   Undo/Redo는 소유자 로컬에서만 실행되므로, 결과(변경 셀 + 목표색)를
-        //   기존 CmdPaint/RpcPaint와 동일한 흐름(Cmd→Rpc, 비소유자만 적용)으로 원격에
-        //   반영한다. 대형 스트로크/Fill은 메시지 크기 상한을 넘지 않도록 청크로 쪼갠다.
-        //   폼 정보는 보내지 않는다 — 폼 전환이 CmdSwitchForm으로 이미 동기화되어
-        //   원격의 _activeForm이 소유자와 같다는 전제(기존 페인팅과 동일).
+        // Undo/Redo 결과(변경 셀+목표색)를 CmdPaint/RpcPaint와 동일한 클라 권위 릴레이로
+        // 원격에 반영. 대형 스트로크는 메시지 크기 상한을 넘지 않도록 청크로 쪼갠다.
+        // 폼 정보는 안 보냄(폼 전환이 CmdSwitchForm으로 이미 동기화됐다는 전제).
 
         private const int RelayMaxCells = 1000;   // 청크당 셀 수 (셀당 약 8바이트)
 
@@ -173,8 +166,8 @@ namespace PixelChroma
             ApplyChanges();
         }
 
-        // maskPixels에 값을 쓰면서 paintedCells 카운터를 SetMaskCell/ClearMaskCell과
-        // 동일한 규칙(referenceOpaque 셀의 알파 0↔비0 전이)으로 보정한다.
+        // maskPixels에 쓰면서 paintedCells 카운터를 SetMaskCell/ClearMaskCell과 동일하게
+        // (referenceOpaque 셀의 알파 0↔비0 전이) 보정한다.
         private static void ApplyCellRaw(PaintForm form, int idx, Color32 value)
         {
             byte oldA = form.maskPixels[idx].a;
@@ -188,10 +181,7 @@ namespace PixelChroma
             if (form.fading != null && form.fading.Count > 0) form.fading.Remove(idx);
         }
 
-        // ── 히스토리 정리 ───────────────────────────────────────────────────────
-        //   피격(EraseArea) · 전체 리셋(ResetTexture)에서 호출 → "활성 폼" 히스토리만 비운다.
-        //   폼 전환은 clear하지 않고(폼별 독립) 진행 중 스트로크만 확정한다(ActivateForm).
-
+        // 피격(EraseArea)·리셋(ResetTexture)에서 호출 → 활성 폼 히스토리만 비운다.
         public void ClearHistory()
         {
             var form = _activeForm;

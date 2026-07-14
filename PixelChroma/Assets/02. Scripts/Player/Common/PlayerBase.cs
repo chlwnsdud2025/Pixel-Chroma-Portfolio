@@ -144,6 +144,9 @@ namespace PixelChroma
 
             string mySavedName = PlayerPrefs.GetString(UIMainMenuNickname.NicknamePrefsKey, GetDefaultSteamName());
             CmdRegisterMyNameWithManager(mySavedName);
+
+            // 이미 칠해둔 다른 플레이어들의 현재 페인트 상태를 요청(late-join 동기화).
+            CmdRequestPaintSnapshots();
         }
 
         public override void OnStopLocalPlayer()
@@ -210,6 +213,22 @@ namespace PixelChroma
         public virtual CursorType GetDefaultCursorType()
         {
             return CursorType.Default;
+        }
+
+        // 스폰된 다른 플레이어 캔버스들이 각자의 현재 페인트를 요청자에게 보내도록 한다.
+        [Command]
+        private void CmdRequestPaintSnapshots()
+        {
+            var conn = connectionToClient;
+            if (conn == null) return;
+
+            foreach (var identity in NetworkServer.spawned.Values)
+            {
+                if (identity == null || identity == netIdentity) continue;   // 내 캔버스는 빈 상태
+                var canvas = identity.GetComponentInChildren<PlayerPaintCanvas>();
+                if (canvas != null)
+                    canvas.SendPaintSnapshotTo(conn);
+            }
         }
 
         [Command]
