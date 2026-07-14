@@ -43,7 +43,7 @@ namespace PixelChroma
         {
             get
             {
-                var mode = LobbyManager.Instance?.CurrentRoomOption?.gameMode ?? GameMode.Basic;
+                var mode = CurrentRoomOption?.gameMode ?? GameMode.Basic;
                 return GameModeRuleFactory.Create(mode);
             }
         }
