@@ -68,6 +68,10 @@ namespace PixelChroma
         public void Dispose()
         {
             StopEyedropperCapture();
+
+            if (_owner != null && _owner.isLocalPlayer && CursorManager.Instance != null)
+                CursorManager.Instance.SetCursorType(CursorType.Default);
+
             if (_eyedropperCapture != null)
             {
                 UnityEngine.Object.Destroy(_eyedropperCapture);
@@ -213,7 +217,7 @@ namespace PixelChroma
                 return;
             }
 
-            int size = _brushMode == BrushMode.Eyedropper ? 1 : _paintCanvas.BrushSize;
+            int size = _paintCanvas.BrushSize;
             EnsureBrushPreview(size);
 
             Vector3 center = _paintCanvas.GetBrushWorldCenter(pixel.x, pixel.y, size);
@@ -246,7 +250,7 @@ namespace PixelChroma
             if (_previewLastSize == size) return;
             _previewLastSize = size;
 
-            const int res = 4;
+            const int res = 6;
             int brushPx = Mathf.Max(size, 1);
             int texSize = brushPx * res;
             var tex = new Texture2D(texSize, texSize, TextureFormat.RGBA32, false);
@@ -335,13 +339,17 @@ namespace PixelChroma
                 int x = (int)screenPos.x;
                 int y = (int)screenPos.y;
 
-                if (x >= 0 && x < Screen.width && y >= 0 && y < Screen.height)
-                {
-                    _eyedropperCapture.ReadPixels(new Rect(x, y, 1, 1), 0, 0);
-                    _eyedropperCapture.Apply();
-                    _eyedropperColor = _eyedropperCapture.GetPixel(0, 0);
-                    _boundPicker?.SetEyedropperPreview(_eyedropperColor);
-                }
+                if (x < 0 || x >= Screen.width || y < 0 || y >= Screen.height) continue;
+
+                _eyedropperCapture.ReadPixels(new Rect(x, y, 1, 1), 0, 0);
+                _eyedropperCapture.Apply();
+                _eyedropperColor = _eyedropperCapture.GetPixel(0, 0);
+
+                _boundPicker?.SetEyedropperPreview(_eyedropperColor);
+
+                // 커서 옆 스포이드 미리보기 내용만 갱신
+                if (CursorManager.Instance != null)
+                    CursorManager.Instance.UpdateEyedropperPreview(_eyedropperColor);
             }
         }
 
