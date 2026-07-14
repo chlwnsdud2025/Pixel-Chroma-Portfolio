@@ -16,6 +16,11 @@ namespace PixelChroma.UI
 
         [SerializeField] private TMP_Text gameResultOverlayText;
 
+        [Header("Game Mode UI")]
+        [SerializeField] private TMP_Text modeText;
+
+        [Header("Game Chat UI")]
+
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
