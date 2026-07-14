@@ -14,4 +14,9 @@ namespace PixelChroma
     {
         public PlayerRole winner;
     }
+
+    public struct RoomOptionSyncMessage : NetworkMessage
+    {
+        public RoomOptionData option;
+    }
 }
