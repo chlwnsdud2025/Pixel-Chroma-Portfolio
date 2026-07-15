@@ -13,6 +13,7 @@ namespace PixelChroma.UI
         [Header("Game State UI (Common)")]
         [SerializeField] private TMP_Text stateText;
         [SerializeField] private TMP_Text timerText;
+        [SerializeField] private TMP_Text forcedExposeTimerText;
 
         [SerializeField] private TMP_Text gameResultOverlayText;
 
@@ -95,6 +96,9 @@ namespace PixelChroma.UI
                 }
             }
 
+            if (forcedExposeTimerText != null)
+                forcedExposeTimerText.gameObject.SetActive(state == TimeState.SeekTime);
+
             UpdateTimerText(remainingSeconds);
         }
 
@@ -127,6 +131,12 @@ namespace PixelChroma.UI
         private void HandleTimerTick(int remainingSeconds)
         {
             UpdateTimerText(remainingSeconds);
+
+            if (forcedExposeTimerText != null)
+            {
+                var round = GameRoundManager.Instance;
+                forcedExposeTimerText.text = round != null ? round.SecondsUntilNextForcedExpose.ToString() : "";
+            }
         }
 
         private void HandleWinnerDecided(PlayerRole winner)
