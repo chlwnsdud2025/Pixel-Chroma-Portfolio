@@ -13,9 +13,6 @@ namespace PixelChroma.UI
         [SerializeField] private Image exposeSkillCooldownOverlay;
         [SerializeField] private TMP_Text exposeSkillCooldownText;
 
-        [Header("Seeker Indicator")]
-        [SerializeField] private SeekerIndicatorPanel seekerIndicatorPanel;
-
         private bool _isExposeCounting;
         private float _exposeCooldownDuration;
         private float _exposeTimer;
@@ -95,9 +92,6 @@ namespace PixelChroma.UI
             }
         }
 
-        public void ActivateSeekerIndicator(float duration)
-        {
-            seekerIndicatorPanel?.Activate(duration);
-        }
+        
     }
 }
