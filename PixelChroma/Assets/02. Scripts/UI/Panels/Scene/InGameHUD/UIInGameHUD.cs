@@ -23,7 +23,8 @@ namespace PixelChroma.UI
         [SerializeField] private UIPlayerCountIcons runnerCountIcons;
         [SerializeField] private UIPlayerCountIcons seekerCountIcons;
 
-        [Header("Game Chat UI")]
+        [Header("Spectator Mode UI (Common)")]
+        [SerializeField] private UISpectatorModePanel spectatorPanel;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -74,6 +75,28 @@ namespace PixelChroma.UI
         {
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
             if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false);
+            if (spectatorPanel != null) spectatorPanel.Hide();
+        }
+
+        // ── 관전 모드 UI (러너/시커 공용) ──────────────────────────────
+        public void SetSpectatorMode(bool active)
+        {
+            if (spectatorPanel == null) return;
+
+            if (active) spectatorPanel.Show();
+            else spectatorPanel.Hide();
+        }
+
+        public void SetActiveSpectateMode(SpectateMode mode)
+        {
+            if (spectatorPanel != null)
+                spectatorPanel.SetActiveMode(mode);
+        }
+
+        public void SetSpectateTargetName(string name, bool isSelf)
+        {
+            if (spectatorPanel != null)
+                spectatorPanel.SetTargetName(name, isSelf);
         }
 
         private void SyncToCurrentState()

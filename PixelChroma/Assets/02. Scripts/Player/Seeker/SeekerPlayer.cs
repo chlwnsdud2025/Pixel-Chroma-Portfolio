@@ -19,6 +19,9 @@ namespace PixelChroma
         private SeekerWaterGun _waterGun;
         private UIInGameHUD_Seeker _seekerHUD;
         private RunnerPlayer _targetRunnerToCatch;
+        private bool _isCheckTimeSpectateAllowed;
+
+        protected override UIInGameHUD InGameHUD => _seekerHUD;
 
         protected override void Awake()
         {
@@ -32,8 +35,16 @@ namespace PixelChroma
 
             if (!isLocalPlayer) return;
 
+            if (Spectator != null && Spectator.IsSpectating)
+            {
+                if (!IsChatActive)
+                    HandleSpectateInput();
+                return;
+            }
+
             if (!IsChatActive)
             {
+                HandleSpectateInput();
                 CheckForCatchableRunner();
                 HandleCatchInput();
                 if (_waterGun != null)
@@ -50,6 +61,8 @@ namespace PixelChroma
         {
             PaintController.OnPaintModeChanged += HandleLocalPaintModeChanged;
             ShowHUDAsync().Forget();
+            InitializeSpectator();
+            GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
         }
 
         protected override void OnLocalPlayerStopped()
@@ -57,8 +70,37 @@ namespace PixelChroma
             PaintController.UnbindHUD();
             PaintController.OnPaintModeChanged -= HandleLocalPaintModeChanged;
 
+            GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
+            CleanupSpectator();
+
             if (CursorManager.Instance != null)
                 CursorManager.Instance.overrideScreenPosition = null;
+        }
+
+        protected override void HandleSpectateInput()
+        {
+            if (Spectator == null || !_isCheckTimeSpectateAllowed) return;
+
+            if (Input.ToggleSpectate.WasPressedThisFrame())
+            {
+                if (Spectator.IsSpectating)
+                {
+                    Spectator.ExitSpectate();
+                    _seekerHUD?.SetSpectatorMode(false);
+                }
+                else
+                {
+                    if (PaintController.IsPaintMode)
+                        PaintController.TogglePaintMode();
+
+                    Spectator.EnterRunnerMode();
+                    _seekerHUD?.SetSpectatorMode(true);
+                    _seekerHUD?.SetActiveSpectateMode(SpectateMode.Runner);
+                }
+                return;
+            }
+
+            base.HandleSpectateInput();
         }
 
         public override CursorType GetDefaultCursorType()
@@ -167,12 +209,50 @@ namespace PixelChroma
 
             if (_waterGun != null)
                 _seekerHUD.SetWaterGunCooldownDuration(_waterGun.FireCooldownDuration);
+
+            _seekerHUD.SetSpectateKeyHintVisible(false);
         }
 
         private void HandleLocalPaintModeChanged(bool isPaint)
         {
             if (_waterGun != null)
                 _waterGun.SetWeaponVisible(!isPaint);
+        }
+
+        private void HandleTimeStateChanged(TimeState state, int remainingSeconds)
+        {
+            if (Spectator == null) return;
+
+            bool isRunnerWinReview = state == TimeState.CheckTime
+                && GameRoundManager.Instance != null
+                && GameRoundManager.Instance.CurrentWinner == PlayerRole.Runner;
+
+            if (isRunnerWinReview)
+            {
+                _isCheckTimeSpectateAllowed = true;
+                _seekerHUD?.SetSpectateKeyHintVisible(true);
+
+                if (!Spectator.IsSpectating)
+                {
+                    if (PaintController.IsPaintMode)
+                        PaintController.TogglePaintMode();
+
+                    Spectator.EnterRunnerMode();
+                    _seekerHUD?.SetSpectatorMode(true);
+                    _seekerHUD?.SetActiveSpectateMode(SpectateMode.Runner);
+                }
+            }
+            else
+            {
+                _isCheckTimeSpectateAllowed = false;
+                _seekerHUD?.SetSpectateKeyHintVisible(false);
+
+                if (Spectator.IsSpectating)
+                {
+                    Spectator.ExitSpectate();
+                    _seekerHUD?.SetSpectatorMode(false);
+                }
+            }
         }
 
         private void OnDrawGizmosSelected()

@@ -14,7 +14,7 @@ namespace PixelChroma
 
     public class SpectatorController
     {
-        private readonly RunnerPlayer _owner;
+        private readonly PlayerBase _owner;
         private readonly CinemachineCamera _camera;
         private readonly float _freeCamSpeed;
 
@@ -26,7 +26,7 @@ namespace PixelChroma
         public bool IsSpectating => _mode != SpectateMode.None;
         public event Action<string, bool> OnTargetNameChanged;
 
-        public SpectatorController(RunnerPlayer owner, CinemachineCamera camera, float freeCamSpeed)
+        public SpectatorController(PlayerBase owner, CinemachineCamera camera, float freeCamSpeed)
         {
             _owner = owner;
             _camera = camera;
@@ -44,7 +44,8 @@ namespace PixelChroma
 
         public void EnterDeathSpectator()
         {
-            EnterFreeMode();
+            // 사망(관전 진입) 시 기본은 크로마(러너) 순회 시점.
+            EnterRunnerMode();
         }
 
         public void EnterFreeMode()
@@ -108,8 +109,12 @@ namespace PixelChroma
 
         private void CycleRunner(int direction)
         {
-            var runners = GameRoundManager.Instance?.CurrentRule?.GetSpectatableRunners(_owner) ??
-                            InGameManager.Instance?.Runners;
+            // 러너가 관전할 때만 모드 규칙의 관전 대상 필터를 적용하고,
+            // 그 외(시커 관전 등)에는 전체 러너 명부를 사용합니다.
+            var runners = (_owner is RunnerPlayer runnerOwner
+                    ? GameRoundManager.Instance?.CurrentRule?.GetSpectatableRunners(runnerOwner)
+                    : null)
+                ?? InGameManager.Instance?.Runners;
 
             if (runners == null || runners.Count == 0) return;
 

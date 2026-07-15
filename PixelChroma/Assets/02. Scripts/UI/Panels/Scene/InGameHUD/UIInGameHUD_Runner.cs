@@ -6,9 +6,6 @@ namespace PixelChroma.UI
 {
     public class UIInGameHUD_Runner : UIInGameHUD
     {
-        [Header("Spectator Mode UI")]
-        [SerializeField] private UISpectatorModePanel spectatorPanel;
-
         [Header("Runner Expose Skill UI Only")]
         [SerializeField] private Image exposeSkillCooldownOverlay;
         [SerializeField] private TMP_Text exposeSkillCooldownText;
@@ -47,8 +44,6 @@ namespace PixelChroma.UI
         {
             base.ResetHUDState();
 
-            if (spectatorPanel != null) spectatorPanel.Hide();
-
             _isExposeCounting = false;
             _exposeTimer = 0f;
             _exposeCooldownDuration = 0f;
@@ -56,27 +51,6 @@ namespace PixelChroma.UI
             if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
 
         }
-
-        public void SetSpectatorMode(bool active)
-        {
-            if (spectatorPanel == null) return;
-
-            if (active) spectatorPanel.Show();
-            else spectatorPanel.Hide();
-        }
-
-        public void SetActiveSpectateMode(SpectateMode mode)
-        {
-            if (spectatorPanel != null)
-                spectatorPanel.SetActiveMode(mode);
-        }
-
-        public void SetSpectateTargetName(string name, bool isSelf)
-        {
-            if (spectatorPanel != null)
-                spectatorPanel.SetTargetName(name, isSelf);
-        }
-
 
         public void StartExposeSkillCooldown(float duration)
         {

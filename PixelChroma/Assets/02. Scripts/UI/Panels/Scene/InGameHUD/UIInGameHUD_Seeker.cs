@@ -16,6 +16,9 @@ namespace PixelChroma.UI
         [Header("Seeker Indicator")]
         [SerializeField] private SeekerIndicatorPanel seekerIndicatorPanel;
 
+        [Header("Spectate Key Hint")]
+        [SerializeField] private GameObject spectateKeyHint;
+
         private float _cooldownDuration;
         private bool _wasCooling;
 
@@ -66,6 +69,12 @@ namespace PixelChroma.UI
             }
 
             _wasCooling = isCooling;
+        }
+
+        public void SetSpectateKeyHintVisible(bool visible)
+        {
+            if (spectateKeyHint != null)
+                spectateKeyHint.SetActive(visible);
         }
     }
 }
