@@ -19,6 +19,10 @@ namespace PixelChroma.UI
         [Header("Game Mode UI")]
         [SerializeField] private TMP_Text modeText;
 
+        [Header("Player Count UI")]
+        [SerializeField] private UIPlayerCountIcons runnerCountIcons;
+        [SerializeField] private UIPlayerCountIcons seekerCountIcons;
+
         [Header("Game Chat UI")]
 
         public UIColorPicker ColorPicker => colorPicker;
@@ -41,6 +45,7 @@ namespace PixelChroma.UI
             GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
             GameRoundManager.OnTimerTick += HandleTimerTick;
             GameRoundManager.OnWinnerDecided += HandleWinnerDecided;
+            InGameManager.OnPlayerCountChanged += HandlePlayerCountChanged;
         }
 
         public override void OnAfterHide()
@@ -50,6 +55,7 @@ namespace PixelChroma.UI
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
             GameRoundManager.OnTimerTick -= HandleTimerTick;
             GameRoundManager.OnWinnerDecided -= HandleWinnerDecided;
+            InGameManager.OnPlayerCountChanged -= HandlePlayerCountChanged;
         }
 
         protected override UniTask OnShow()
@@ -79,6 +85,17 @@ namespace PixelChroma.UI
 
             if (modeText != null)
                 modeText.text = round.CurrentRule?.DisplayName ?? "";
+
+            // HUD가 켜질 때 이미 스폰돼 있던 인원을 즉시 반영합니다(이후 변화는 이벤트가 담당).
+            var inGame = InGameManager.Instance;
+            if (inGame != null)
+                HandlePlayerCountChanged(inGame.GetAliveRunnerCount(), inGame.GetAliveSeekerCount());
+        }
+
+        private void HandlePlayerCountChanged(int aliveRunners, int aliveSeekers)
+        {
+            if (runnerCountIcons != null) runnerCountIcons.SetCount(aliveRunners);
+            if (seekerCountIcons != null) seekerCountIcons.SetCount(aliveSeekers);
         }
 
         private void UpdateStateUI(TimeState state, int remainingSeconds)

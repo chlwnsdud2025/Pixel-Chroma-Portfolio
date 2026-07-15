@@ -38,7 +38,7 @@ namespace PixelChroma
         [Tooltip("서로 안보이게 할때 껏다켯다할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
 
-        [SyncVar] private bool _isDead;
+        [SyncVar(hook = nameof(OnDeadStateChanged))] private bool _isDead;
         private bool _isVisuallyDead;
         [SyncVar] private float _paintRatio;
 
@@ -426,6 +426,13 @@ namespace PixelChroma
         private void OnWetStateChanged(bool oldVal, bool newVal)
         {
             RecalculateMoveSpeed();
+        }
+
+        // 사망 상태 복제 시 모든 클라이언트에서 호출됩니다. 생존 인원 HUD 갱신을 트리거합니다.
+        private void OnDeadStateChanged(bool oldVal, bool newVal)
+        {
+            if (InGameManager.Instance != null)
+                InGameManager.Instance.NotifyRosterChanged();
         }
 
         private void HandleSpectateTargetChanged(string targetName, bool isSelf)
