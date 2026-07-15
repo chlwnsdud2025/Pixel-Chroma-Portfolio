@@ -1,6 +1,6 @@
 using UnityEngine;
 using TMPro;
-using Unity.VisualScripting;
+using Cysharp.Threading.Tasks;
 
 namespace PixelChroma.UI
 {
@@ -24,44 +24,39 @@ namespace PixelChroma.UI
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
-        public override void Initialize()
-        {
-            base.Initialize();
-            if (paintModeRoot != null) paintModeRoot.SetActive(false);
-            if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false);
-        }
-
         protected virtual void Update()
         {
         }
 
-        protected virtual void OnEnable()
+        public override void Initialize()
         {
+            base.Initialize();
+            ResetHUDState();
+        }
+
+        public override void OnBeforeShow()
+        {
+            base.OnBeforeShow();
+
             GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
             GameRoundManager.OnTimerTick += HandleTimerTick;
             GameRoundManager.OnWinnerDecided += HandleWinnerDecided;
-
-            var round = GameRoundManager.Instance;
-            if (round != null)
-            {
-                UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
-
-                if (modeText != null)
-                    modeText.text = round.CurrentRule?.DisplayName ?? "";
-
-                bool isResultState = round.CurrentTimeState == TimeState.CheckTime
-                           || round.CurrentTimeState == TimeState.GameEnd;
-
-                if (isResultState && round.CurrentWinner != PlayerRole.None)
-                    ShowWinnerOverlay(round.CurrentWinner);
-            }
         }
 
-        protected virtual void OnDisable()
+        public override void OnAfterHide()
         {
+            base.OnAfterHide();
+
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
             GameRoundManager.OnTimerTick -= HandleTimerTick;
             GameRoundManager.OnWinnerDecided -= HandleWinnerDecided;
+        }
+
+        protected override UniTask OnShow()
+        {
+            ResetHUDState();
+            SyncToCurrentState();
+            return base.OnShow();
         }
 
         public void TogglePaintMode()
@@ -74,19 +69,21 @@ namespace PixelChroma.UI
             if (paintModeRoot != null) paintModeRoot.SetActive(active);
         }
 
-        private void HandleTimeStateChanged(TimeState state, int remainingSeconds)
+        protected virtual void ResetHUDState()
         {
-            UpdateStateUI(state, remainingSeconds);
+            if (paintModeRoot != null) paintModeRoot.SetActive(false);
+            if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false);
         }
 
-        private void HandleTimerTick(int remainingSeconds)
+        private void SyncToCurrentState()
         {
-            UpdateTimerText(remainingSeconds);
-        }
+            var round = GameRoundManager.Instance;
+            if (round == null) return;
 
-        private void HandleWinnerDecided(PlayerRole winner)
-        {
-            ShowWinnerOverlay(winner);
+            UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
+
+            if (modeText != null)
+                modeText.text = round.CurrentRule?.DisplayName ?? "";
         }
 
         private void UpdateStateUI(TimeState state, int remainingSeconds)
@@ -102,9 +99,6 @@ namespace PixelChroma.UI
                     case TimeState.GameEnd: stateText.text = "게임 종료!"; break;
                 }
             }
-
-            if (gameResultOverlayText != null && state != TimeState.CheckTime && state != TimeState.GameEnd)
-                gameResultOverlayText.gameObject.SetActive(false);
 
             UpdateTimerText(remainingSeconds);
         }
@@ -128,6 +122,21 @@ namespace PixelChroma.UI
                 int seconds = display % 60;
                 timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
             }
+        }
+
+        private void HandleTimeStateChanged(TimeState state, int remainingSeconds)
+        {
+            UpdateStateUI(state, remainingSeconds);
+        }
+
+        private void HandleTimerTick(int remainingSeconds)
+        {
+            UpdateTimerText(remainingSeconds);
+        }
+
+        private void HandleWinnerDecided(PlayerRole winner)
+        {
+            ShowWinnerOverlay(winner);
         }
     }
 }

@@ -20,16 +20,6 @@ namespace PixelChroma.UI
         private float _exposeCooldownDuration;
         private float _exposeTimer;
 
-        public override void Initialize()
-        {
-            base.Initialize();
-
-            if (spectatorPanel != null) spectatorPanel.Hide();
-
-            if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
-            if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
-        }
-
         // 부모의 Update(전역 타이머) 기능에 더해, 내 스킬 쿨타임 차감 연산만 덧붙입니다.
         protected override void Update()
         {
@@ -54,6 +44,21 @@ namespace PixelChroma.UI
                         exposeSkillCooldownText.text = _exposeTimer.ToString("F1");
                 }
             }
+        }
+
+        protected override void ResetHUDState()
+        {
+            base.ResetHUDState();
+
+            if (spectatorPanel != null) spectatorPanel.Hide();
+
+            _isExposeCounting = false;
+            _exposeTimer = 0f;
+            _exposeCooldownDuration = 0f;
+            if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
+            if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
+
+            if (seekerIndicatorPanel != null) seekerIndicatorPanel.Deactivate();
         }
 
         public void SetSpectatorMode(bool active)

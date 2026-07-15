@@ -16,10 +16,13 @@ namespace PixelChroma.UI
         private float _cooldownDuration;
         private bool _wasCooling;
 
-        public override void Initialize()
+        protected override void ResetHUDState()
         {
-            base.Initialize();
+            base.ResetHUDState();
 
+            _wasCooling = false;
+            _cooldownDuration = 0f;
+            if (waterGunCooldownOverlay != null) waterGunCooldownOverlay.fillAmount = 0f;
             if (waterGunCooldownText != null) waterGunCooldownText.gameObject.SetActive(false);
         }
 
