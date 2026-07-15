@@ -20,8 +20,6 @@ namespace PixelChroma.UI
 
         public void Deactivate()
         {
-            _active = false;
-            _remaining = 0f;
             HideAll();
         }
 

@@ -55,7 +55,6 @@ namespace PixelChroma.UI
             if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
             if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
 
-            if (seekerIndicatorPanel != null) seekerIndicatorPanel.Deactivate();
         }
 
         public void SetSpectatorMode(bool active)

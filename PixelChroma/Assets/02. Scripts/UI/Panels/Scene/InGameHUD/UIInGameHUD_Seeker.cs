@@ -13,6 +13,9 @@ namespace PixelChroma.UI
         [SerializeField] private Image waterGunCooldownOverlay;
         [SerializeField] private TMP_Text waterGunCooldownText;
 
+        [Header("Seeker Indicator")]
+        [SerializeField] private SeekerIndicatorPanel seekerIndicatorPanel;
+
         private float _cooldownDuration;
         private bool _wasCooling;
 
@@ -24,6 +27,7 @@ namespace PixelChroma.UI
             _cooldownDuration = 0f;
             if (waterGunCooldownOverlay != null) waterGunCooldownOverlay.fillAmount = 0f;
             if (waterGunCooldownText != null) waterGunCooldownText.gameObject.SetActive(false);
+            if (seekerIndicatorPanel != null) seekerIndicatorPanel.Deactivate();
         }
 
         public void SetCatchIconActive(bool isActive)
