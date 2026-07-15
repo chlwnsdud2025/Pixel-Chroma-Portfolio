@@ -12,7 +12,7 @@ namespace PixelChroma.UI
 
         [Header("Game State UI (Common)")]
         [SerializeField] private TMP_Text stateText;
-        [SerializeField] private TMP_Text timerText;
+        [SerializeField] private UIPunchText timerText;
 
         [SerializeField] private TMP_Text gameResultOverlayText;
 
@@ -128,12 +128,7 @@ namespace PixelChroma.UI
         private void UpdateTimerText(int remainingSeconds)
         {
             if (timerText != null)
-            {
-                int display = Mathf.Max(0, remainingSeconds);
-                int minutes = display / 60;
-                int seconds = display % 60;
-                timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
-            }
+                timerText.SetText(Mathf.Max(0, remainingSeconds).ToString());
         }
 
         private void HandleTimeStateChanged(TimeState state, int remainingSeconds)
