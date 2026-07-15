@@ -69,6 +69,7 @@ namespace PixelChroma
         public void Dispose()
         {
             StopEyedropperCapture();
+            SetEventSystemEnabled(true);
 
             if (_owner != null && _owner.isLocalPlayer && CursorManager.Instance != null)
                 CursorManager.Instance.SetCursorType(CursorType.Default);
@@ -134,12 +135,18 @@ namespace PixelChroma
             _paintCanvas?.EndStroke();   // 도구 전환 시 진행 중 스트로크 확정
 
             if (_brushMode == BrushMode.Eyedropper)
+            {
                 StopEyedropperCapture();
+                SetEventSystemEnabled(true);
+            }
 
             _brushMode = mode;
 
             if (mode == BrushMode.Eyedropper)
+            {
+                SetEventSystemEnabled(false);
                 _eyedropperCoroutine = _owner.StartCoroutine(EyedropperCaptureLoop());
+            }
 
             _boundPicker?.SetActiveTool(mode);
             RefreshCursor();
@@ -317,7 +324,6 @@ namespace PixelChroma
         {
             if (Mouse.current == null) return;
             if (!Mouse.current.leftButton.wasPressedThisFrame) return;
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             _boundPicker?.SetColor(_eyedropperColor);
             _waitForMouseRelease = true;
@@ -397,6 +403,12 @@ namespace PixelChroma
                 _owner.StopCoroutine(_eyedropperCoroutine);
                 _eyedropperCoroutine = null;
             }
+        }
+
+        private void SetEventSystemEnabled(bool enabled)
+        {
+            if (EventSystem.current != null)
+                EventSystem.current.enabled = enabled;
         }
 
         private bool TryGetMousePixel(out Vector2Int pixel)

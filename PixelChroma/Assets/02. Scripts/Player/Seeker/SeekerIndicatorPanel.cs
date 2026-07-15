@@ -18,6 +18,13 @@ namespace PixelChroma.UI
             targetCamera = Camera.main;
         }
 
+        public void Deactivate()
+        {
+            _active = false;
+            _remaining = 0f;
+            HideAll();
+        }
+
         private void Update()
         {
             Refresh();
