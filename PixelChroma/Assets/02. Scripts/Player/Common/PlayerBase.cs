@@ -17,6 +17,7 @@ namespace PixelChroma
         protected static readonly int MoveY = Animator.StringToHash("MoveY");
         protected static readonly int IsMoving = Animator.StringToHash("IsMoving");
 
+        private const int OriginalPPU = 16;
 
         [Header("Input")]
         public InputActionAsset inputActions;
@@ -34,10 +35,6 @@ namespace PixelChroma
         [SerializeField] private float manualZoomTweenDuration = 0.15f;
         [Tooltip("페인트 모드에서 빠져나올 때 최대 줌아웃 상태로 돌아가는 데 걸리는 시간(초)")]
         [SerializeField] private float forcedZoomOutDuration = 0.4f;
-        private Tween _zoomTween;
-
-
-        protected virtual bool CanTogglePaintMode => true;//PaintMode 진입가능여부
 
         [Header("Nickname UI")]
         [SerializeField] private TMP_Text nicknameText;
@@ -55,18 +52,18 @@ namespace PixelChroma
         private Camera _mainCamera;
         private PixelPerfectCamera _pixelPerfectCamera;
         private PlayerNicknameDisplay _nicknameDisplay;
-        private int _originalPPU;
         private Coroutine _zoomResetCoroutine;
+        private Tween _zoomTween;
         private bool _isChatActive = false;
 
         protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
 
-
         protected PlayerInputActions Input => _input;
         protected PlayerPaintController PaintController => _paintController;
         protected Rigidbody2D Rb { get; private set; }
         protected bool IsChatActive => _isChatActive;
+        protected virtual bool CanTogglePaintMode => true;//PaintMode 진입가능여부
 
         // 분리된 컴포넌트(SeekerWaterGun 등)가 페인트 모드 여부만 좁게 조회할 수 있도록 공개합니다.
         public bool IsPaintMode => _paintController != null && _paintController.IsPaintMode;
@@ -253,7 +250,7 @@ namespace PixelChroma
             {
                 _pixelPerfectCamera = _mainCamera.GetComponent<PixelPerfectCamera>();
                 if (_pixelPerfectCamera != null)
-                    _originalPPU = _pixelPerfectCamera.assetsPPU;
+                    _pixelPerfectCamera.assetsPPU = OriginalPPU;
             }
         }
 
@@ -281,7 +278,7 @@ namespace PixelChroma
 
             int current = _pixelPerfectCamera.assetsPPU;
             int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
-            int target = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
+            int target = Mathf.Clamp(current + delta, OriginalPPU, maxPPU);
 
             _zoomTween = DOTween.To(
                     () => _pixelPerfectCamera.assetsPPU,
@@ -305,7 +302,7 @@ namespace PixelChroma
             _zoomTween = DOTween.To(
                     () => _pixelPerfectCamera.assetsPPU,
                     v => _pixelPerfectCamera.assetsPPU = v,
-                    _originalPPU,
+                    OriginalPPU,
                     forcedZoomOutDuration)
                 .SetEase(Ease.OutQuad);
         }
