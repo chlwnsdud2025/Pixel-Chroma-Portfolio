@@ -320,7 +320,7 @@ MonoBehaviour:
   firePoint: {fileID: 1880835392203279830}
   fireCooldown: 1.5
   fireRange: 8
-  aoeRadius: 1
+  aoeRadius: 0.6
   runnerLayer:
     serializedVersion: 2
     m_Bits: 256
@@ -329,7 +329,7 @@ MonoBehaviour:
     m_Bits: 2048
   wetDuration: 2
   drawAoeGizmo: 1
-  gizmoDisplayDuration: 1
+  gizmoDisplayDuration: 0.4
 --- !u!114 &189824416933930901
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -344,8 +344,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.WaterGunEffects
   laserPrefab: {fileID: 8869732654689229243, guid: 0165dbdcee1f1c24582812cf7a55302f, type: 3}
   waterSplashPrefab: {fileID: 3044295998657176925, guid: 05cdf3d523593cc4ea17989642e54978, type: 3}
-  laserSpeed: 15
-  splashFadeDuration: 0.6
+  laserSpeed: 30
+  splashFadeDuration: 0.4
 --- !u!1 &2763492050235784611 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 165024383658258589, guid: 78cb76db270489845893b629331fd5da, type: 3}

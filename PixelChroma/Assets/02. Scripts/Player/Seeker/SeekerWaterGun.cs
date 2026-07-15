@@ -228,7 +228,7 @@ namespace PixelChroma
             }
 
             if (_effects != null)
-                _effects.PlayFireEffect(firePoint, targetPos, aoeRadius, didHit, direction, hitNormal);
+                _effects.PlayFireEffect(firePoint, targetPos, didHit, direction, hitNormal);
         }
 
 

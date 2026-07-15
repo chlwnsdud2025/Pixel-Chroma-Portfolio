@@ -23,12 +23,12 @@ namespace PixelChroma
         [Tooltip("물 스플래시 이펙트가 서서히 사라지는 시간(초)")]
         [SerializeField] private float splashFadeDuration = 0.6f;
 
-        public void PlayFireEffect(Transform firePoint, Vector2 targetPos, float aoeRadius, bool didHit, Vector2 direction, Vector2 hitNormal)
+        public void PlayFireEffect(Transform firePoint, Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
-            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, aoeRadius, didHit, direction, hitNormal));
+            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, didHit, direction, hitNormal));
         }
 
-        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, float aoeRadius, bool didHit, Vector2 direction, Vector2 hitNormal)
+        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
             GameObject laserObj = null;
 
@@ -66,16 +66,6 @@ namespace PixelChroma
 
                 GameObject splash = Instantiate(waterSplashPrefab, targetPos, splashRotation);
                 var splashRenderer = splash.GetComponentInChildren<SpriteRenderer>();
-
-                if (splashRenderer != null && splashRenderer.sprite != null)
-                {
-                    float baseRadius = splashRenderer.sprite.bounds.extents.x;
-                    if (baseRadius > 0.0001f)
-                    {
-                        float factor = aoeRadius / baseRadius;
-                        splash.transform.localScale = new Vector3(factor, factor, 1f);
-                    }
-                }
 
                 if (splashRenderer != null)
                     StartCoroutine(FadeOutAndDestroy(splash, splashRenderer, splashFadeDuration));
