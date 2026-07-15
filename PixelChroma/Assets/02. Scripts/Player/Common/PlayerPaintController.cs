@@ -29,6 +29,7 @@ namespace PixelChroma
         private bool _waitForMouseRelease;
 
         private Camera _cachedCamera;
+        private BaseInputModule _cachedInputModule;
         private GameObject _brushPreview;
         private SpriteRenderer _brushPreviewRenderer;
         private int _previewLastSize = -1;
@@ -137,7 +138,8 @@ namespace PixelChroma
             if (_brushMode == BrushMode.Eyedropper)
             {
                 StopEyedropperCapture();
-                SetEventSystemEnabled(true);
+                if (!_waitForMouseRelease)
+                    SetEventSystemEnabled(true);
             }
 
             _brushMode = mode;
@@ -159,7 +161,16 @@ namespace PixelChroma
 
             if (!_isPaintMode)
             {
-                _paintCanvas?.EndStroke();   // 페인트 모드 종료 시 진행 중 스트로크 확정
+                _paintCanvas?.EndStroke();
+
+                if (_brushMode == BrushMode.Eyedropper)
+                {
+                    StopEyedropperCapture();
+                    SetEventSystemEnabled(true);
+                    _brushMode = BrushMode.Brush;
+                    _boundPicker?.SetActiveTool(BrushMode.Brush);
+                }
+
                 HideBrushPreview();
             }
 
@@ -342,7 +353,10 @@ namespace PixelChroma
             if (_waitForMouseRelease)
             {
                 if (!Mouse.current.leftButton.isPressed)
+                {
                     _waitForMouseRelease = false;
+                    SetEventSystemEnabled(true);
+                }
                 return;
             }
 
@@ -407,8 +421,24 @@ namespace PixelChroma
 
         private void SetEventSystemEnabled(bool enabled)
         {
-            if (EventSystem.current != null)
-                EventSystem.current.enabled = enabled;
+            if (enabled)
+            {
+                if (_cachedInputModule != null)
+                    _cachedInputModule.enabled = true;
+            }
+            else
+            {
+                var es = EventSystem.current;
+                if (es != null)
+                {
+                    _cachedInputModule = es.currentInputModule != null
+                        ? es.currentInputModule
+                        : es.GetComponent<BaseInputModule>();
+
+                    if (_cachedInputModule != null)
+                        _cachedInputModule.enabled = false;
+                }
+            }
         }
 
         private bool TryGetMousePixel(out Vector2Int pixel)
