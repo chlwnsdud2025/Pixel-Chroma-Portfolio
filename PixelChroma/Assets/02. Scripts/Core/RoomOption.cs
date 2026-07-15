@@ -17,6 +17,7 @@ namespace PixelChroma
         public const float DefaultHideTime = 60f;
         public const float DefaultSeekTime = 300f;
         public const float DefaultCheckTime = 30f;
+        public const float DefaultForcedExposeInterval = 40f;
 
         public const int MinPlayers = 2;
         public const int MaxPlayersLimit = 12;
@@ -27,7 +28,9 @@ namespace PixelChroma
         public const float MinSeekTime = 60f;
         public const float MaxSeekTime = 600f;
         public const float MinCheckTime = 10f; 
-        public const float MaxCheckTime = 100f; 
+        public const float MaxCheckTime = 100f;
+        public const float MinForcedExposeInterval = 0f;  
+        public const float MaxForcedExposeInterval = 120f; 
 
         public bool isPublic = true;
         public GameMode gameMode = GameMode.Basic;
@@ -36,6 +39,7 @@ namespace PixelChroma
         public float hideTime = DefaultHideTime;
         public float seekTime = DefaultSeekTime;
         public float checkTime = DefaultCheckTime;
+        public float forcedExposeInterval = DefaultForcedExposeInterval;
 
         public string mapName = "";
         public string roomCode = "";
@@ -52,6 +56,7 @@ namespace PixelChroma
                 hideTime = hideTime,
                 seekTime = seekTime,
                 checkTime = checkTime,
+                forcedExposeInterval = forcedExposeInterval,
                 mapName = mapName,
                 roomCode = roomCode,
                 hostName = hostName,
@@ -69,6 +74,7 @@ namespace PixelChroma
                 hideTime = hideTime,
                 seekTime = seekTime,
                 checkTime = checkTime,
+                forcedExposeInterval = forcedExposeInterval,
                 mapName = mapName,
                 roomCode = roomCode,
                 hostName = hostName,
@@ -86,6 +92,7 @@ namespace PixelChroma
                 hideTime = data.hideTime,
                 seekTime = data.seekTime,
                 checkTime = data.checkTime,
+                forcedExposeInterval = data.forcedExposeInterval,
                 mapName = data.mapName,
                 roomCode = data.roomCode,
                 hostName = data.hostName,
@@ -102,6 +109,7 @@ namespace PixelChroma
         public float hideTime;
         public float seekTime;
         public float checkTime;
+        public float forcedExposeInterval;
         public string mapName;
         public string roomCode;
         public string hostName;

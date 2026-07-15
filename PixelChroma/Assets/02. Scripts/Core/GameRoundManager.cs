@@ -29,7 +29,6 @@ namespace PixelChroma
         [SerializeField] private LayerMask runnerPhysicsLayer;
 
         [Header("forced Expose")]
-        [SerializeField] private float forcedExposeInterval = 10f;
         [SerializeField] private float forcedExposeDuration;
 
 
@@ -51,15 +50,16 @@ namespace PixelChroma
         private float OptionSeekTime => CurrentRoomOption?.seekTime ?? RoomOption.DefaultSeekTime;
         private float OptionCheckTime => CurrentRoomOption?.checkTime ?? RoomOption.DefaultCheckTime;
         private int OptionSeekerCount => CurrentRoomOption?.seekerCount ?? RoomOption.DefaultSeekerCount;
+        private float OptionForcedExposeInterval => CurrentRoomOption?.forcedExposeInterval ?? RoomOption.DefaultForcedExposeInterval;
 
         public int SecondsUntilNextForcedExpose
         {
             get
             {
-                if (CurrentTimeState != TimeState.SeekTime || forcedExposeInterval <= 0f) return 0;
+                if (CurrentTimeState != TimeState.SeekTime || OptionForcedExposeInterval <= 0f) return 0;
 
                 int elapsed = Mathf.CeilToInt(OptionSeekTime) - CurrentTimer;
-                int intervalInt = Mathf.Max(1, Mathf.RoundToInt(forcedExposeInterval));
+                int intervalInt = Mathf.Max(1, Mathf.RoundToInt(OptionForcedExposeInterval));
                 int remainder = elapsed % intervalInt;
                 return remainder == 0 ? intervalInt : intervalInt - remainder;
             }
@@ -343,10 +343,10 @@ namespace PixelChroma
         private void CheckForcedExpose()
         {
             if (CurrentTimeState != TimeState.SeekTime) return;
-            if (forcedExposeInterval <= 0f) return;
+            if (OptionForcedExposeInterval <= 0f) return;
 
             int elapsed = Mathf.CeilToInt(OptionSeekTime) - CurrentTimer;
-            int intervalInt = Mathf.Max(1, Mathf.RoundToInt(forcedExposeInterval));
+            int intervalInt = Mathf.Max(1, Mathf.RoundToInt(OptionForcedExposeInterval));
 
             if (elapsed > 0 && elapsed % intervalInt == 0)
                 TriggerForcedExposeForAllRunners();

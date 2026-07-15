@@ -33,6 +33,10 @@ namespace PixelChroma.UI
         [SerializeField] private Slider checkTimeSlider;
         [SerializeField] private TMP_Text checkTimeText;
 
+        [Header("Forced Expose Interval")]
+        [SerializeField] private Slider forcedExposeIntervalSlider;
+        [SerializeField] private TMP_Text forcedExposeIntervalText;
+
         [Header("Public / Private")]
         [SerializeField] private Button publicButton;
         [SerializeField] private Button privateButton;
@@ -85,6 +89,14 @@ namespace PixelChroma.UI
                 checkTimeSlider.maxValue = RoomOption.MaxCheckTime;
                 checkTimeSlider.wholeNumbers = true;
                 checkTimeSlider.onValueChanged.AddListener(OnCheckTimeChanged);
+            }
+
+            if (forcedExposeIntervalSlider != null)
+            {
+                forcedExposeIntervalSlider.minValue = RoomOption.MinForcedExposeInterval;
+                forcedExposeIntervalSlider.maxValue = RoomOption.MaxForcedExposeInterval;
+                forcedExposeIntervalSlider.wholeNumbers = true;
+                forcedExposeIntervalSlider.onValueChanged.AddListener(OnForcedExposeIntervalChanged);
             }
 
             if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
@@ -195,6 +207,12 @@ namespace PixelChroma.UI
             RefreshTimeUI();
         }
 
+        private void OnForcedExposeIntervalChanged(float value)
+        {
+            _option.forcedExposeInterval = value;
+            RefreshTimeUI();
+        }
+
         private void HandleLobbyFailed()
         {
             if (createButton != null) createButton.interactable = true;
@@ -211,6 +229,7 @@ namespace PixelChroma.UI
             if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
             if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
             if (checkTimeSlider != null) checkTimeSlider.SetValueWithoutNotify(_option.checkTime);
+            if (forcedExposeIntervalSlider != null) forcedExposeIntervalSlider.SetValueWithoutNotify(_option.forcedExposeInterval);
         }
 
         private void RefreshPublicUI()
@@ -236,6 +255,8 @@ namespace PixelChroma.UI
             if (hideTimeText != null) hideTimeText.text = _option.hideTime.ToString("0");
             if (seekTimeText != null) seekTimeText.text = _option.seekTime.ToString("0");
             if (checkTimeText != null) checkTimeText.text = _option.checkTime.ToString("0");
+            if (forcedExposeIntervalText != null) forcedExposeIntervalText.text = _option.forcedExposeInterval.ToString("0");
+
         }
 
         private void RefreshCreateButtonUI()
