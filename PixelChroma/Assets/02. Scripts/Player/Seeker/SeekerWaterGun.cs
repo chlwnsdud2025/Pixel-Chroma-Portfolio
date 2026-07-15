@@ -92,7 +92,6 @@ namespace PixelChroma
         {
             if (_mainCam == null || Mouse.current == null || weaponPivot == null) return;
 
-            // 페인트 모드에서는 무기가 숨겨지므로 조준/동기화를 건너뜁니다.
             if (isPaintMode)
             {
                 if (CursorManager.Instance != null)
@@ -104,16 +103,20 @@ namespace PixelChroma
             Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(mouseScreenPos);
             mouseWorldPos.z = 0;
 
-            Vector2 currentPos = FireOrigin;
-            Vector2 targetWorldPos = mouseWorldPos;
-            Vector2 aimDirection = (targetWorldPos - currentPos).normalized;
+            // 방향은 회전 중심(pivot) 기준 — firePoint를 쓰면 회전 피드백 루프 발생
+            Vector2 pivotPos = weaponPivot.position;
+            Vector2 aimDirection = ((Vector2)mouseWorldPos - pivotPos).normalized;
             _aimDirection = aimDirection;
-            float distanceToTarget = Vector2.Distance(currentPos, targetWorldPos);
 
-            // 사거리를 넘으면 커서를 사거리 끝에 고정해 조준 떨림을 없앱니다.
-            if (distanceToTarget > fireRange)
+            // firePoint는 회전해도 pivot으로부터 항상 이 거리만큼 떨어져 있음 (로컬 좌표라 회전/반전에 영향 안 받음)
+            float muzzleOffset = firePoint != null ? firePoint.localPosition.magnitude : 0f;
+            float effectiveRange = fireRange + muzzleOffset;   // pivot 기준으로 봤을 때의 실제 최대 사거리
+
+            float distanceToTarget = Vector2.Distance(pivotPos, mouseWorldPos);
+
+            if (distanceToTarget > effectiveRange)
             {
-                Vector2 clampedWorldPos = currentPos + aimDirection * fireRange;
+                Vector2 clampedWorldPos = pivotPos + aimDirection * effectiveRange;
                 Vector2 clampedScreenPos = _mainCam.WorldToScreenPoint(clampedWorldPos);
 
                 if (CursorManager.Instance != null)
@@ -130,7 +133,6 @@ namespace PixelChroma
             float angle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
             ApplyAimRotation(angle);
 
-            // 각도는 순환값이므로 DeltaAngle로 비교해야 ±180° 경계에서 매 프레임 전송되는 것을 막을 수 있습니다.
             if (Mathf.Abs(Mathf.DeltaAngle(_syncAimAngle, angle)) > AimDeadzoneDeg)
             {
                 CmdUpdateAimAngle(angle);

@@ -31,22 +31,37 @@ namespace PixelChroma
             PlayerBase localPlayer = NetworkClient.localPlayer.GetComponent<PlayerBase>();
             if (localPlayer == null) return;
 
-            // 내 닉네임은 항상 보입니다.
+            // 1순위: 내 닉네임은 항상 내가 볼 수 있음
             if (_owner == localPlayer)
             {
                 _text.enabled = true;
                 return;
             }
 
-            // 아직 역할이 배정되지 않았다면(로비 등) 모두 표시합니다.
+            // 2순위: 아직 역할이 없으면(로비 등) 전원 공개
             if (localPlayer.role == PlayerRole.None || _owner.role == PlayerRole.None)
             {
                 _text.enabled = true;
                 return;
             }
 
-            // Seeker에게는 Runner 닉네임을 숨깁니다 (숨은 위치 노출 방지).
-            // Runner는 모든 닉네임을 볼 수 있습니다.
+            // 3순위: 정산 화면(CheckTime)에는 모드 규칙보다 우선해서 무조건 전원 공개
+            if (GameRoundManager.Instance != null && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime)
+            {
+                _text.enabled = true;
+                return;
+            }
+
+            // 4순위: 러너가 다른 러너를 보는 경우만 모드 규칙에 위임 (언제 숨길지는 GameModeRule이 결정)
+            if (localPlayer.role == PlayerRole.Runner && _owner.role == PlayerRole.Runner)
+            {
+                var round = GameRoundManager.Instance;
+                _text.enabled = round?.CurrentRule == null || round.CurrentRule.CanSeeRunnerNickname(round.CurrentTimeState);
+                return;
+            }
+
+            // 5순위(기본값): 그 외 모든 조합 — 기존부터 있던 고정 규칙
+            // Seeker는 Runner 닉네임을 못 보고, Runner는 Seeker 닉네임을 봄. 모드와 무관하게 항상 이 규칙.
             _text.enabled = localPlayer.role == PlayerRole.Runner || _owner.role == PlayerRole.Seeker;
         }
     }

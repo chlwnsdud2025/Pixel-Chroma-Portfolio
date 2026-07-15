@@ -16,6 +16,11 @@ namespace PixelChroma.UI
 
         [SerializeField] private TMP_Text gameResultOverlayText;
 
+        [Header("Game Mode UI")]
+        [SerializeField] private TMP_Text modeText;
+
+        [Header("Game Chat UI")]
+
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
@@ -40,6 +45,9 @@ namespace PixelChroma.UI
             if (round != null)
             {
                 UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
+
+                if (modeText != null)
+                    modeText.text = round.CurrentRule?.DisplayName ?? "";
 
                 bool isResultState = round.CurrentTimeState == TimeState.CheckTime
                            || round.CurrentTimeState == TimeState.GameEnd;

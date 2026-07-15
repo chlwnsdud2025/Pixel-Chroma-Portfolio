@@ -51,6 +51,7 @@ namespace PixelChroma
                 seekerCount = seekerCount,
                 hideTime = hideTime,
                 seekTime = seekTime,
+                checkTime = checkTime,
                 mapName = mapName,
                 roomCode = roomCode,
                 hostName = hostName,
@@ -67,6 +68,7 @@ namespace PixelChroma
                 seekerCount = seekerCount,
                 hideTime = hideTime,
                 seekTime = seekTime,
+                checkTime = checkTime,
                 mapName = mapName,
                 roomCode = roomCode,
                 hostName = hostName,
@@ -83,6 +85,7 @@ namespace PixelChroma
                 seekerCount = data.seekerCount,
                 hideTime = data.hideTime,
                 seekTime = data.seekTime,
+                checkTime = data.checkTime,
                 mapName = data.mapName,
                 roomCode = data.roomCode,
                 hostName = data.hostName,
@@ -98,6 +101,7 @@ namespace PixelChroma
         public int seekerCount;
         public float hideTime;
         public float seekTime;
+        public float checkTime;
         public string mapName;
         public string roomCode;
         public string hostName;

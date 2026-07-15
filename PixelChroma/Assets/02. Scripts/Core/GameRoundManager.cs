@@ -24,16 +24,29 @@ namespace PixelChroma
         private bool _isLobbyReturningStarted = false;
         private CancellationTokenSource _timerCts;
 
+        [Header("Physics")]
+        [Tooltip("러너 캐릭터가 속한 물리 레이어. Infection 모드에서 서로 몸이 안 보일 때 이 레이어끼리 충돌을 꺼줍니다.")]
+        [SerializeField] private LayerMask runnerPhysicsLayer;
 
         [Header("forced Expose")]
         [SerializeField] float[] forcedExposeTriggerRatios = { 0.3f };
         [SerializeField] float forcedExposeDuration;
         private bool[] _forcedExposeTriggered;
 
+
+
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public PlayerRole CurrentWinner { get; private set; } = PlayerRole.None;
         public int CurrentTimer { get; private set; }
+        public GameModeRule CurrentRule
+        {
+            get
+            {
+                var mode = CurrentRoomOption?.gameMode ?? GameMode.Basic;
+                return GameModeRuleFactory.Create(mode);
+            }
+        }
 
         private float OptionHideTime => CurrentRoomOption?.hideTime ?? RoomOption.DefaultHideTime;
         private float OptionSeekTime => CurrentRoomOption?.seekTime ?? RoomOption.DefaultSeekTime;
@@ -53,6 +66,7 @@ namespace PixelChroma
         {
             NetworkClient.RegisterHandler<TimeStateMessage>(OnClientTimeStateChanged);
             NetworkClient.RegisterHandler<WinnerDecidedMessage>(OnClientWinnerDecided);
+            NetworkClient.RegisterHandler<RoomOptionSyncMessage>(OnClientRoomOptionChanged);
         }
 
         public void Cleanup()
@@ -60,6 +74,7 @@ namespace PixelChroma
             CancelTimer();
             NetworkClient.UnregisterHandler<TimeStateMessage>();
             NetworkClient.UnregisterHandler<WinnerDecidedMessage>();
+            NetworkClient.UnregisterHandler<RoomOptionSyncMessage>();
         }
 
         [Server]
@@ -69,6 +84,8 @@ namespace PixelChroma
 
             CurrentRoomOption = option;
             CurrentWinner = PlayerRole.None;
+
+            NetworkServer.SendToAll(new RoomOptionSyncMessage { option = option.ToData() });
 
             SetTimeState(TimeState.Countdown, countdownDuration);
         }
@@ -132,7 +149,7 @@ namespace PixelChroma
         {
             if (InGameManager.Instance == null) return;
             int aliveRunners = InGameManager.Instance.GetAliveRunnerCount();
-            if (aliveRunners == 0 && InGameManager.Instance.HasAnyRunner())
+            if (aliveRunners == 0)
             {
                 SetWinner(PlayerRole.Seeker);
                 SetTimeState(TimeState.GameEnd, 0f);
@@ -306,6 +323,8 @@ namespace PixelChroma
             if (CurrentTimer > 0)
                 RunTimerAsync().Forget();
 
+            UpdateRunnerCollision();
+
             OnTimeStateChanged?.Invoke(msg.state, CurrentTimer);
         }
 
@@ -347,6 +366,28 @@ namespace PixelChroma
             }
 
             Debug.Log($"[GameRound] 강제 도발 발동! 생존 러너 전원 위치 노출 (지속시간: {forcedExposeDuration}초)");
+        }
+
+        private void OnClientRoomOptionChanged(RoomOptionSyncMessage msg)
+        {
+            CurrentRoomOption = RoomOption.FromData(msg.option);
+        }
+
+        //-----------------------InfectionMode에서 HideTime에 Runner끼리 충돌 방지----------------
+        private void UpdateRunnerCollision()
+        {
+            int layer = LayerMaskToLayer(runnerPhysicsLayer);
+            if (layer < 0) return;
+
+            bool canCollide = CurrentRule == null || CurrentRule.CanRunnersCollide(CurrentTimeState);
+            Physics2D.IgnoreLayerCollision(layer, layer, !canCollide);
+        }
+
+        // LayerMask(비트마스크)를 Physics2D.IgnoreLayerCollision이 요구하는 단일 레이어 번호로 변환
+        private static int LayerMaskToLayer(LayerMask mask)
+        {
+            int value = mask.value;
+            return value == 0 ? -1 : (int)Mathf.Log(value, 2);
         }
     }
 }

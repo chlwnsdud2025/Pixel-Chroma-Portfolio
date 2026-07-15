@@ -7,6 +7,7 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
+using DG.Tweening;
 
 namespace PixelChroma
 {
@@ -15,6 +16,7 @@ namespace PixelChroma
         protected static readonly int MoveX = Animator.StringToHash("MoveX");
         protected static readonly int MoveY = Animator.StringToHash("MoveY");
         protected static readonly int IsMoving = Animator.StringToHash("IsMoving");
+
 
         [Header("Input")]
         public InputActionAsset inputActions;
@@ -28,11 +30,14 @@ namespace PixelChroma
 
         [Header("Zoom (PPU)")]
         [SerializeField] private int maxPPU = 64;
-        [SerializeField] private int zoomStepPPU = 2;
-
+        [SerializeField] private int zoomStepPPU = 5;
+        [SerializeField] private float manualZoomTweenDuration = 0.15f;
         [Tooltip("페인트 모드에서 빠져나올 때 최대 줌아웃 상태로 돌아가는 데 걸리는 시간(초)")]
-        [SerializeField] private float forcedZoomOutDuration = 1f;
+        [SerializeField] private float forcedZoomOutDuration = 0.4f;
+        private Tween _zoomTween;
 
+
+        protected virtual bool CanTogglePaintMode => true;//PaintMode 진입가능여부
 
         [Header("Nickname UI")]
         [SerializeField] private TMP_Text nicknameText;
@@ -54,8 +59,9 @@ namespace PixelChroma
         private Coroutine _zoomResetCoroutine;
         private bool _isChatActive = false;
 
-        private static event Action NicknameVisibilityChanged;
+        protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
+
 
         protected PlayerInputActions Input => _input;
         protected PlayerPaintController PaintController => _paintController;
@@ -75,7 +81,7 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
 
-            if (_input.TogglePaint.WasPressedThisFrame())
+            if (CanTogglePaintMode && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
 
             HandleScrollWheel();
@@ -120,7 +126,7 @@ namespace PixelChroma
 
         public override void OnStartLocalPlayer()
         {
-            _input = new PlayerInputActions(inputActions);
+            _input = new PlayerInputActions(Instantiate(inputActions));
             _input.EnableAll();
 
             _paintController = new PlayerPaintController(this, paintCanvas, _input);
@@ -136,6 +142,9 @@ namespace PixelChroma
 
             string mySavedName = PlayerPrefs.GetString(UIMainMenuNickname.NicknamePrefsKey, GetDefaultSteamName());
             CmdRegisterMyNameWithManager(mySavedName);
+
+            // 이미 칠해둔 다른 플레이어들의 현재 페인트 상태를 요청(late-join 동기화).
+            CmdRequestPaintSnapshots();
         }
 
         public override void OnStopLocalPlayer()
@@ -204,6 +213,22 @@ namespace PixelChroma
             return CursorType.Default;
         }
 
+        // 스폰된 다른 플레이어 캔버스들이 각자의 현재 페인트를 요청자에게 보내도록 한다.
+        [Command]
+        private void CmdRequestPaintSnapshots()
+        {
+            var conn = connectionToClient;
+            if (conn == null) return;
+
+            foreach (var identity in NetworkServer.spawned.Values)
+            {
+                if (identity == null || identity == netIdentity) continue;   // 내 캔버스는 빈 상태
+                var canvas = identity.GetComponentInChildren<PlayerPaintCanvas>();
+                if (canvas != null)
+                    canvas.SendPaintSnapshotTo(conn);
+            }
+        }
+
         [Command]
         private void CmdRegisterMyNameWithManager(string nameToRegister)
         {
@@ -252,9 +277,18 @@ namespace PixelChroma
         {
             if (_pixelPerfectCamera == null) return;
 
+            _zoomTween?.Kill();
+
             int current = _pixelPerfectCamera.assetsPPU;
             int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
-            _pixelPerfectCamera.assetsPPU = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
+            int target = Mathf.Clamp(current + delta, _originalPPU, maxPPU);
+
+            _zoomTween = DOTween.To(
+                    () => _pixelPerfectCamera.assetsPPU,
+                    v => _pixelPerfectCamera.assetsPPU = v,
+                    target,
+                    manualZoomTweenDuration)
+                .SetEase(Ease.OutQuad);
         }
 
         private void HandlePaintModeChangedForZoom(bool isPaintMode)
@@ -267,27 +301,13 @@ namespace PixelChroma
         {
             if (_pixelPerfectCamera == null) return;
 
-            if (_zoomResetCoroutine != null)
-                StopCoroutine(_zoomResetCoroutine);
-
-            _zoomResetCoroutine = StartCoroutine(ZoomOutRoutine());
-        }
-
-        private IEnumerator ZoomOutRoutine()
-        {
-            float startPPU = _pixelPerfectCamera.assetsPPU;
-            float elapsed = 0f;
-
-            while (elapsed < forcedZoomOutDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = forcedZoomOutDuration > 0f ? elapsed / forcedZoomOutDuration : 1f;
-                _pixelPerfectCamera.assetsPPU = Mathf.RoundToInt(Mathf.Lerp(startPPU, _originalPPU, t));
-                yield return null;
-            }
-
-            _pixelPerfectCamera.assetsPPU = _originalPPU;
-            _zoomResetCoroutine = null;
+            _zoomTween?.Kill();   // 이전에 남아있던 트윈(수동 줌이든 이전 줌아웃이든) 취소
+            _zoomTween = DOTween.To(
+                    () => _pixelPerfectCamera.assetsPPU,
+                    v => _pixelPerfectCamera.assetsPPU = v,
+                    _originalPPU,
+                    forcedZoomOutDuration)
+                .SetEase(Ease.OutQuad);
         }
 
         private float GetScrollValue()
