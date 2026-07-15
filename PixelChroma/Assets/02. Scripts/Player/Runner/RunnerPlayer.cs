@@ -24,6 +24,8 @@ namespace PixelChroma
         [Header("Paint Mode Settings")]
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
         [SerializeField, Range(0f, 1f)] private float paintModeSpeedMultiplier = 0.2f;
+        protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint진입가능여부로 설정
+
 
         [Header("Camouflage")]
         [Tooltip("위장으로 인정되는 최소 색칠 비율 (0.3 = 30%)")]
@@ -440,7 +442,7 @@ namespace PixelChroma
         {
             RecalculateMoveSpeed();
 
-            if (isPaint && _spectator != null && _spectator.IsSpectating)
+            if (isPaint && !_isDeathSpectatorLocked && _spectator != null && _spectator.IsSpectating)
             {
                 _spectator.ExitSpectate();
                 _runnerHUD?.SetSpectatorMode(false);

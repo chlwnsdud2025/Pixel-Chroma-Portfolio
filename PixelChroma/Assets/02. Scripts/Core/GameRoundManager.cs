@@ -66,6 +66,7 @@ namespace PixelChroma
         {
             NetworkClient.RegisterHandler<TimeStateMessage>(OnClientTimeStateChanged);
             NetworkClient.RegisterHandler<WinnerDecidedMessage>(OnClientWinnerDecided);
+            NetworkClient.RegisterHandler<RoomOptionSyncMessage>(OnClientRoomOptionChanged);
         }
 
         public void Cleanup()
@@ -73,6 +74,7 @@ namespace PixelChroma
             CancelTimer();
             NetworkClient.UnregisterHandler<TimeStateMessage>();
             NetworkClient.UnregisterHandler<WinnerDecidedMessage>();
+            NetworkClient.UnregisterHandler<RoomOptionSyncMessage>();
         }
 
         [Server]
@@ -82,6 +84,8 @@ namespace PixelChroma
 
             CurrentRoomOption = option;
             CurrentWinner = PlayerRole.None;
+
+            NetworkServer.SendToAll(new RoomOptionSyncMessage { option = option.ToData() });
 
             SetTimeState(TimeState.Countdown, countdownDuration);
         }
@@ -364,6 +368,10 @@ namespace PixelChroma
             Debug.Log($"[GameRound] 강제 도발 발동! 생존 러너 전원 위치 노출 (지속시간: {forcedExposeDuration}초)");
         }
 
+        private void OnClientRoomOptionChanged(RoomOptionSyncMessage msg)
+        {
+            CurrentRoomOption = RoomOption.FromData(msg.option);
+        }
 
         //-----------------------InfectionMode에서 HideTime에 Runner끼리 충돌 방지----------------
         private void UpdateRunnerCollision()
