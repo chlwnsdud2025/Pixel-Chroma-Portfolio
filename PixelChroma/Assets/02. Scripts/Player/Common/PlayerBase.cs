@@ -37,6 +37,7 @@ namespace PixelChroma
         [SerializeField] private float forcedZoomOutDuration = 0.4f;
 
         [Header("Nickname UI")]
+        [SerializeField] private GameObject nicknameRoot;
         [SerializeField] private TMP_Text nicknameText;
 
         [SyncVar(hook = nameof(OnPlayerNameChanged))]
@@ -104,7 +105,7 @@ namespace PixelChroma
             if (InGameManager.Instance != null)
                 InGameManager.Instance.RegisterPlayer(this);
 
-            _nicknameDisplay ??= new PlayerNicknameDisplay(this, nicknameText);
+            _nicknameDisplay ??= new PlayerNicknameDisplay(this, nicknameText, nicknameRoot);
             _nicknameDisplay.Refresh();
             _nicknameDisplay.UpdateVisibility();
             NicknameVisibilityChanged += _nicknameDisplay.UpdateVisibility;
@@ -128,6 +129,7 @@ namespace PixelChroma
 
             _paintController = new PlayerPaintController(this, paintCanvas, _input);
             _paintController.OnPaintModeChanged += HandlePaintModeChangedForZoom;
+            _paintController.OnPaintModeChanged += _nicknameDisplay.HandlePaintModeChanged;
 
             UIChat.OnChatToggled += HandleChatToggled;
 
@@ -150,7 +152,10 @@ namespace PixelChroma
             UIChat.OnChatToggled -= HandleChatToggled;
 
             if (_paintController != null)
+            {
                 _paintController.OnPaintModeChanged -= HandlePaintModeChangedForZoom;
+                _paintController.OnPaintModeChanged -= _nicknameDisplay.HandlePaintModeChanged;
+            }
             _paintController?.Dispose();
 
             OnLocalPlayerStopped();
