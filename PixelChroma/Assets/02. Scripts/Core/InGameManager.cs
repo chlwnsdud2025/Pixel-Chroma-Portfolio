@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -13,6 +14,9 @@ namespace PixelChroma
 
         public IReadOnlyList<RunnerPlayer> Runners => _runners;
         public IReadOnlyList<SeekerPlayer> Seekers => _seekers;
+
+        // 명부(스폰/퇴장/사망)가 바뀔 때마다 (생존 러너 수, 생존 술래 수)로 발화됩니다.
+        public static event Action<int, int> OnPlayerCountChanged;
 
         public void RegisterPlayer(PlayerBase player)
         {
@@ -30,6 +34,8 @@ namespace PixelChroma
                 case LobbyPlayer:
                     break; // 로비 플레이어는 인게임 명부 대상이 아닙니다.
             }
+
+            NotifyRosterChanged();
         }
 
         public void UnregisterPlayer(PlayerBase player)
@@ -43,11 +49,24 @@ namespace PixelChroma
                     _seekers.Remove(seeker);
                     break;
             }
+
+            NotifyRosterChanged();
         }
 
         public int GetAliveRunnerCount()
         {
             return _runners.Count(r => r != null && !r.IsDead);
+        }
+
+        public int GetAliveSeekerCount()
+        {
+            return _seekers.Count(s => s != null);
+        }
+
+        // 사망(SyncVar hook) 등 명부 수치가 변하는 지점에서 호출해 HUD 갱신을 트리거합니다.
+        public void NotifyRosterChanged()
+        {
+            OnPlayerCountChanged?.Invoke(GetAliveRunnerCount(), GetAliveSeekerCount());
         }
 
         public bool HasAnyRunner()
@@ -73,7 +92,7 @@ namespace PixelChroma
         {
             if (_spawnPoint != null)
             {
-                Vector3 offset = new Vector3(Random.Range(-0.2f, 0.2f), Random.Range(-0.2f, 0.2f), 0);
+                Vector3 offset = new Vector3(UnityEngine.Random.Range(-0.2f, 0.2f), UnityEngine.Random.Range(-0.2f, 0.2f), 0);
                 return _spawnPoint.position + offset;
             }
 
@@ -83,7 +102,7 @@ namespace PixelChroma
 
         public Vector3 GetWaitingPosition()
         {
-            Vector3 offset = new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f), 0);
+            Vector3 offset = new Vector3(UnityEngine.Random.Range(-0.5f, 0.5f), UnityEngine.Random.Range(-0.5f, 0.5f), 0);
             return Vector3.zero + offset;
         }
     }

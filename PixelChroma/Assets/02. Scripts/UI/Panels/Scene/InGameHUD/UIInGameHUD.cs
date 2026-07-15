@@ -12,15 +12,19 @@ namespace PixelChroma.UI
 
         [Header("Game State UI (Common)")]
         [SerializeField] private TMP_Text stateText;
-        [SerializeField] private TMP_Text timerText;
-        [SerializeField] private TMP_Text forcedExposeTimerText;
+        [SerializeField] private UIPunchText timerText;
 
         [SerializeField] private TMP_Text gameResultOverlayText;
 
         [Header("Game Mode UI")]
         [SerializeField] private TMP_Text modeText;
 
-        [Header("Game Chat UI")]
+        [Header("Player Count UI")]
+        [SerializeField] private UIPlayerCountIcons runnerCountIcons;
+        [SerializeField] private UIPlayerCountIcons seekerCountIcons;
+
+        [Header("Spectator Mode UI (Common)")]
+        [SerializeField] private UISpectatorModePanel spectatorPanel;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -42,6 +46,7 @@ namespace PixelChroma.UI
             GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
             GameRoundManager.OnTimerTick += HandleTimerTick;
             GameRoundManager.OnWinnerDecided += HandleWinnerDecided;
+            InGameManager.OnPlayerCountChanged += HandlePlayerCountChanged;
         }
 
         public override void OnAfterHide()
@@ -51,6 +56,7 @@ namespace PixelChroma.UI
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
             GameRoundManager.OnTimerTick -= HandleTimerTick;
             GameRoundManager.OnWinnerDecided -= HandleWinnerDecided;
+            InGameManager.OnPlayerCountChanged -= HandlePlayerCountChanged;
         }
 
         protected override UniTask OnShow()
@@ -69,6 +75,28 @@ namespace PixelChroma.UI
         {
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
             if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false);
+            if (spectatorPanel != null) spectatorPanel.Hide();
+        }
+
+        // ── 관전 모드 UI (러너/시커 공용) ──────────────────────────────
+        public void SetSpectatorMode(bool active)
+        {
+            if (spectatorPanel == null) return;
+
+            if (active) spectatorPanel.Show();
+            else spectatorPanel.Hide();
+        }
+
+        public void SetActiveSpectateMode(SpectateMode mode)
+        {
+            if (spectatorPanel != null)
+                spectatorPanel.SetActiveMode(mode);
+        }
+
+        public void SetSpectateTargetName(string name, bool isSelf)
+        {
+            if (spectatorPanel != null)
+                spectatorPanel.SetTargetName(name, isSelf);
         }
 
         private void SyncToCurrentState()
@@ -80,6 +108,17 @@ namespace PixelChroma.UI
 
             if (modeText != null)
                 modeText.text = round.CurrentRule?.DisplayName ?? "";
+
+            // HUD가 켜질 때 이미 스폰돼 있던 인원을 즉시 반영합니다(이후 변화는 이벤트가 담당).
+            var inGame = InGameManager.Instance;
+            if (inGame != null)
+                HandlePlayerCountChanged(inGame.GetAliveRunnerCount(), inGame.GetAliveSeekerCount());
+        }
+
+        private void HandlePlayerCountChanged(int aliveRunners, int aliveSeekers)
+        {
+            if (runnerCountIcons != null) runnerCountIcons.SetCount(aliveRunners);
+            if (seekerCountIcons != null) seekerCountIcons.SetCount(aliveSeekers);
         }
 
         private void UpdateStateUI(TimeState state, int remainingSeconds)
@@ -95,9 +134,6 @@ namespace PixelChroma.UI
                     case TimeState.GameEnd: stateText.text = "게임 종료!"; break;
                 }
             }
-
-            if (forcedExposeTimerText != null)
-                forcedExposeTimerText.gameObject.SetActive(state == TimeState.SeekTime);
 
             UpdateTimerText(remainingSeconds);
         }
@@ -115,12 +151,7 @@ namespace PixelChroma.UI
         private void UpdateTimerText(int remainingSeconds)
         {
             if (timerText != null)
-            {
-                int display = Mathf.Max(0, remainingSeconds);
-                int minutes = display / 60;
-                int seconds = display % 60;
-                timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
-            }
+                timerText.SetText(Mathf.Max(0, remainingSeconds).ToString());
         }
 
         private void HandleTimeStateChanged(TimeState state, int remainingSeconds)
@@ -131,12 +162,6 @@ namespace PixelChroma.UI
         private void HandleTimerTick(int remainingSeconds)
         {
             UpdateTimerText(remainingSeconds);
-
-            if (forcedExposeTimerText != null)
-            {
-                var round = GameRoundManager.Instance;
-                forcedExposeTimerText.text = round != null ? round.SecondsUntilNextForcedExpose.ToString() : "";
-            }
         }
 
         private void HandleWinnerDecided(PlayerRole winner)
