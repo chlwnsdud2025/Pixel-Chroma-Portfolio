@@ -59,11 +59,6 @@ namespace PixelChroma.UI
             return base.OnShow();
         }
 
-        public void TogglePaintMode()
-        {
-            if (paintModeRoot != null) paintModeRoot.SetActive(!paintModeRoot.activeSelf);
-        }
-
         public void SetPaintMode(bool active)
         {
             if (paintModeRoot != null) paintModeRoot.SetActive(active);
