@@ -16,41 +16,31 @@ namespace PixelChroma
         [Header("Timing")]
         [Tooltip("레이저가 초당 뻗어나가는 속도(유닛/초)")]
         [SerializeField] private float laserSpeed = 40f;
-        [Tooltip("레이저 라인의 두께")]
-        [SerializeField] private float laserWidth = 0.1f;
-        [Tooltip("레이저 빔이 뻗어나갈 때 보이는 선분의 길이(유닛). 사거리와 무관하게 항상 이 길이로 고정됩니다.")]
-        [SerializeField] private float laserSegmentLength = 3f;
+        //[Tooltip("레이저 라인의 두께")]
+        //[SerializeField] private float laserWidth = 0.1f;
+        //[Tooltip("레이저 빔이 뻗어나갈 때 보이는 선분의 길이(유닛). 사거리와 무관하게 항상 이 길이로 고정됩니다.")]
+        //[SerializeField] private float laserSegmentLength = 3f;
         [Tooltip("물 스플래시 이펙트가 서서히 사라지는 시간(초)")]
         [SerializeField] private float splashFadeDuration = 0.6f;
 
-        public void PlayFireEffect(Transform firePoint, Vector2 targetPos, float aoeRadius, bool didHit)
+        public void PlayFireEffect(Transform firePoint, Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
-            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, aoeRadius, didHit));
+            StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, didHit, direction, hitNormal));
         }
 
-        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, float aoeRadius, bool didHit)
+        private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
             GameObject laserObj = null;
-            LineRenderer lr = null;
-
-            if (laserPrefab != null)
-            {
-                laserObj = Instantiate(laserPrefab, transform.position, Quaternion.identity);
-                lr = laserObj.GetComponent<LineRenderer>();
-
-                if (lr != null)
-                {
-                    lr.startWidth = laserWidth;
-                    lr.endWidth = laserWidth;
-                }
-            }
 
             Vector2 startPos = firePoint != null ? (Vector2)firePoint.position : (Vector2)transform.position;
             float totalDistance = Vector2.Distance(startPos, targetPos);
             float duration = laserSpeed > 0f ? Mathf.Max(totalDistance / laserSpeed, 0.01f) : 0.01f;
 
-            // 빔 선분 길이(고정 유닛)를 비율로 환산합니다. 사거리가 짧아 선분 길이보다 짧으면 0으로 클램프됩니다.
-            float tailRatioOffset = totalDistance > 0.0001f ? Mathf.Clamp01(laserSegmentLength / totalDistance) : 0f;
+            if (laserPrefab != null)
+            {
+                float travelAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+                laserObj = Instantiate(laserPrefab, startPos, Quaternion.Euler(0, 0, travelAngle));
+            }
 
             float elapsed = 0f;
 
@@ -59,17 +49,8 @@ namespace PixelChroma
                 elapsed += Time.deltaTime;
                 float ratio = elapsed / duration;
 
-                // 캐릭터가 이동 중이어도 레이저 꼬리가 총구에 달라붙도록 실시간 위치를 사용합니다.
-                Vector2 dynamicStartPos = firePoint != null ? (Vector2)firePoint.position : (Vector2)transform.position;
-
-                Vector2 currentTail = Vector2.Lerp(dynamicStartPos, targetPos, Mathf.Max(0, ratio - tailRatioOffset));
-                Vector2 currentHead = Vector2.Lerp(dynamicStartPos, targetPos, ratio);
-
-                if (lr != null)
-                {
-                    lr.SetPosition(0, currentTail);
-                    lr.SetPosition(1, currentHead);
-                }
+                if (laserObj != null)
+                    laserObj.transform.position = Vector2.Lerp(startPos, targetPos, ratio);
 
                 yield return null;
             }
@@ -80,24 +61,16 @@ namespace PixelChroma
 
             if (waterSplashPrefab != null)
             {
-                GameObject splash = Instantiate(waterSplashPrefab, targetPos, Quaternion.identity);
+                float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+                Quaternion splashRotation = Quaternion.Euler(0, 0, angle);   // 스프라이트 기본 방향에 따라 필요시 오프셋 조정
+
+                GameObject splash = Instantiate(waterSplashPrefab, targetPos, splashRotation);
                 var splashRenderer = splash.GetComponentInChildren<SpriteRenderer>();
 
                 if (splashRenderer != null)
-                {
-                    float baseRadius = splashRenderer.sprite.bounds.extents.x;
-                    if (baseRadius > 0.0001f)
-                    {
-                        float factor = aoeRadius / baseRadius;
-                        splash.transform.localScale = new Vector3(factor, factor, 1f);
-                    }
-
                     StartCoroutine(FadeOutAndDestroy(splash, splashRenderer, splashFadeDuration));
-                }
                 else
-                {
                     Destroy(splash, splashFadeDuration);
-                }
             }
         }
 

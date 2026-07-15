@@ -29,9 +29,7 @@ namespace PixelChroma
         [SerializeField] private LayerMask runnerPhysicsLayer;
 
         [Header("forced Expose")]
-        [SerializeField] float[] forcedExposeTriggerRatios = { 0.3f };
-        [SerializeField] float forcedExposeDuration;
-        private bool[] _forcedExposeTriggered;
+        [SerializeField] private float forcedExposeDuration;
 
 
 
@@ -52,6 +50,20 @@ namespace PixelChroma
         private float OptionSeekTime => CurrentRoomOption?.seekTime ?? RoomOption.DefaultSeekTime;
         private float OptionCheckTime => CurrentRoomOption?.checkTime ?? RoomOption.DefaultCheckTime;
         private int OptionSeekerCount => CurrentRoomOption?.seekerCount ?? RoomOption.DefaultSeekerCount;
+        private float OptionForcedExposeInterval => CurrentRoomOption?.forcedExposeInterval ?? RoomOption.DefaultForcedExposeInterval;
+
+        public int SecondsUntilNextForcedExpose
+        {
+            get
+            {
+                if (CurrentTimeState != TimeState.SeekTime || OptionForcedExposeInterval <= 0f) return 0;
+
+                int elapsed = Mathf.CeilToInt(OptionSeekTime) - CurrentTimer;
+                int intervalInt = Mathf.Max(1, Mathf.RoundToInt(OptionForcedExposeInterval));
+                int remainder = elapsed % intervalInt;
+                return remainder == 0 ? intervalInt : intervalInt - remainder;
+            }
+        }
 
         // ── Unity 생명주기 ──────────────────────────────────────────────
 
@@ -121,13 +133,6 @@ namespace PixelChroma
         {
             CurrentTimeState = newState;
             CurrentTimer = Mathf.CeilToInt(time);
-
-            if (newState == TimeState.SeekTime)
-            {
-                _forcedExposeTriggered = forcedExposeTriggerRatios != null
-                    ? new bool[forcedExposeTriggerRatios.Length]
-                    : null;
-            }
 
             NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
             Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초, 승자: {CurrentWinner}");
@@ -338,20 +343,13 @@ namespace PixelChroma
         private void CheckForcedExpose()
         {
             if (CurrentTimeState != TimeState.SeekTime) return;
-            if (forcedExposeTriggerRatios == null || forcedExposeTriggerRatios.Length == 0) return;
-            if (_forcedExposeTriggered == null || _forcedExposeTriggered.Length != forcedExposeTriggerRatios.Length)
-                return;
+            if (OptionForcedExposeInterval <= 0f) return;
 
-            float ratio = OptionSeekTime > 0f ? CurrentTimer / OptionSeekTime : 0f;
+            int elapsed = Mathf.CeilToInt(OptionSeekTime) - CurrentTimer;
+            int intervalInt = Mathf.Max(1, Mathf.RoundToInt(OptionForcedExposeInterval));
 
-            for (int i = 0; i < forcedExposeTriggerRatios.Length; i++)
-            {
-                if (_forcedExposeTriggered[i]) continue;
-                if (ratio > forcedExposeTriggerRatios[i]) continue;
-
-                _forcedExposeTriggered[i] = true;
+            if (elapsed > 0 && elapsed % intervalInt == 0)
                 TriggerForcedExposeForAllRunners();
-            }
         }
 
         [Server]

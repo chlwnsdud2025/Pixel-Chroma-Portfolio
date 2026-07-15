@@ -6,29 +6,13 @@ namespace PixelChroma.UI
 {
     public class UIInGameHUD_Runner : UIInGameHUD
     {
-        [Header("Spectator Mode UI")]
-        [SerializeField] private UISpectatorModePanel spectatorPanel;
-
         [Header("Runner Expose Skill UI Only")]
         [SerializeField] private Image exposeSkillCooldownOverlay;
         [SerializeField] private TMP_Text exposeSkillCooldownText;
 
-        [Header("Seeker Indicator")]
-        [SerializeField] private SeekerIndicatorPanel seekerIndicatorPanel;
-
         private bool _isExposeCounting;
         private float _exposeCooldownDuration;
         private float _exposeTimer;
-
-        public override void Initialize()
-        {
-            base.Initialize();
-
-            if (spectatorPanel != null) spectatorPanel.Hide();
-
-            if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
-            if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
-        }
 
         // 부모의 Update(전역 타이머) 기능에 더해, 내 스킬 쿨타임 차감 연산만 덧붙입니다.
         protected override void Update()
@@ -56,26 +40,17 @@ namespace PixelChroma.UI
             }
         }
 
-        public void SetSpectatorMode(bool active)
+        protected override void ResetHUDState()
         {
-            if (spectatorPanel == null) return;
+            base.ResetHUDState();
 
-            if (active) spectatorPanel.Show();
-            else spectatorPanel.Hide();
+            _isExposeCounting = false;
+            _exposeTimer = 0f;
+            _exposeCooldownDuration = 0f;
+            if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
+            if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
+
         }
-
-        public void SetActiveSpectateMode(SpectateMode mode)
-        {
-            if (spectatorPanel != null)
-                spectatorPanel.SetActiveMode(mode);
-        }
-
-        public void SetSpectateTargetName(string name, bool isSelf)
-        {
-            if (spectatorPanel != null)
-                spectatorPanel.SetTargetName(name, isSelf);
-        }
-
 
         public void StartExposeSkillCooldown(float duration)
         {
@@ -95,9 +70,6 @@ namespace PixelChroma.UI
             }
         }
 
-        public void ActivateSeekerIndicator(float duration)
-        {
-            seekerIndicatorPanel?.Activate(duration);
-        }
+        
     }
 }

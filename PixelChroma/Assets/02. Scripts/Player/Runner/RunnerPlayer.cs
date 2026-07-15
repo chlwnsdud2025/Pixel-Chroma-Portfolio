@@ -10,10 +10,6 @@ namespace PixelChroma
     {
         private const float PaintRatioSyncInterval = 0.5f;
 
-        [Header("Free Cam Settings")]
-        [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
-        [SerializeField] private float freeCamSpeed = 15f;
-
         //[SerializeField] private GameObject visual;
         [SerializeField] private Collider2D bodyCollider;
 
@@ -26,7 +22,6 @@ namespace PixelChroma
         [SerializeField, Range(0f, 1f)] private float paintModeSpeedMultiplier = 0.2f;
         protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint진입가능여부로 설정
 
-
         [Header("Camouflage")]
         [Tooltip("위장으로 인정되는 최소 색칠 비율 (0.3 = 30%)")]
         [SerializeField, Range(0f, 1f)] private float camouflagedThreshold = 0.3f;
@@ -38,7 +33,7 @@ namespace PixelChroma
         [Tooltip("서로 안보이게 할때 껏다켯다할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
 
-        [SyncVar] private bool _isDead;
+        [SyncVar(hook = nameof(OnDeadStateChanged))] private bool _isDead;
         private bool _isVisuallyDead;
         [SyncVar] private float _paintRatio;
 
@@ -52,8 +47,9 @@ namespace PixelChroma
         private float _lastPaintRatioSyncTime;
 
         private bool _isDeathSpectatorLocked;
-        private SpectatorController _spectator;
         private UIInGameHUD_Runner _runnerHUD;
+
+        protected override UIInGameHUD InGameHUD => _runnerHUD;
 
         public bool IsDead => _isDead;
         public bool IsWet => _isWet;
@@ -121,9 +117,7 @@ namespace PixelChroma
         protected override void OnLocalPlayerStarted()
         {
             ShowHUDAsync().Forget();
-
-            _spectator = new SpectatorController(this, cinemachineCamera, freeCamSpeed);
-            _spectator.OnTargetNameChanged += HandleSpectateTargetChanged;
+            InitializeSpectator();
             PaintController.OnPaintModeChanged += HandlePaintModeChanged;
         }
 
@@ -132,37 +126,8 @@ namespace PixelChroma
             PaintController.UnbindHUD();
             _runnerHUD = null;
 
-            _spectator?.Dispose();
-            _spectator = null;
-
-            if (_spectator != null)
-                _spectator.OnTargetNameChanged -= HandleSpectateTargetChanged;
+            CleanupSpectator();
             PaintController.OnPaintModeChanged -= HandlePaintModeChanged;
-        }
-
-        protected override void HandleMovement()
-        {
-            if (Rb == null) return;
-
-            if (_spectator != null && _spectator.IsSpectating)
-            {
-                Rb.linearVelocity = Vector2.zero;
-
-                if (_spectator.Mode == SpectateMode.Free)
-                {
-                    Vector2 rawInput = Input.Move.ReadValue<Vector2>();
-                    _spectator.HandleFreeCamMovement(rawInput);
-                }
-
-                return;
-            }
-
-            base.HandleMovement();
-        }
-
-        protected override Vector2 GetMoveInput()
-        {
-            return _spectator is { IsSpectating: true } ? Vector2.zero : base.GetMoveInput();
         }
 
         [Server]
@@ -260,15 +225,15 @@ namespace PixelChroma
         }
         //----------------------------------------------------------------------------------------------------
 
-        private void HandleSpectateInput()
+        protected override void HandleSpectateInput()
         {
-            if (_spectator == null) return;
+            if (Spectator == null) return;
 
             if (Input.ToggleSpectate.WasPressedThisFrame())
             {
-                if (_spectator.IsSpectating && !_isDeathSpectatorLocked)
+                if (Spectator.IsSpectating && !_isDeathSpectatorLocked)
                 {
-                    _spectator.ExitSpectate();
+                    Spectator.ExitSpectate();
                     _runnerHUD?.SetSpectatorMode(false);
                 }
                 else
@@ -276,41 +241,14 @@ namespace PixelChroma
                     if (PaintController.IsPaintMode)
                         PaintController.TogglePaintMode();
 
-                    _spectator.EnterSeekerMode();
+                    Spectator.EnterRunnerMode();
                     _runnerHUD?.SetSpectatorMode(true);
-                    _runnerHUD?.SetActiveSpectateMode(SpectateMode.Seeker);
+                    _runnerHUD?.SetActiveSpectateMode(SpectateMode.Runner);
                 }
                 return;
             }
 
-            if (!_spectator.IsSpectating) return;
-
-            if (Input.SpectateSeeker.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Seeker)
-            {
-                _spectator.EnterSeekerMode();
-                _runnerHUD?.SetActiveSpectateMode(SpectateMode.Seeker);
-                return;
-            }
-
-            if (Input.SpectateRunner.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Runner)
-            {
-                _spectator.EnterRunnerMode();
-                _runnerHUD?.SetActiveSpectateMode(SpectateMode.Runner);
-                return;
-            }
-
-            if (Input.SpectateFree.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Free)
-            {
-                _spectator.EnterFreeMode();
-                _runnerHUD?.SetActiveSpectateMode(SpectateMode.Free);
-                return;
-            }
-
-            if (_spectator.Mode == SpectateMode.Runner || _spectator.Mode == SpectateMode.Seeker)
-            {
-                if (Input.CyclePrev.WasPressedThisFrame()) _spectator.CycleTarget(-1);
-                if (Input.CycleNext.WasPressedThisFrame()) _spectator.CycleTarget(1);
-            }
+            base.HandleSpectateInput();
         }
 
         private void SyncPaintRatioIfNeeded()
@@ -367,8 +305,9 @@ namespace PixelChroma
                 if (PaintController.IsPaintMode)
                     PaintController.TogglePaintMode();
 
-                _spectator?.EnterDeathSpectator();
+                Spectator?.EnterDeathSpectator();
                 _runnerHUD?.SetSpectatorMode(true);
+                _runnerHUD?.SetActiveSpectateMode(SpectateMode.Runner);
             }
         }
 
@@ -419,32 +358,29 @@ namespace PixelChroma
             {
                 seeker.TargetShowRunnerIndicator(this.netIdentity, exposeDuration);
             }
-            TargetActivateSeekerIndicator(exposeDuration);
         }
 
-        [TargetRpc]
-        private void TargetActivateSeekerIndicator(float duration)
-        {
-            _runnerHUD?.ActivateSeekerIndicator(duration);
-        }
+        
 
         private void OnWetStateChanged(bool oldVal, bool newVal)
         {
             RecalculateMoveSpeed();
         }
 
-        private void HandleSpectateTargetChanged(string targetName, bool isSelf)
+        // 사망 상태 복제 시 모든 클라이언트에서 호출됩니다. 생존 인원 HUD 갱신을 트리거합니다.
+        private void OnDeadStateChanged(bool oldVal, bool newVal)
         {
-            _runnerHUD?.SetSpectateTargetName(targetName, isSelf);
+            if (InGameManager.Instance != null)
+                InGameManager.Instance.NotifyRosterChanged();
         }
 
         private void HandlePaintModeChanged(bool isPaint)
         {
             RecalculateMoveSpeed();
 
-            if (isPaint && !_isDeathSpectatorLocked && _spectator != null && _spectator.IsSpectating)
+            if (isPaint && !_isDeathSpectatorLocked && Spectator != null && Spectator.IsSpectating)
             {
-                _spectator.ExitSpectate();
+                Spectator.ExitSpectate();
                 _runnerHUD?.SetSpectatorMode(false);
             }
         }

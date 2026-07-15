@@ -188,7 +188,6 @@ namespace PixelChroma
         [Command]
         private void CmdFireWaterGun(Vector2 direction)
         {
-            // 서버에서도 연사 속도를 재검증합니다. (쿨타임을 무시하는 조작된 클라이언트 방지)
             if (Time.time - _lastServerFireTime < fireCooldown - ServerCooldownGrace) return;
             _lastServerFireTime = Time.time;
 
@@ -199,8 +198,8 @@ namespace PixelChroma
             RaycastHit2D hit = Physics2D.Raycast(origin, direction, fireRange, obstacleLayer | runnerLayer);
             bool didHit = hit.collider != null;
 
-            // 레이저가 실제로 뻗어나가는 끝점: 맞았으면 그 지점, 안 맞았으면 사거리 끝.
             Vector2 laserEndPos = didHit ? hit.point : origin + direction * fireRange;
+            Vector2 hitNormal = didHit ? hit.normal : -direction;   // 안 맞았을 땐 의미 없으니 대충 반대 방향으로 폴백
 
             if (didHit)
             {
@@ -216,12 +215,11 @@ namespace PixelChroma
                 }
             }
 
-            // 레이저 비주얼은 맞았든 안 맞았든 항상 재생하고, 스플래시/피격 여부는 didHit로 클라에 전달합니다.
-            RpcPlayFireEffect(laserEndPos, didHit);
+            RpcPlayFireEffect(laserEndPos, didHit, direction, hitNormal);   // direction, hitNormal 추가
         }
 
         [ClientRpc]
-        private void RpcPlayFireEffect(Vector2 targetPos, bool didHit)
+        private void RpcPlayFireEffect(Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
             if (didHit)
             {
@@ -230,7 +228,7 @@ namespace PixelChroma
             }
 
             if (_effects != null)
-                _effects.PlayFireEffect(firePoint, targetPos, aoeRadius, didHit);
+                _effects.PlayFireEffect(firePoint, targetPos, didHit, direction, hitNormal);
         }
 
 

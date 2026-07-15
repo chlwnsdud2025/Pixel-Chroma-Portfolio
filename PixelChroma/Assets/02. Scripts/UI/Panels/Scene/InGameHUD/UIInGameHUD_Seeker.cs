@@ -13,14 +13,24 @@ namespace PixelChroma.UI
         [SerializeField] private Image waterGunCooldownOverlay;
         [SerializeField] private TMP_Text waterGunCooldownText;
 
+        [Header("Seeker Indicator")]
+        [SerializeField] private SeekerIndicatorPanel seekerIndicatorPanel;
+
+        [Header("Spectate Key Hint")]
+        [SerializeField] private GameObject spectateKeyHint;
+
         private float _cooldownDuration;
         private bool _wasCooling;
 
-        public override void Initialize()
+        protected override void ResetHUDState()
         {
-            base.Initialize();
+            base.ResetHUDState();
 
+            _wasCooling = false;
+            _cooldownDuration = 0f;
+            if (waterGunCooldownOverlay != null) waterGunCooldownOverlay.fillAmount = 0f;
             if (waterGunCooldownText != null) waterGunCooldownText.gameObject.SetActive(false);
+            if (seekerIndicatorPanel != null) seekerIndicatorPanel.Deactivate();
         }
 
         public void SetCatchIconActive(bool isActive)
@@ -59,6 +69,12 @@ namespace PixelChroma.UI
             }
 
             _wasCooling = isCooling;
+        }
+
+        public void SetSpectateKeyHintVisible(bool visible)
+        {
+            if (spectateKeyHint != null)
+                spectateKeyHint.SetActive(visible);
         }
     }
 }
