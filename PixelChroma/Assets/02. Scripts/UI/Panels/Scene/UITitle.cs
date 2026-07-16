@@ -54,7 +54,7 @@ namespace PixelChroma.UI
 
         public void OnClickLanguageButton()
         {
-            UIManager.Instance.ShowPopup<UILanguageSelectPopup>().Forget();
+            UIManager.Instance.ShowPopup<UILanguageSelect>().Forget();
         }
     }
 }
