@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Steamworks;
 using UnityEngine;
 using Mirror;
+using UnityEngine.Localization.Settings;
 
 using Cysharp.Threading.Tasks;
 
@@ -13,14 +14,23 @@ namespace PixelChroma
         public const int CodeLength = 6;
 
         private const string CodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        private const string GameKey = "GameID";
-        private const string GameName = "PixelChroma_Dev";
+
+        public const string GameKey = "GameID";
+        public const string GameName = "PixelChroma_Dev";
+        public const string IsPublicKey = "IsPublic";
+        public const string RoomStatusKey = "RoomStatus";
+        public const string StatusLobby = "Lobby";
+
         private const string HostAddressKey = "HostAddress";
         private const string CodeKey = "RoomCode";
-        private const string IsPublicKey = "IsPublic";
-        private const string RoomStatusKey = "RoomStatus";
-        private const string StatusLobby = "Lobby";
-        private const string StatusInGame = "InGame";
+        public const string StatusInGame = "InGame";
+
+        public const string GameModeKey = "GameMode";
+        public const string MapIdKey = "MapId";
+        public const string LanguageKey = "Language";
+        public const string RoomNameKey = "RoomName";
+        public const string HostNameKey = "HostName";
+
 
         [Header("Map List")]
         [SerializeField] private MapRegistrySO mapRegistry;
@@ -168,7 +178,29 @@ namespace PixelChroma
             _lobbyMatchList.Set(handle);
         }
 
-        // ── [신규 추가] 로비 안에서 방 설정이 변경되었을 때 호출할 함수 ──
+        // ── 4. 방 목록에서 선택한 방에 입장 ─────────────────────────
+public void JoinRoom(RoomListEntry entry)
+        {
+            if (IsHost || NetworkClient.active)
+            {
+                Debug.LogWarning("[LobbyManager] 이미 연결 중입니다! 중복 입장을 거부합니다.");
+                OnLobbyFailed?.Invoke();
+                return;
+            }
+
+            if (entry.IsSteamRoom)
+            {
+                SteamMatchmaking.JoinLobby(entry.steamLobbyId);
+            }
+            else
+            {
+                _waitingForConnection = true;
+                NetworkManager.singleton.networkAddress = entry.connectAddress;
+                NetworkManager.singleton.StartClient();
+            }
+        }
+
+        // ── 로비 안에서 방 설정이 변경되었을 때 호출할 함수 ──
         public void UpdateLobbySettings(RoomOption newOption)
         {
             // 방장이 아니면 튕겨냅니다. (스팀 로비 ID 체크는 여기서 하지 않습니다)
@@ -190,7 +222,7 @@ namespace PixelChroma
             if (GameManager.SteamActive && CurrentLobbyId.IsValid())
             {
                 SteamMatchmaking.SetLobbyMemberLimit(CurrentLobbyId, CurrentRoomOption.maxPlayers);
-                SteamMatchmaking.SetLobbyData(CurrentLobbyId, IsPublicKey, CurrentRoomOption.isPublic ? "True" : "False");
+                ApplyLobbyMetadata();
             }
 
             LobbyPlayerState.BroadcastRoomOption();
@@ -236,11 +268,7 @@ namespace PixelChroma
             CurrentLobbyId = new CSteamID(result.m_ulSteamIDLobby);
             CurrentRoomCode = GenerateCode();
 
-            SteamMatchmaking.SetLobbyData(CurrentLobbyId, GameKey, GameName);
-            SteamMatchmaking.SetLobbyData(CurrentLobbyId, CodeKey, CurrentRoomCode);
-            SteamMatchmaking.SetLobbyData(CurrentLobbyId, HostAddressKey, SteamUser.GetSteamID().ToString());
-            SteamMatchmaking.SetLobbyData(CurrentLobbyId, IsPublicKey, CurrentRoomOption.isPublic ? "True" : "False");
-            SteamMatchmaking.SetLobbyData(CurrentLobbyId, RoomStatusKey, StatusLobby);
+            ApplyLobbyMetadata();
 
             Debug.Log($"[LobbyManager] 스팀 방 생성 완료 | 코드: {CurrentRoomCode}");
             NetworkManager.singleton.StartHost();
@@ -332,6 +360,33 @@ namespace PixelChroma
             var chars = new char[CodeLength];
             for (int i = 0; i < CodeLength; i++) chars[i] = CodeChars[UnityEngine.Random.Range(0, CodeChars.Length)];
             return new string(chars);
+        }
+
+        private void ApplyLobbyMetadata()
+        {
+            if (!CurrentLobbyId.IsValid()) return;
+
+            var option = CurrentRoomOption;
+
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, GameKey, GameName);
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, CodeKey, CurrentRoomCode);
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, HostAddressKey, SteamUser.GetSteamID().ToString());
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, IsPublicKey, option.isPublic ? "True" : "False");
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, RoomStatusKey, StatusLobby);
+
+            // ── 3단계 추가 ──
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, GameModeKey, ((int)option.gameMode).ToString());
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, MapIdKey, option.mapName ?? "");
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, RoomNameKey, option.roomName ?? "");
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, HostNameKey, option.hostName ?? "");
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, LanguageKey, GetCurrentLanguageCode());
+        }
+
+        private static string GetCurrentLanguageCode()
+        {
+            return LocalizationSettings.SelectedLocale != null
+                ? LocalizationSettings.SelectedLocale.Identifier.Code
+                : "";
         }
     }
 }

@@ -41,6 +41,7 @@ namespace PixelChroma
         public float checkTime = DefaultCheckTime;
         public float forcedExposeInterval = DefaultForcedExposeInterval;
 
+        public string roomName = "";
         public string mapName = "";
         public string roomCode = "";
         public string hostName = "";
@@ -57,6 +58,7 @@ namespace PixelChroma
                 seekTime = seekTime,
                 checkTime = checkTime,
                 forcedExposeInterval = forcedExposeInterval,
+                roomName = roomName,
                 mapName = mapName,
                 roomCode = roomCode,
                 hostName = hostName,
@@ -75,6 +77,7 @@ namespace PixelChroma
                 seekTime = seekTime,
                 checkTime = checkTime,
                 forcedExposeInterval = forcedExposeInterval,
+                roomName = roomName,
                 mapName = mapName,
                 roomCode = roomCode,
                 hostName = hostName,
@@ -93,6 +96,7 @@ namespace PixelChroma
                 seekTime = data.seekTime,
                 checkTime = data.checkTime,
                 forcedExposeInterval = data.forcedExposeInterval,
+                roomName = data.roomName,
                 mapName = data.mapName,
                 roomCode = data.roomCode,
                 hostName = data.hostName,
@@ -110,6 +114,7 @@ namespace PixelChroma
         public float seekTime;
         public float checkTime;
         public float forcedExposeInterval;
+        public string roomName;
         public string mapName;
         public string roomCode;
         public string hostName;

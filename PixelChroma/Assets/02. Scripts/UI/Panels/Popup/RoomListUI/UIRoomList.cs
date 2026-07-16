@@ -1,0 +1,294 @@
+using System;
+using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+using UnityEngine.Localization;
+using UnityEngine.Localization.Settings;
+using UnityEngine.UI;
+
+namespace PixelChroma.UI
+{
+    public class UIRoomList : UIPopup
+    {
+        [Header("Filters")]
+        [SerializeField] private TMP_Dropdown gameModeDropdown;
+        [SerializeField] private TMP_Dropdown mapDropdown;
+        [SerializeField] private TMP_Dropdown languageDropdown;
+        [SerializeField] private TMP_InputField roomNameInput;
+
+        [Header("Actions")]
+        [SerializeField] private Button searchButton;
+        [SerializeField] private Button refreshButton;
+        [SerializeField] private Button closeButton;
+
+        [Header("List")]
+        [SerializeField] private Transform listContent;
+        [SerializeField] private UIRoomListItem itemPrefab;
+
+        [Header("Status")]
+        [SerializeField] private GameObject emptyRoot;
+        [SerializeField] private TMP_Text statusText;
+
+        [Header("Animation")]
+        [SerializeField] private RectTransform panel;
+        [SerializeField] private float animationDuration = 0.25f;
+
+        private readonly List<UIRoomListItem> _items = new();
+
+        // 드롭다운 인덱스 → 실제 값 매핑 (인덱스 0 = "전체" = null/빈값)
+        private readonly List<GameMode?> _gameModeValues = new();
+        private readonly List<string> _mapIdValues = new();
+        private readonly List<string> _languageCodeValues = new();
+
+        // ── 초기화 ──────────────────────────────────────────
+
+        public override void Initialize()
+        {
+            base.Initialize();
+
+            PopulateGameModeDropdown();
+            PopulateMapDropdown();
+            PopulateLanguageDropdown();
+
+            if (searchButton != null) searchButton.onClick.AddListener(RequestSearch);
+            if (refreshButton != null) refreshButton.onClick.AddListener(RequestSearch);
+            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
+        }
+
+        private void PopulateGameModeDropdown()
+        {
+            if (gameModeDropdown == null) return;
+
+            gameModeDropdown.ClearOptions();
+            _gameModeValues.Clear();
+
+            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            _gameModeValues.Add(null);
+
+            foreach (GameMode mode in Enum.GetValues(typeof(GameMode)))
+            {
+                options.Add(new TMP_Dropdown.OptionData(mode.ToString()));
+                _gameModeValues.Add(mode);
+            }
+
+            gameModeDropdown.AddOptions(options);
+        }
+
+        private void PopulateMapDropdown()
+        {
+            if (mapDropdown == null) return;
+
+            mapDropdown.ClearOptions();
+            _mapIdValues.Clear();
+
+            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            _mapIdValues.Add(null);
+
+            var registry = LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
+            if (registry != null)
+            {
+                foreach (var map in registry.Maps)
+                {
+                    if (map == null) continue;
+                    string label = string.IsNullOrEmpty(map.displayName) ? map.name : map.displayName;
+                    options.Add(new TMP_Dropdown.OptionData(label));
+                    _mapIdValues.Add(map.name);
+                }
+            }
+
+            mapDropdown.AddOptions(options);
+        }
+
+        private void PopulateLanguageDropdown()
+        {
+            if (languageDropdown == null) return;
+
+            languageDropdown.ClearOptions();
+            _languageCodeValues.Clear();
+
+            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            _languageCodeValues.Add(null);
+
+            var locales = LocalizationSettings.AvailableLocales?.Locales;
+            if (locales != null)
+            {
+                foreach (var locale in locales)
+                {
+                    string label = locale.Identifier.CultureInfo != null
+                        ? locale.Identifier.CultureInfo.NativeName
+                        : locale.Identifier.Code;
+                    options.Add(new TMP_Dropdown.OptionData(label));
+                    _languageCodeValues.Add(locale.Identifier.Code);
+                }
+            }
+
+            languageDropdown.AddOptions(options);
+        }
+
+        // ── 팝업 라이프사이클 ────────────────────────────────
+
+        public override void OnBeforeShow()
+        {
+            base.OnBeforeShow();
+
+            if (gameModeDropdown != null) gameModeDropdown.SetValueWithoutNotify(0);
+            if (mapDropdown != null) mapDropdown.SetValueWithoutNotify(0);
+            if (languageDropdown != null) languageDropdown.SetValueWithoutNotify(0);
+            if (roomNameInput != null) roomNameInput.SetTextWithoutNotify("");
+
+            ClearList();
+            SetEmpty(false);
+            SetStatus("");
+
+            if (panel != null) panel.localScale = Vector3.zero;
+        }
+
+        protected override async UniTask OnShowAnimation()
+        {
+            if (panel != null)
+                await panel.DOScale(Vector3.one, animationDuration).SetEase(Ease.OutBack).ToUniTask();
+        }
+
+        protected override async UniTask OnHideAnimation()
+        {
+            if (panel != null)
+                await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
+        }
+
+        protected override UniTask OnShow()
+        {
+            var searcher = RoomListSearcher.Instance;
+            if (searcher != null)
+                searcher.OnSearchCompleted += HandleSearchCompleted;
+
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.OnLobbyFailed += HandleJoinFailed;
+
+            RequestSearch();
+
+            return UniTask.CompletedTask;
+        }
+
+        protected override UniTask OnHide()
+        {
+            var searcher = RoomListSearcher.Instance;
+            if (searcher != null)
+            {
+                searcher.OnSearchCompleted -= HandleSearchCompleted;
+                searcher.StopSearch();
+            }
+
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.OnLobbyFailed -= HandleJoinFailed;
+
+            return UniTask.CompletedTask;
+        }
+
+        // ── 필터 → 검색 ─────────────────────────────────────
+
+        private RoomListFilter BuildFilter()
+        {
+            GameMode? mode = gameModeDropdown != null && gameModeDropdown.value < _gameModeValues.Count
+                ? _gameModeValues[gameModeDropdown.value]
+                : null;
+
+            string mapId = mapDropdown != null && mapDropdown.value < _mapIdValues.Count
+                ? _mapIdValues[mapDropdown.value]
+                : null;
+
+            string lang = languageDropdown != null && languageDropdown.value < _languageCodeValues.Count
+                ? _languageCodeValues[languageDropdown.value]
+                : null;
+
+            string nameQuery = roomNameInput != null ? roomNameInput.text.Trim() : null;
+            if (string.IsNullOrEmpty(nameQuery)) nameQuery = null;
+
+            return new RoomListFilter(mode, mapId, lang, nameQuery);
+        }
+
+        private void RequestSearch()
+        {
+            ClearList();
+            SetEmpty(false);
+            SetStatus("검색 중...");
+
+            if (refreshButton != null) refreshButton.interactable = false;
+
+            RoomListSearcher.Instance?.Search(BuildFilter());
+        }
+
+        // ── 검색 결과 ────────────────────────────────────────
+
+        private void HandleSearchCompleted(List<RoomListEntry> entries)
+        {
+            if (refreshButton != null) refreshButton.interactable = true;
+            SetStatus("");
+
+            ClearList();
+
+            if (entries == null || entries.Count == 0)
+            {
+                SetEmpty(true);
+                return;
+            }
+
+            SetEmpty(false);
+
+            foreach (var entry in entries)
+            {
+                if (itemPrefab == null || listContent == null) break;
+
+                var item = Instantiate(itemPrefab, listContent);
+                item.Setup(entry);
+                item.OnJoinClicked += HandleJoinRoom;
+                item.gameObject.SetActive(true);
+                _items.Add(item);
+            }
+        }
+
+        // ── 입장 ─────────────────────────────────────────────
+
+        private void HandleJoinRoom(RoomListEntry entry)
+        {
+            foreach (var item in _items)
+                item.SetInteractable(false);
+
+            SetStatus("입장 중...");
+
+            RoomListSearcher.Instance?.StopSearch();
+            LobbyManager.Instance?.JoinRoom(entry);
+        }
+
+        private void HandleJoinFailed()
+        {
+            SetStatus("입장에 실패했습니다.");
+
+            foreach (var item in _items)
+                item.SetInteractable(true);
+        }
+
+        // ── 유틸 ─────────────────────────────────────────────
+
+        private void ClearList()
+        {
+            foreach (var item in _items)
+            {
+                item.OnJoinClicked -= HandleJoinRoom;
+                Destroy(item.gameObject);
+            }
+            _items.Clear();
+        }
+
+        private void SetEmpty(bool show)
+        {
+            if (emptyRoot != null) emptyRoot.SetActive(show);
+        }
+
+        private void SetStatus(string message)
+        {
+            if (statusText != null) statusText.text = message;
+        }
+    }
+}
