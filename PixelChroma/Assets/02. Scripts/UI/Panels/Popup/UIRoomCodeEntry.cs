@@ -16,14 +16,13 @@ namespace PixelChroma.UI
         [SerializeField] private Image showCodeIcon;
         [SerializeField] private Sprite shownSprite;
         [SerializeField] private Sprite hiddenSprite;
-        [SerializeField] private TMP_Text showCodeLabel;
 
         [Header("Actions")]
         [SerializeField] private Button joinButton;
         [SerializeField] private Button closeButton;
 
         [Header("Status")]
-        [SerializeField] private TMP_Text statusText;
+        [SerializeField] private GameObject statusText;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
@@ -54,7 +53,7 @@ namespace PixelChroma.UI
 
             _isCodeVisible = false;
             ApplyCodeVisibility();
-            SetStatus(string.Empty);
+            SetStatusVisible(false);
             RefreshJoinButton(0);
 
             if (panel != null) panel.localScale = Vector3.zero;
@@ -91,7 +90,7 @@ namespace PixelChroma.UI
             string upper = value.ToUpper();
             if (upper != value) roomCodeInput.SetTextWithoutNotify(upper);
 
-            SetStatus(string.Empty);
+            SetStatusVisible(false);
             RefreshJoinButton(upper.Length);
         }
 
@@ -122,10 +121,6 @@ namespace PixelChroma.UI
             {
                 showCodeIcon.sprite = sprite;
             }
-            else if (showCodeLabel != null)
-            {
-                showCodeLabel.text = _isCodeVisible ? "Hide" : "Show";
-            }
         }
 
         private void OnClickJoin()
@@ -137,21 +132,21 @@ namespace PixelChroma.UI
             if (joinButton != null) 
                 joinButton.interactable = false;
 
-            SetStatus(string.Empty);
+            SetStatusVisible(false);
             LobbyManager.Instance.JoinLobbyByCode(code);
         }
 
         private void HandleLobbyFailed()
         {
-            SetStatus("해당 코드의 방을 찾을 수 없습니다.");
+            SetStatusVisible(true);
 
             if (roomCodeInput != null)
                 RefreshJoinButton(roomCodeInput.text.Trim().Length);
         }
 
-        private void SetStatus(string message)
+        private void SetStatusVisible(bool visible)
         {
-            if (statusText != null) statusText.text = message;
+            if (statusText != null) statusText.SetActive(visible);
         }
     }
 }

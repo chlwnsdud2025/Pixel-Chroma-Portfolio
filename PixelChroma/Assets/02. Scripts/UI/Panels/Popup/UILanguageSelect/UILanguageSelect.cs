@@ -4,6 +4,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.Localization;
 using UnityEngine.Localization.Settings;
+using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
@@ -12,6 +13,9 @@ namespace PixelChroma.UI
         [Header("Language List")]
         [SerializeField] private Transform contentRoot;
         [SerializeField] private LanguageButton languageButtonPrefab;
+
+        [Header("Button")]
+        [SerializeField] private Button closeButton;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
@@ -23,6 +27,8 @@ namespace PixelChroma.UI
         {
             base.Initialize();
             BuildLanguageButtons();
+
+            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
         }
 
         public override void OnBeforeShow()
