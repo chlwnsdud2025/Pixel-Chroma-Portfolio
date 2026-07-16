@@ -40,7 +40,7 @@ namespace PixelChroma.UI
 
         private void OnClickFindRoom()
         {
-            // TODO: 룸 리스트 팝업을 띄우고, 선택한 방으로 입장하는 흐름 구현
+            UIManager.Instance.ShowPopup<UIRoomList>().Forget();
         }
 
         private void OnClickJoinRoom()

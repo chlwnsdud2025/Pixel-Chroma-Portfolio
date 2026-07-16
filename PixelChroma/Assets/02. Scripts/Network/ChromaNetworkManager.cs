@@ -56,6 +56,21 @@ namespace PixelChroma
                 if (kcp != null) { kcp.enabled = true; Transport.active = kcp; }
             }
         }
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+
+            if (!GameManager.SteamActive && ChromaNetworkDiscovery.Instance != null)
+                ChromaNetworkDiscovery.Instance.AdvertiseServer();
+        }
+
+        public override void OnStopServer()
+        {
+            base.OnStopServer();
+
+            if (!GameManager.SteamActive && ChromaNetworkDiscovery.Instance != null)
+                ChromaNetworkDiscovery.Instance.StopDiscovery();
+        }
 
         public override void OnStartClient()
         {
