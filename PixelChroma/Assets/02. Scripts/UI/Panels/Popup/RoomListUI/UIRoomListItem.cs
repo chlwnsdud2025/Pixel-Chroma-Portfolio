@@ -31,9 +31,23 @@ namespace PixelChroma.UI
             if (roomNameText != null) roomNameText.text = entry.roomName;
             if (playerCountText != null) playerCountText.text = $"{entry.currentPlayers}/{entry.maxPlayers}";
             if (gameModeText != null) gameModeText.text = entry.gameMode.ToString();
-            if (mapText != null) mapText.text = string.IsNullOrEmpty(entry.mapId) ? "-" : entry.mapId;
+
+            if (mapText != null)
+            {
+                string mapDisplay = "-";
+                if (!string.IsNullOrEmpty(entry.mapId))
+                {
+                    var registry = LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
+                    var mapData = registry != null ? registry.FindById(entry.mapId) : null;
+                    mapDisplay = mapData != null && !string.IsNullOrEmpty(mapData.displayName)
+                        ? mapData.displayName
+                        : entry.mapId;
+                }
+                mapText.text = mapDisplay;
+            }
 
             if (statusText != null) statusText.text = entry.IsJoinable ? "대기 중" : "게임 중";
+            statusText.color = entry.IsJoinable ? Color.green : Color.red;
             if (joinButton != null) joinButton.interactable = entry.IsJoinable;
         }
 
