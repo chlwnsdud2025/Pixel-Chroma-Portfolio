@@ -146,7 +146,7 @@ namespace PixelChroma
             _paintController.RefreshCursor();
             RaiseNicknameVisibilityChanged();
 
-            string mySavedName = PlayerPrefs.GetString(UIMainMenuNickname.NicknamePrefsKey, GetDefaultSteamName());
+            string mySavedName = PlayerPrefs.GetString(UINickNameSetting.NicknamePrefsKey, GetDefaultSteamName());
             CmdRegisterMyNameWithManager(mySavedName);
 
             // 이미 칠해둔 다른 플레이어들의 현재 페인트 상태를 요청(late-join 동기화).

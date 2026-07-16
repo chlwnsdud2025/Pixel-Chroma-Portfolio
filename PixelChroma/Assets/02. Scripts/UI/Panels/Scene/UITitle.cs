@@ -49,7 +49,7 @@ namespace PixelChroma.UI
         }
         private void OnClickNicknameSetting()
         {
-            UIManager.Instance.ShowPopup<UIMainMenuNickname>().Forget();
+            UIManager.Instance.ShowPopup<UINickNameSetting>().Forget();
         }
 
         public void OnClickLanguageButton()
