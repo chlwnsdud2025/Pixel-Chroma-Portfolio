@@ -35,6 +35,12 @@ namespace PixelChroma.UI
         [SerializeField] private RectTransform panel;
         [SerializeField] private float animationDuration = 0.25f;
 
+        [Header("Localization")]
+        [SerializeField] private LocalizedString allFilterLabel;       // "전체"
+        [SerializeField] private LocalizedString searchingStatus;      // "검색 중..."
+        [SerializeField] private LocalizedString joiningStatus;        // "입장 중..."
+        [SerializeField] private LocalizedString joinFailedStatus;     // "입장에 실패했습니다."
+
         private readonly List<UIRoomListItem> _items = new();
 
         // 드롭다운 인덱스 → 실제 값 매핑 (인덱스 0 = "전체" = null/빈값)
@@ -64,7 +70,8 @@ namespace PixelChroma.UI
             gameModeDropdown.ClearOptions();
             _gameModeValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            string allLabel = allFilterLabel.GetLocalizedString();
+            var options = new List<TMP_Dropdown.OptionData> { new(allLabel) };
             _gameModeValues.Add(null);
 
             foreach (GameMode mode in Enum.GetValues(typeof(GameMode)))
@@ -212,7 +219,7 @@ namespace PixelChroma.UI
         {
             ClearList();
             SetEmpty(false);
-            SetStatus("검색 중...");
+            SetStatus(searchingStatus.GetLocalizedString());
 
             if (refreshButton != null) refreshButton.interactable = false;
 
@@ -255,7 +262,7 @@ namespace PixelChroma.UI
             foreach (var item in _items)
                 item.SetInteractable(false);
 
-            SetStatus("입장 중...");
+            SetStatus(joiningStatus.GetLocalizedString());
 
             RoomListSearcher.Instance?.StopSearch();
             LobbyManager.Instance?.JoinRoom(entry);
@@ -263,7 +270,7 @@ namespace PixelChroma.UI
 
         private void HandleJoinFailed()
         {
-            SetStatus("입장에 실패했습니다.");
+            SetStatus(joinFailedStatus.GetLocalizedString());
 
             foreach (var item in _items)
                 item.SetInteractable(true);

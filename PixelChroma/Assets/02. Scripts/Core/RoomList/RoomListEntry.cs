@@ -16,6 +16,8 @@ namespace PixelChroma
         public readonly CSteamID steamLobbyId;
         public readonly string connectAddress;
 
+
+
         public bool IsSteamRoom => steamLobbyId.IsValid();
         public bool IsJoinable => string.IsNullOrEmpty(roomStatus) || roomStatus == "Lobby";
 
@@ -39,7 +41,7 @@ namespace PixelChroma
             CSteamID lobbyId, string roomName, string hostName, int currentPlayers, int maxPlayers,
             GameMode gameMode, string mapId, string languageCode, string roomStatus)
         {
-            string finalName = string.IsNullOrEmpty(roomName) ? $"{hostName}의 방" : roomName;
+            string finalName = string.IsNullOrEmpty(roomName) ? "" : roomName;
             return new RoomListEntry(finalName, hostName, currentPlayers, maxPlayers, gameMode, mapId, languageCode, roomStatus, lobbyId, null);
         }
 
