@@ -5,48 +5,20 @@ using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
+    // RoomOption의 단일 원본을 소유하고, 각 패널에 참조를 물려준 뒤 생성/변경 흐름만 담당한다.
     public class UIRoomSetting : UIPopup
     {
-        [Header("Game Mode")]
-        [SerializeField] private Button basicModeButton;
-        [SerializeField] private Button infectionModeButton;
-
-        [Header("Max Players")]
-        [SerializeField] private Button maxPlayersMinusButton;
-        [SerializeField] private Button maxPlayersPlusButton;
-        [SerializeField] private TMP_Text maxPlayersText;
-
-        [Header("Seeker Count")]
-        [SerializeField] private Button seekerCountMinusButton;
-        [SerializeField] private Button seekerCountPlusButton;
-        [SerializeField] private TMP_Text seekerCountText;
-
-        [Header("Hide Time")]
-        [SerializeField] private Slider hideTimeSlider;
-        [SerializeField] private TMP_Text hideTimeText;
-
-        [Header("Seek Time")]
-        [SerializeField] private Slider seekTimeSlider;
-        [SerializeField] private TMP_Text seekTimeText;
-
-        [Header("Check Time")]
-        [SerializeField] private Slider checkTimeSlider;
-        [SerializeField] private TMP_Text checkTimeText;
-
-        [Header("Forced Expose Interval")]
-        [SerializeField] private Slider forcedExposeIntervalSlider;
-        [SerializeField] private TMP_Text forcedExposeIntervalText;
-
-        [Header("Public / Private")]
-        [SerializeField] private Button publicButton;
-        [SerializeField] private Button privateButton;
-
-        [Header("Map Selection")]
+        [Header("Panels")]
+        [SerializeField] private UIRoomInfoPanel roomInfoPanel;
+        [SerializeField] private UIGameSettingPanel gameSettingPanel;
         [SerializeField] private UIMapPanel mapPanel;
 
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private TMP_Text createButtonText;
+
+        [Header("Close")]
+        [SerializeField] private Button closeButton;
 
         private RoomOption _option;
         private bool _isEditMode = false;
@@ -55,54 +27,12 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            if (basicModeButton != null) basicModeButton.onClick.AddListener(() => SetGameMode(GameMode.Basic));
-            if (infectionModeButton != null) infectionModeButton.onClick.AddListener(() => SetGameMode(GameMode.Infection));
-
-            if (maxPlayersMinusButton != null) maxPlayersMinusButton.onClick.AddListener(() => AdjustMaxPlayers(-1));
-            if (maxPlayersPlusButton != null) maxPlayersPlusButton.onClick.AddListener(() => AdjustMaxPlayers(1));
-
-            if (seekerCountMinusButton != null) seekerCountMinusButton.onClick.AddListener(() => AdjustSeekerCount(-1));
-            if (seekerCountPlusButton != null) seekerCountPlusButton.onClick.AddListener(() => AdjustSeekerCount(1));
-
-            if (publicButton != null) publicButton.onClick.AddListener(() => SetPublic(true));
-            if (privateButton != null) privateButton.onClick.AddListener(() => SetPublic(false));
-
-            if (hideTimeSlider != null)
-            {
-                hideTimeSlider.minValue = RoomOption.MinHideTime;
-                hideTimeSlider.maxValue = RoomOption.MaxHideTime;
-                hideTimeSlider.wholeNumbers = true;
-                hideTimeSlider.onValueChanged.AddListener(OnHideTimeChanged);
-            }
-
-            if (seekTimeSlider != null)
-            {
-                seekTimeSlider.minValue = RoomOption.MinSeekTime;
-                seekTimeSlider.maxValue = RoomOption.MaxSeekTime;
-                seekTimeSlider.wholeNumbers = true;
-                seekTimeSlider.onValueChanged.AddListener(OnSeekTimeChanged);
-            }
-
-            if (checkTimeSlider != null)
-            {
-                checkTimeSlider.minValue = RoomOption.MinCheckTime;
-                checkTimeSlider.maxValue = RoomOption.MaxCheckTime;
-                checkTimeSlider.wholeNumbers = true;
-                checkTimeSlider.onValueChanged.AddListener(OnCheckTimeChanged);
-            }
-
-            if (forcedExposeIntervalSlider != null)
-            {
-                forcedExposeIntervalSlider.minValue = RoomOption.MinForcedExposeInterval;
-                forcedExposeIntervalSlider.maxValue = RoomOption.MaxForcedExposeInterval;
-                forcedExposeIntervalSlider.wholeNumbers = true;
-                forcedExposeIntervalSlider.onValueChanged.AddListener(OnForcedExposeIntervalChanged);
-            }
+            if (roomInfoPanel != null) roomInfoPanel.Initialize();
+            if (gameSettingPanel != null) gameSettingPanel.Initialize();
+            if (mapPanel != null) mapPanel.Initialize(LobbyManager.Instance?.MapRegistry);
 
             if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
-
-            if (mapPanel != null)
-                mapPanel.Initialize(LobbyManager.Instance?.MapRegistry);
+            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
         }
 
         protected override UniTask OnShow()
@@ -144,7 +74,11 @@ namespace PixelChroma.UI
             _option = option?.Clone() ?? new RoomOption();
             _isEditMode = isEditMode;
 
-            RefreshAllUI();
+            // 패널들은 이 인스턴스를 참조로 들고 자기 담당 필드만 갱신한다.
+            if (roomInfoPanel != null) roomInfoPanel.Bind(_option);
+            if (gameSettingPanel != null) gameSettingPanel.Bind(_option);
+
+            RefreshCreateButtonUI();
         }
 
         private void OnMapSelected(MapDataSO map)
@@ -152,111 +86,9 @@ namespace PixelChroma.UI
             _option.mapName = map.name;
         }
 
-        private void SetPublic(bool isPublic)
-        {
-            _option.isPublic = isPublic;
-            RefreshPublicUI();
-        }
-
-        private void SetGameMode(GameMode mode)
-        {
-            _option.gameMode = mode;
-            RefreshGameModeUI();
-        }
-
-        private void AdjustMaxPlayers(int delta)
-        {
-            _option.maxPlayers = Mathf.Clamp(
-                _option.maxPlayers + delta,
-                RoomOption.MinPlayers,
-                RoomOption.MaxPlayersLimit);
-
-            int maxSeeker = _option.maxPlayers - 1;
-            if (_option.seekerCount > maxSeeker)
-                _option.seekerCount = Mathf.Max(RoomOption.MinSeekerCount, maxSeeker);
-
-            RefreshPlayerCountUI();
-        }
-
-        private void AdjustSeekerCount(int delta)
-        {
-            int maxSeeker = Mathf.Min(RoomOption.MaxSeekerCount, _option.maxPlayers - 1);
-            _option.seekerCount = Mathf.Clamp(
-                _option.seekerCount + delta,
-                RoomOption.MinSeekerCount,
-                maxSeeker);
-
-            RefreshPlayerCountUI();
-        }
-
-        private void OnHideTimeChanged(float value)
-        {
-            _option.hideTime = value;
-            RefreshTimeUI();
-        }
-
-        private void OnSeekTimeChanged(float value)
-        {
-            _option.seekTime = value;
-            RefreshTimeUI();
-        }
-
-        private void OnCheckTimeChanged(float value)
-        {
-            _option.checkTime = value;
-            RefreshTimeUI();
-        }
-
-        private void OnForcedExposeIntervalChanged(float value)
-        {
-            _option.forcedExposeInterval = value;
-            RefreshTimeUI();
-        }
-
         private void HandleLobbyFailed()
         {
             if (createButton != null) createButton.interactable = true;
-        }
-
-        private void RefreshAllUI()
-        {
-            RefreshPublicUI();
-            RefreshGameModeUI();
-            RefreshPlayerCountUI();
-            RefreshTimeUI();
-            RefreshCreateButtonUI();
-
-            if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
-            if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
-            if (checkTimeSlider != null) checkTimeSlider.SetValueWithoutNotify(_option.checkTime);
-            if (forcedExposeIntervalSlider != null) forcedExposeIntervalSlider.SetValueWithoutNotify(_option.forcedExposeInterval);
-        }
-
-        private void RefreshPublicUI()
-        {
-            SetButtonSelected(publicButton, _option.isPublic);
-            SetButtonSelected(privateButton, !_option.isPublic);
-        }
-
-        private void RefreshGameModeUI()
-        {
-            SetButtonSelected(basicModeButton, _option.gameMode == GameMode.Basic);
-            SetButtonSelected(infectionModeButton, _option.gameMode == GameMode.Infection);
-        }
-
-        private void RefreshPlayerCountUI()
-        {
-            if (maxPlayersText != null) maxPlayersText.text = _option.maxPlayers.ToString();
-            if (seekerCountText != null) seekerCountText.text = _option.seekerCount.ToString();
-        }
-
-        private void RefreshTimeUI()
-        {
-            if (hideTimeText != null) hideTimeText.text = _option.hideTime.ToString("0");
-            if (seekTimeText != null) seekTimeText.text = _option.seekTime.ToString("0");
-            if (checkTimeText != null) checkTimeText.text = _option.checkTime.ToString("0");
-            if (forcedExposeIntervalText != null) forcedExposeIntervalText.text = _option.forcedExposeInterval.ToString("0");
-
         }
 
         private void RefreshCreateButtonUI()
@@ -270,18 +102,10 @@ namespace PixelChroma.UI
                 createButton.interactable = true;
         }
 
-        private static void SetButtonSelected(Button button, bool selected)
-        {
-            if (button == null) 
-                return;
-
-            var outline = button.GetComponent<Outline>();
-            if (outline != null) 
-                outline.enabled = selected;
-        }
-
         private void OnClickCreate()
         {
+            if (roomInfoPanel != null && !roomInfoPanel.TryApply()) return;
+
             if (_isEditMode)
             {
                 LobbyManager.Instance.UpdateLobbySettings(_option);

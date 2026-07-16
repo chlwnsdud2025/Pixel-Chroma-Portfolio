@@ -10,7 +10,7 @@ namespace PixelChroma.UI
     {
         [SerializeField] private TMP_Text label;
         [SerializeField] private Button button;
-        [SerializeField] private Outline outline;
+        [SerializeField] private GameObject focus;
 
         public event Action<int> OnClicked;
 
@@ -24,9 +24,6 @@ namespace PixelChroma.UI
             if (label == null)
                 label = GetComponentInChildren<TMP_Text>();
 
-            if (outline == null)
-                outline = GetComponent<Outline>();
-
             button.onClick.AddListener(() => OnClicked?.Invoke(_index));
         }
 
@@ -38,8 +35,8 @@ namespace PixelChroma.UI
 
         public void SetSelected(bool selected)
         {
-            if (outline != null)
-                outline.enabled = selected;
+            if (focus != null)
+                focus.SetActive(selected);
         }
     }
 }

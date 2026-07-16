@@ -29,8 +29,11 @@ namespace PixelChroma
         public const float MaxSeekTime = 600f;
         public const float MinCheckTime = 10f; 
         public const float MaxCheckTime = 100f;
-        public const float MinForcedExposeInterval = 0f;  
-        public const float MaxForcedExposeInterval = 120f; 
+        public const float MinForcedExposeInterval = 0f;
+        public const float MaxForcedExposeInterval = 120f;
+
+        // 방 이름은 비워둘 수 있다. (비면 RoomListEntry가 "{hostName}의 방"으로 대체)
+        public const int MaxRoomNameLength = 20;
 
         public bool isPublic = true;
         public GameMode gameMode = GameMode.Basic;
