@@ -1,6 +1,7 @@
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Localization;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
@@ -16,6 +17,8 @@ namespace PixelChroma.UI
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private TMP_Text createButtonText;
+        [SerializeField] private LocalizedString createButtonLocalized;
+        [SerializeField] private LocalizedString editButtonLocalized;
 
         [Header("Close")]
         [SerializeField] private Button closeButton;
@@ -93,11 +96,12 @@ namespace PixelChroma.UI
 
         private void RefreshCreateButtonUI()
         {
-            // 💡 수정 모드일 때와 생성 모드일 때 하단 버튼의 글자를 동적으로 바꿉니다!
             if (createButtonText != null)
-                createButtonText.text = _isEditMode ? "변경" : "생성";
+            {
+                var localized = _isEditMode ? editButtonLocalized : createButtonLocalized;
+                createButtonText.text = localized.GetLocalizedString();
+            }
 
-            // 팝업을 다시 열 때 이전 생성 시도로 꺼진 버튼을 항상 활성 상태로 복구한다.
             if (createButton != null)
                 createButton.interactable = true;
         }
