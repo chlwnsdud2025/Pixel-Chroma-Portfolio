@@ -546,57 +546,6 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!1 &8102396878108190384
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 6972532564637445863}
-  - component: {fileID: 4403245388074549913}
-  m_Layer: 5
-  m_Name: SeekerIndicatorPanel
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &6972532564637445863
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8102396878108190384}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 8328235373807982647}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &4403245388074549913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8102396878108190384}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5f08ea528854275438edc537770278bb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.SeekerIndicatorPanel
-  indicatorRoot: {fileID: 6972532564637445863}
-  indicatorIconPrefab: {fileID: 840457740460075055, guid: 021f127865c350643b98cd8b9dd50a07, type: 3}
-  edgePadding: 60
 --- !u!1 &8128398777216914783
 GameObject:
   m_ObjectHideFlags: 0
@@ -1767,6 +1716,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4932068811636004194, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
+      propertyPath: targetRole
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 5187221468274274079, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -2769,9 +2722,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7907566417182353743, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2696677793320003493}
-    - targetCorrespondingSourceObject: {fileID: 7907566417182353743, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 6972532564637445863}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 7984151118568492639, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
       insertIndex: -1
@@ -2848,6 +2798,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1f99c3a3371d504e84d045dbdba0845, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIColorPicker
+--- !u!114 &6511288359548380186 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4932068811636004194, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
+  m_PrefabInstance: {fileID: 2174821012571206008}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f08ea528854275438edc537770278bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.SeekerIndicatorPanel
 --- !u!114 &6787619718891472886 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4619844515881694862, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
@@ -2889,7 +2850,7 @@ MonoBehaviour:
   catchInactiveOverlay: {fileID: 8128398777216914783}
   waterGunCooldownOverlay: {fileID: 8062871277767556615}
   waterGunCooldownText: {fileID: 1444807771447585994}
-  seekerIndicatorPanel: {fileID: 4403245388074549913}
+  seekerIndicatorPanel: {fileID: 6511288359548380186}
   spectateKeyHint: {fileID: 8516148835303170753}
 --- !u!224 &8328235373807982647 stripped
 RectTransform:

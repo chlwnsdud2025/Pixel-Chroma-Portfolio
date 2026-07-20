@@ -17,5 +17,7 @@ namespace PixelChroma
             return InGameManager.Instance != null ? 
                 InGameManager.Instance.Runners : System.Array.Empty<RunnerPlayer>();
         }
+
+        public override bool ShouldShowTeammateIndicator(PlayerRole role) => true;
     }
 }

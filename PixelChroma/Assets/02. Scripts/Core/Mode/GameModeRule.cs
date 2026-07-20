@@ -21,5 +21,8 @@ namespace PixelChroma
 
         //Runner관전자 List
         public abstract IReadOnlyList<RunnerPlayer> GetSpectatableRunners(RunnerPlayer viewer);
+
+        //팀 위치 확인용 indicator 
+        public abstract bool ShouldShowTeammateIndicator(PlayerRole role);
     }
 }

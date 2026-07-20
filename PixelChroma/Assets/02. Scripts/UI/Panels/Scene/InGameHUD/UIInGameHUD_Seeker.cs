@@ -14,7 +14,7 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text waterGunCooldownText;
 
         [Header("Seeker Indicator")]
-        [SerializeField] private SeekerIndicatorPanel seekerIndicatorPanel;
+        [SerializeField] private TeammateIndicatorPanel seekerIndicatorPanel;
 
         [Header("Spectate Key Hint")]
         [SerializeField] private GameObject spectateKeyHint;

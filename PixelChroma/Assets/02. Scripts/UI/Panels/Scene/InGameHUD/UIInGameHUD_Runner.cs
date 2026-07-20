@@ -10,6 +10,9 @@ namespace PixelChroma.UI
         [SerializeField] private Image exposeSkillCooldownOverlay;
         [SerializeField] private TMP_Text exposeSkillCooldownText;
 
+        [Header("Runner Indicator")]
+        [SerializeField] private TeammateIndicatorPanel runnerIndicatorPanel;
+
         private bool _isExposeCounting;
         private float _exposeCooldownDuration;
         private float _exposeTimer;
@@ -49,7 +52,7 @@ namespace PixelChroma.UI
             _exposeCooldownDuration = 0f;
             if (exposeSkillCooldownOverlay != null) exposeSkillCooldownOverlay.gameObject.SetActive(false);
             if (exposeSkillCooldownText != null) exposeSkillCooldownText.gameObject.SetActive(false);
-
+            if (runnerIndicatorPanel != null) runnerIndicatorPanel.Deactivate();
         }
 
         public void StartExposeSkillCooldown(float duration)
