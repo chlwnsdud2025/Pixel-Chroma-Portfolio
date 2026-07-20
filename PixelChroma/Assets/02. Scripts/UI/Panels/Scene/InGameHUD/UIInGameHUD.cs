@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Localization;
 
 namespace PixelChroma.UI
 {
@@ -30,6 +31,18 @@ namespace PixelChroma.UI
 
         [Header("Catch Log")]
         [SerializeField] private UICatchLog catchLog;
+
+        // ── Localization ──
+        [Header("Localization - State")]
+        [SerializeField] private LocalizedString stateWaiting;
+        [SerializeField] private LocalizedString stateHideTime;
+        [SerializeField] private LocalizedString stateSeekTime;
+        [SerializeField] private LocalizedString stateCheckTime;
+        [SerializeField] private LocalizedString stateGameEnd;
+
+        [Header("Localization - Result")]
+        [SerializeField] private LocalizedString resultSeekerWin;
+        [SerializeField] private LocalizedString resultRunnerWin;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -84,7 +97,6 @@ namespace PixelChroma.UI
             if (catchLog != null) catchLog.ClearAll();
         }
 
-        // ── 관전 모드 UI (러너/시커 공용) ──────────────────────────────
         public void SetSpectatorMode(bool active)
         {
             if (spectatorPanel == null) return;
@@ -115,7 +127,6 @@ namespace PixelChroma.UI
             if (modeText != null)
                 modeText.text = round.CurrentRule?.DisplayName ?? "";
 
-            // HUD가 켜질 때 이미 스폰돼 있던 인원을 즉시 반영합니다(이후 변화는 이벤트가 담당).
             var inGame = InGameManager.Instance;
             if (inGame != null)
                 HandlePlayerCountChanged(inGame.GetAliveRunnerCount(), inGame.GetAliveSeekerCount());
@@ -131,14 +142,15 @@ namespace PixelChroma.UI
         {
             if (stateText != null)
             {
-                switch (state)
+                stateText.text = state switch
                 {
-                    case TimeState.Waiting: stateText.text = "대기 중..."; break;
-                    case TimeState.HideTime: stateText.text = "숨는 시간!"; break;
-                    case TimeState.SeekTime: stateText.text = "찾는 시간!"; break;
-                    case TimeState.CheckTime: stateText.text = "확인 시간!"; break;
-                    case TimeState.GameEnd: stateText.text = "게임 종료!"; break;
-                }
+                    TimeState.Waiting => stateWaiting.GetLocalizedString(),
+                    TimeState.HideTime => stateHideTime.GetLocalizedString(),
+                    TimeState.SeekTime => stateSeekTime.GetLocalizedString(),
+                    TimeState.CheckTime => stateCheckTime.GetLocalizedString(),
+                    TimeState.GameEnd => stateGameEnd.GetLocalizedString(),
+                    _ => ""
+                };
             }
 
             if (forcedExposeTimerText != null)
@@ -153,8 +165,8 @@ namespace PixelChroma.UI
 
             gameResultOverlayText.gameObject.SetActive(true);
             gameResultOverlayText.text = winner == PlayerRole.Seeker
-                ? "<color=#FF2222>술래 승리!</color>"
-                : "<color=#00FFFF>도망자 승리!</color>";
+                ? $"<color=#FF2222>{resultSeekerWin.GetLocalizedString()}</color>"
+                : $"<color=#00FFFF>{resultRunnerWin.GetLocalizedString()}</color>";
         }
 
         private void UpdateTimerText(int remainingSeconds)
@@ -183,6 +195,5 @@ namespace PixelChroma.UI
         {
             ShowWinnerOverlay(winner);
         }
-
     }
 }
