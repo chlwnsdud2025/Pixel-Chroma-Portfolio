@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Localization;
@@ -23,6 +24,10 @@ namespace PixelChroma.UI
         [Header("Close")]
         [SerializeField] private Button closeButton;
 
+        [Header("Animation")]
+        [SerializeField] private RectTransform panel;
+        [SerializeField] private float animationDuration = 0.25f;
+
         private RoomOption _option;
         private bool _isEditMode = false;
 
@@ -38,8 +43,10 @@ namespace PixelChroma.UI
             if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
         }
 
-        protected override UniTask OnShow()
+        public override void OnBeforeShow()
         {
+            base.OnBeforeShow();
+
             var lobby = LobbyManager.Instance;
 
             bool isEdit = GameManager.Instance != null
@@ -49,12 +56,32 @@ namespace PixelChroma.UI
             Setup(startOption, isEdit);
 
             if (mapPanel != null)
+                mapPanel.Refresh(lobby?.MapRegistry, _option.mapName);
+
+            if (panel != null) panel.localScale = Vector3.zero;
+        }
+
+        protected override async UniTask OnShowAnimation()
+        {
+            if (panel != null)
+                await panel.DOScale(Vector3.one, animationDuration).SetEase(Ease.OutBack).ToUniTask();
+        }
+
+        protected override async UniTask OnHideAnimation()
+        {
+            if (panel != null)
+                await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
+        }
+
+        protected override UniTask OnShow()
+        {
+            if (mapPanel != null)
             {
                 mapPanel.OnMapSelected -= OnMapSelected;
                 mapPanel.OnMapSelected += OnMapSelected;
-                mapPanel.Refresh(lobby?.MapRegistry, _option.mapName);
             }
 
+            var lobby = LobbyManager.Instance;
             if (lobby != null)
                 lobby.OnLobbyFailed += HandleLobbyFailed;
 
