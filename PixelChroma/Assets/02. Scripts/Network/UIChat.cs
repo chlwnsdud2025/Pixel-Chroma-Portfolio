@@ -18,7 +18,6 @@ namespace PixelChroma.UI
         private InputAction _chatToggleAction;
         private InputAction _cancelAction;
 
-
         // 각 메시지가 표시된 뒤 사라지기 시작하는 시간(초)
         [SerializeField] private float messageDisplayDuration = 5f;
         // 페이드아웃에 걸리는 시간(초)
@@ -51,6 +50,8 @@ namespace PixelChroma.UI
 
         // InputField가 현재 포커스 중인지
         private bool _isInputActive;
+        // ActivateInputField 후 실제 포커스가 잡힐 때까지 대기 중인지
+        private bool _waitingForFocus;
 
         // 채팅창에 보이는 메시지가 하나라도 있는지 (투명도 제어용)
         private bool _hasVisibleMessages;
@@ -113,6 +114,7 @@ namespace PixelChroma.UI
         private void Update()
         {
             HandleInputToggle();
+            HandleFocusLost();
             UpdateMessageFade();
             UpdateChatVisibility();
         }
@@ -131,6 +133,23 @@ namespace PixelChroma.UI
                 if (_isInputActive)
                     ToggleInput(false);
             }
+        }
+
+        // ── 마우스 클릭 등으로 InputField 포커스를 잃었을 때 비활성화 ──
+        private void HandleFocusLost()
+        {
+            if (!_isInputActive) return;
+
+            // 아직 포커스가 잡히기 전이면 잡힐 때까지 판정 보류
+            if (_waitingForFocus)
+            {
+                if (chatInputField.isFocused)
+                    _waitingForFocus = false;
+                return;
+            }
+
+            if (!chatInputField.isFocused)
+                ToggleInput(false);
         }
 
         // ── 각 메시지의 페이드아웃 처리 ──
@@ -207,6 +226,7 @@ namespace PixelChroma.UI
                 chatInputField.text = string.Empty;
                 chatInputField.Select();
                 chatInputField.ActivateInputField();
+                _waitingForFocus = true;
 
                 // InputField 열릴 때 기존 메시지들을 다시 보이게 (페이드 리셋)
                 RefreshAllMessageAlpha();
@@ -306,6 +326,9 @@ namespace PixelChroma.UI
             chatInputField.text = string.Empty;
             chatInputField.ActivateInputField();
             chatInputField.Select();
+
+            // 제출 후 재활성화도 포커스 반영에 시간이 걸리므로 유예
+            _waitingForFocus = true;
         }
 
         // ── 씬 전환 시 정리 ──
