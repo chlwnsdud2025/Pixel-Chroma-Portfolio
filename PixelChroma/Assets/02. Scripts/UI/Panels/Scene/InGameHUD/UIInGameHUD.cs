@@ -1,6 +1,7 @@
-using UnityEngine;
-using TMPro;
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
 
 namespace PixelChroma.UI
 {
@@ -26,6 +27,9 @@ namespace PixelChroma.UI
 
         [Header("Spectator Mode UI (Common)")]
         [SerializeField] private UISpectatorModePanel spectatorPanel;
+
+        [Header("Catch Log")]
+        [SerializeField] private UICatchLog catchLog;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -77,6 +81,7 @@ namespace PixelChroma.UI
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
             if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false);
             if (spectatorPanel != null) spectatorPanel.Hide();
+            if (catchLog != null) catchLog.ClearAll();
         }
 
         // ── 관전 모드 UI (러너/시커 공용) ──────────────────────────────
@@ -178,5 +183,6 @@ namespace PixelChroma.UI
         {
             ShowWinnerOverlay(winner);
         }
+
     }
 }

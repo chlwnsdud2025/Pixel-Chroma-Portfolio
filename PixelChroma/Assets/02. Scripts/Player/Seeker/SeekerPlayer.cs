@@ -121,7 +121,7 @@ namespace PixelChroma
             float dist = Vector2.Distance(transform.position, target.transform.position);
             if (dist <= catchRadius + 0.5f)
             {
-                target.ServerNotifyCaught();
+                target.ServerNotifyCaught(playerName);
             }
         }
 
