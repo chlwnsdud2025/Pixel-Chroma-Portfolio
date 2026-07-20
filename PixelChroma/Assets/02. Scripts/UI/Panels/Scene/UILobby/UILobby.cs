@@ -1,4 +1,3 @@
-using System.Text;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Steamworks;
@@ -13,8 +12,10 @@ namespace PixelChroma.UI
         [Header("Room Info")]
         [SerializeField] private TMP_Text roomNameText;
         [SerializeField] private TMP_Text roomCodeText;
-        [SerializeField] private TMP_Text memberListText;
         [SerializeField] private TMP_Text playerCountText;
+
+        [Header("Member List")]
+        [SerializeField] private UIMemberSlot[] memberSlots;
         [SerializeField] private Button copyCodeButton;
         [SerializeField] private Button leaveButton;
 
@@ -164,27 +165,20 @@ namespace PixelChroma.UI
             roomCodeText.text = display;
         }
 
-        /// <summary>
-        /// Mirror 네트워크 객체에서 동기화된 닉네임으로 멤버 목록을 구성한다.
-        /// </summary>
         private void RefreshMemberList()
         {
+            if (memberSlots == null || memberSlots.Length == 0) return;
+
             var sortedPlayers = LobbyPlayerState.AllPlayers.OrderBy(p => p.netId).ToList();
+            bool isLocalHost = LobbyManager.Instance.IsHost;
 
-            if (memberListText == null) return;
-
-            var sb = new StringBuilder();
-
-            for (int i = 0; i < sortedPlayers.Count; i++)
+            for (int i = 0; i < memberSlots.Length; i++)
             {
-                var p = sortedPlayers[i];
-                var playerBase = p.GetComponent<PlayerBase>();
-                string name = playerBase != null ? playerBase.playerName : "Player";
-                bool isHost = (i == 0);
-                sb.AppendLine(isHost ? $"{name} (방장)" : name);
+                bool active = i < sortedPlayers.Count;
+                memberSlots[i].gameObject.SetActive(active);
+                if (active)
+                    memberSlots[i].Set(sortedPlayers[i], isHost: i == 0, isLocalHost);
             }
-
-            memberListText.text = sb.ToString();
         }
 
         private void RefreshPlayerCount()
@@ -267,6 +261,7 @@ namespace PixelChroma.UI
         /// </summary>
         private void OnReadyChanged()
         {
+            RefreshMemberList();
             RefreshReadyUI();
         }
 
