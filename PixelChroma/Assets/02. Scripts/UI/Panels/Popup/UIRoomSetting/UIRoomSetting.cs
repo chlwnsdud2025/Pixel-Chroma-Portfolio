@@ -56,7 +56,11 @@ namespace PixelChroma.UI
             Setup(startOption, isEdit);
 
             if (mapPanel != null)
+            {
+                mapPanel.OnMapSelected -= OnMapSelected;
+                mapPanel.OnMapSelected += OnMapSelected;
                 mapPanel.Refresh(lobby?.MapRegistry, _option.mapName);
+            }
 
             if (panel != null) panel.localScale = Vector3.zero;
         }
