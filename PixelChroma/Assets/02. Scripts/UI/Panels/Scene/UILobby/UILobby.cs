@@ -11,7 +11,7 @@ namespace PixelChroma.UI
     public class UILobby : UIScene, IPaintHUD
     {
         [Header("Room Info")]
-        [SerializeField] private TMP_Text roomTitleText;
+        [SerializeField] private TMP_Text roomNameText;
         [SerializeField] private TMP_Text roomCodeText;
         [SerializeField] private TMP_Text memberListText;
         [SerializeField] private TMP_Text playerCountText;
@@ -22,10 +22,8 @@ namespace PixelChroma.UI
 
         [Header("Show Code")]
         [SerializeField] private Button showCodeButton;
-        [SerializeField] private Image showCodeIcon;
-        [SerializeField] private Sprite shownSprite;
-        [SerializeField] private Sprite hiddenSprite;
-        [SerializeField] private TMP_Text showCodeLabel;
+        [SerializeField] private GameObject shownIcon;
+        [SerializeField] private GameObject hiddenIcon;
 
         [Header("Start (Host)")]
         [SerializeField] private GameObject startButtonPanel;
@@ -43,6 +41,9 @@ namespace PixelChroma.UI
 
         [Header("친구 초대")]
         [SerializeField] private Button inviteFriendButton;
+
+        [Header("Room Option")]
+        [SerializeField] private UIRoomOptionPanel roomOptionPanel;
 
         [Header("Customize")]
         [SerializeField] private GameObject paintModeRoot;
@@ -129,6 +130,7 @@ namespace PixelChroma.UI
             RefreshMemberList();
             RefreshPlayerCount();
             RefreshReadyUI();
+            RefreshRoomOptionPanel();
 
             return UniTask.CompletedTask;
         }
@@ -145,11 +147,11 @@ namespace PixelChroma.UI
 
         private void RefreshRoomTitle()
         {
-            if (roomTitleText == null)
+            if (roomNameText == null)
                 return;
 
             var option = LobbyManager.Instance?.CurrentRoomOption;
-            roomTitleText.text = option?.roomName ?? "";
+            roomNameText.text = option?.roomName ?? "";
         }
 
         private void RefreshRoomCode()
@@ -231,14 +233,16 @@ namespace PixelChroma.UI
             }
         }
 
+        private void RefreshRoomOptionPanel()
+        {
+            if (roomOptionPanel != null)
+                roomOptionPanel.Refresh(LobbyManager.Instance?.CurrentRoomOption);
+        }
+
         private void ApplyCodeVisibility()
         {
-            var sprite = _isCodeVisible ? shownSprite : hiddenSprite;
-
-            if (showCodeIcon != null && sprite != null)
-                showCodeIcon.sprite = sprite;
-            else if (showCodeLabel != null)
-                showCodeLabel.text = _isCodeVisible ? "Hide" : "Show";
+            if (shownIcon != null) shownIcon.SetActive(_isCodeVisible);
+            if (hiddenIcon != null) hiddenIcon.SetActive(!_isCodeVisible);
         }
 
         private static string MaskCode(string code)
@@ -274,6 +278,7 @@ namespace PixelChroma.UI
             RefreshRoomTitle();
             RefreshRoomCode();
             RefreshPlayerCount();
+            RefreshRoomOptionPanel();
         }
 
         private void OnTimeStateChanged(TimeState state, int remainingSeconds)
