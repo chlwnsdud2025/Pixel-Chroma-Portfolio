@@ -58,8 +58,8 @@ namespace PixelChroma.UI
                 {
                     var registry = LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
                     var mapData = registry != null ? registry.FindById(entry.mapId) : null;
-                    mapDisplay = mapData != null && !string.IsNullOrEmpty(mapData.displayName)
-                        ? mapData.displayName
+                    mapDisplay = mapData != null
+                        ? mapData.GetDisplayName()
                         : entry.mapId;
                 }
                 mapText.text = mapDisplay;

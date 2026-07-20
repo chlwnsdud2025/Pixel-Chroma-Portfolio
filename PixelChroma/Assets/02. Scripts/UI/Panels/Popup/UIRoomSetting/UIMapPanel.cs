@@ -91,7 +91,7 @@ namespace PixelChroma.UI
                 if (map == null) continue;
 
                 UIMapItem item = GetOrCreateItem(i);
-                item.Setup(i, map.displayName);
+                item.Setup(i, map.GetDisplayName());
                 item.gameObject.SetActive(true);
             }
         }

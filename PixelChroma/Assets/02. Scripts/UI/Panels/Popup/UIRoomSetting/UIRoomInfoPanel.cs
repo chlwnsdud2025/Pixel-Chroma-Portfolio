@@ -34,6 +34,7 @@ namespace PixelChroma.UI
         [Header("Localization")]
         [SerializeField] private LocalizedString warningMaxLengthLocalized;
         [SerializeField] private LocalizedString warningBannedLocalized;
+        [SerializeField] private LocalizedString defaultRoomNameLocalized;
 
         private RoomOption _option;
 
@@ -100,7 +101,9 @@ namespace PixelChroma.UI
                     return false;
                 }
 
-                // 빈 방 이름은 그대로 둔다. (RoomListEntry가 "{hostName}의 방"으로 대체)
+                if (string.IsNullOrEmpty(roomName))
+                    roomName = defaultRoomNameLocalized.GetLocalizedString(NicknameService.LoadOrDefault());
+
                 _option.roomName = roomName;
             }
 
@@ -124,6 +127,7 @@ namespace PixelChroma.UI
         {
             SetStatusMessage(nicknameStatusText, string.Empty);
             SetCountMessage(nicknameCountText, text.Length, NicknameService.MaxLength);
+            UpdateRoomNamePlaceholder();
         }
 
         private void SetPublic(bool isPublic)
@@ -168,6 +172,7 @@ namespace PixelChroma.UI
                 SetCountMessage(nicknameCountText, nickname.Length, NicknameService.MaxLength);
             }
 
+            UpdateRoomNamePlaceholder();
             SetStatusMessage(roomNameStatusText, string.Empty);
             SetStatusMessage(nicknameStatusText, string.Empty);
         }
@@ -190,6 +195,17 @@ namespace PixelChroma.UI
             gameModeDescriptionText.text = data != null && !data.description.IsEmpty
                 ? data.description.GetLocalizedString()
                 : string.Empty;
+        }
+
+        private void UpdateRoomNamePlaceholder()
+        {
+            if (roomNameInput == null || roomNameInput.placeholder is not TMP_Text placeholderText) return;
+
+            string nickname = nicknameInput != null ? nicknameInput.text.Trim() : "";
+            if (string.IsNullOrEmpty(nickname))
+                nickname = NicknameService.LoadOrDefault();
+
+            placeholderText.text = defaultRoomNameLocalized.GetLocalizedString(nickname);
         }
 
         private string GetWarningMessage(NameValidation result, int maxLength)

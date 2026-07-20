@@ -99,7 +99,7 @@ namespace PixelChroma.UI
                 foreach (var map in registry.Maps)
                 {
                     if (map == null) continue;
-                    string label = string.IsNullOrEmpty(map.displayName) ? map.name : map.displayName;
+                    string label = map.GetDisplayName();
                     options.Add(new TMP_Dropdown.OptionData(label));
                     _mapIdValues.Add(map.name);
                 }
