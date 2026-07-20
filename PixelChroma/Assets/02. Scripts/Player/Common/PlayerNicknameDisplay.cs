@@ -48,6 +48,12 @@ namespace PixelChroma
                 return;
             }
 
+            if (_owner is RunnerPlayer runner && runner.IsDead)
+            {
+                _root.SetActive(false);
+                return;
+            }
+
             if (localPlayer.role == PlayerRole.None || _owner.role == PlayerRole.None)
             {
                 _root.SetActive(true);

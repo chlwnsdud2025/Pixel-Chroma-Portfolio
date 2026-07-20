@@ -21,7 +21,8 @@ namespace PixelChroma
         private const string ActionCycleNext = "CycleNext";
         private const string ActionUndo = "Undo";
         private const string ActionRedo = "Redo";
-
+        private const string ActionChatToggle = "ChatToggle";
+        private const string ActionCancel = "Cancel";
         private readonly InputActionMap _map;
 
         public InputAction Move { get; }
@@ -40,6 +41,8 @@ namespace PixelChroma
         public InputAction CycleNext { get; }
         public InputAction Undo { get; }
         public InputAction Redo { get; }
+        public InputAction ChatToggle { get; }
+        public InputAction Cancel { get; }
 
         public PlayerInputActions(InputActionAsset asset)
         {
@@ -60,6 +63,8 @@ namespace PixelChroma
             CycleNext = _map.FindAction(ActionCycleNext);
             Undo = _map.FindAction(ActionUndo);
             Redo = _map.FindAction(ActionRedo);
+            ChatToggle = _map.FindAction(ActionChatToggle);
+            Cancel = _map.FindAction(ActionCancel);
         }
 
         public void EnableAll() => _map.Enable();

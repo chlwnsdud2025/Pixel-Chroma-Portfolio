@@ -148,8 +148,8 @@ namespace PixelChroma.UI
             if (roomTitleText == null)
                 return;
 
-            string hostName = LobbyManager.Instance?.CurrentRoomOption?.hostName ?? "Player";
-            roomTitleText.text = $"{hostName}의 방";
+            var option = LobbyManager.Instance?.CurrentRoomOption;
+            roomTitleText.text = option?.roomName ?? "";
         }
 
         private void RefreshRoomCode()

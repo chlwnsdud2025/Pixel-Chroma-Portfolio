@@ -39,6 +39,7 @@ namespace PixelChroma
         [Header("Free Cam Settings")]
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         [SerializeField] private float freeCamSpeed = 15f;
+        protected bool IsCheckTimeSpectatorLocked { get; private set; }
 
         [Header("Nickname UI")]
         [SerializeField] private GameObject nicknameRoot;
@@ -86,7 +87,7 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
 
-            if (CanTogglePaintMode && _input.TogglePaint.WasPressedThisFrame())
+            if (CanTogglePaintMode && !IsCheckTimeSpectatorLocked && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
 
             HandleScrollWheel();
@@ -151,6 +152,8 @@ namespace PixelChroma
 
             // 이미 칠해둔 다른 플레이어들의 현재 페인트 상태를 요청(late-join 동기화).
             CmdRequestPaintSnapshots();
+
+            GameRoundManager.OnTimeStateChanged += HandleCheckTimeSpectator;
         }
 
         public override void OnStopLocalPlayer()
@@ -164,6 +167,8 @@ namespace PixelChroma
                 _paintController.OnPaintModeChanged -= _nicknameDisplay.HandlePaintModeChanged;
             }
             _paintController?.Dispose();
+
+            GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
 
             OnLocalPlayerStopped();
         }
@@ -263,6 +268,39 @@ namespace PixelChroma
                 if (_input.CycleNext.WasPressedThisFrame()) _spectator.CycleTarget(1);
             }
         }
+
+        private void HandleCheckTimeSpectator(TimeState state, int remainingSeconds) // CheckTime 전용
+        {
+            if (_spectator == null) return;
+
+            if (state == TimeState.CheckTime)
+            {
+                IsCheckTimeSpectatorLocked = true;
+
+                if (_paintController != null && _paintController.IsPaintMode)
+                    _paintController.TogglePaintMode();
+
+                if (!_spectator.IsSpectating)
+                {
+                    _spectator.EnterRunnerMode();
+                    InGameHUD?.SetSpectatorMode(true);
+                    InGameHUD?.SetActiveSpectateMode(SpectateMode.Runner);
+                }
+
+                OnCheckTimeSpectatorEnter();
+            }
+            else
+            {
+                if (IsCheckTimeSpectatorLocked)
+                {
+                    IsCheckTimeSpectatorLocked = false;
+                    OnCheckTimeSpectatorExit();
+                }
+            }
+        }
+
+        protected virtual void OnCheckTimeSpectatorEnter() { }
+        protected virtual void OnCheckTimeSpectatorExit() { }
 
         protected void InitializeSpectator()
         {

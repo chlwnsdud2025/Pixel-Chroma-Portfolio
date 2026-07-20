@@ -9,7 +9,7 @@ namespace PixelChroma.UI
 {
     public class UINickNameSetting : UIPopup
     {
-        public const string NicknamePrefsKey = "CustomPlayerNickname";
+        public const string NicknamePrefsKey = NicknameService.PrefsKey;
 
         [Header("Nickname Limits Settings")]
         [Tooltip("닉네임 최대 글자 수 제한 설정")]
@@ -27,7 +27,6 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text warningText;
 
         [Header("Localization")]
-        [SerializeField] private LocalizedString warningEmptyLocalized;
         [SerializeField] private LocalizedString warningMaxLengthLocalized;
         [SerializeField] private LocalizedString warningBannedLocalized;
 
@@ -56,10 +55,7 @@ namespace PixelChroma.UI
             base.OnBeforeShow();
 
             if (nicknameInputField != null)
-            {
-                string currentName = PlayerPrefs.GetString(NicknamePrefsKey, GetDefaultSteamName());
-                nicknameInputField.text = currentName;
-            }
+                nicknameInputField.text = NicknameService.LoadOrDefault();
 
             SetWarningMessage(string.Empty);
 
@@ -81,11 +77,6 @@ namespace PixelChroma.UI
                 await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
         }
 
-        private bool ContainsBannedWord(string text)
-        {
-            return bannedWords != null && bannedWords.Contains(text);
-        }
-
         // 경고창 메시지 주입 연출 함수
         private void SetWarningMessage(string message)
         {
@@ -103,19 +94,7 @@ namespace PixelChroma.UI
             }
         }
 
-        public string GetDefaultSteamName()
-        {
-            try
-            {
-                if (Steamworks.SteamAPI.IsSteamRunning())
-                {
-                    return Steamworks.SteamFriends.GetPersonaName();
-                }
-            }
-            catch (System.Exception) { }
-
-            return "PixelPlayer_" + Random.Range(1000, 9999);
-        }
+        public string GetDefaultSteamName() => NicknameService.GetDefaultSteamName();
 
         // 실시간 타이핑 감지 함수
         private void OnNicknameInputChanged(string value)
@@ -130,27 +109,22 @@ namespace PixelChroma.UI
 
             string enteredName = nicknameInputField.text.Trim();
 
+            switch (NameValidator.Validate(enteredName, bannedWords, maxNicknameLength))
+            {
+                case NameValidation.TooLong:
+                    SetWarningMessage(warningMaxLengthLocalized.GetLocalizedString(maxNicknameLength));
+                    return;
+                case NameValidation.Banned:
+                    SetWarningMessage(warningBannedLocalized.GetLocalizedString());
+                    return;
+            }
+
+            // 비워두면 스팀 이름(스팀 미사용 시 임의 이름)을 대신 저장한다.
             if (string.IsNullOrEmpty(enteredName))
-            {
-                SetWarningMessage(warningEmptyLocalized.GetLocalizedString());
-                return;
-            }
-
-            if (enteredName.Length > maxNicknameLength)
-            {
-                SetWarningMessage(warningMaxLengthLocalized.GetLocalizedString(maxNicknameLength));
-                return;
-            }
-
-            if (ContainsBannedWord(enteredName))
-            {
-                SetWarningMessage(warningBannedLocalized.GetLocalizedString());
-                return;
-            }
+                enteredName = NicknameService.GetDefaultSteamName();
 
             // 모든 철저한 검증 보안 통과 시 저장 후 팝업 Close
-            PlayerPrefs.SetString(NicknamePrefsKey, enteredName);
-            PlayerPrefs.Save();
+            NicknameService.Save(enteredName);
 
             Debug.Log($"[UI] 커스텀 닉네임 저장 완료: {enteredName}");
             OnClickBack();

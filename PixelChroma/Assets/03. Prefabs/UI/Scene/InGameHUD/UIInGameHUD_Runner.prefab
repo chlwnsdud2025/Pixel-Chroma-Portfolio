@@ -1321,6 +1321,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4932068811636004194, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
+      propertyPath: targetRole
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5187221468274274079, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -2421,6 +2425,7 @@ MonoBehaviour:
   spectatorPanel: {fileID: 8182396940145817801}
   exposeSkillCooldownOverlay: {fileID: 5130130856837732300}
   exposeSkillCooldownText: {fileID: 1202184808255051963}
+  runnerIndicatorPanel: {fileID: 8494757317711010597}
 --- !u!114 &7591736672467773342 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6397942652720327129, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
@@ -2443,6 +2448,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac3ea67518be7df42ab0bf16136ee40c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UISpectatorModePanel
+--- !u!114 &8494757317711010597 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4932068811636004194, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}
+  m_PrefabInstance: {fileID: 3571718125060116039}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f08ea528854275438edc537770278bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.SeekerIndicatorPanel
 --- !u!114 &8740041531403732422 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5249956647214992257, guid: 4da3ed32bb84b2d4ebc3029a21ff5641, type: 3}

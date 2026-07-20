@@ -39,13 +39,12 @@ namespace PixelChroma
         public event Action OnMembersChanged;
 
         private Callback<LobbyCreated_t> _lobbyCreated;             // CreateLobby() 호출 후 Steam 서버가 로비 생성 결과를 돌려줄 때
-        private CallResult<LobbyMatchList_t> _lobbyMatchList;       // RequestLobbyList() 호출 후 검색 결과가 돌아왔을 때 (코드 참가 / 빠른 참가)
+        private CallResult<LobbyMatchList_t> _lobbyMatchList;       // RequestLobbyList() 호출 후 검색 결과가 돌아왔을 때 (코드 참가 전용)
         private Callback<GameLobbyJoinRequested_t> _joinRequested;  // Steam 오버레이에서 친구가 "게임 참가"를 클릭했을 때
         private Callback<LobbyEnter_t> _lobbyEntered;               // JoinLobby() 호출 후 로비 입장이 완료되었을 때 (성공/실패 모두)
         private Callback<LobbyChatUpdate_t> _lobbyChatUpdate;       // 로비 멤버 변동 시 (입장, 퇴장, 추방 등)
 
         private bool _waitingForConnection;
-        private bool _isQuickMatch;
 
         public CSteamID CurrentLobbyId { get; private set; }
 
@@ -146,8 +145,6 @@ namespace PixelChroma
                 return;
             }
 
-            _isQuickMatch = false;
-
             SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListStringFilter(CodeKey, code, ELobbyComparison.k_ELobbyComparisonEqual);
             SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
@@ -166,20 +163,42 @@ namespace PixelChroma
                 return;
             }
 
-            _isQuickMatch = true;
+            var searcher = QuickMatchSearcher.Instance;
+            searcher.OnMatchFound -= HandleQuickMatchFound;
+            searcher.OnMatchFailed -= HandleQuickMatchFailed;
+            searcher.OnMatchFound += HandleQuickMatchFound;
+            searcher.OnMatchFailed += HandleQuickMatchFailed;
+            searcher.StartSearch();
+        }
 
-            SteamMatchmaking.AddRequestLobbyListStringFilter(GameKey, GameName, ELobbyComparison.k_ELobbyComparisonEqual);
-            SteamMatchmaking.AddRequestLobbyListStringFilter(IsPublicKey, "True", ELobbyComparison.k_ELobbyComparisonEqual);
-            SteamMatchmaking.AddRequestLobbyListStringFilter(RoomStatusKey, StatusLobby, ELobbyComparison.k_ELobbyComparisonEqual);
-            SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
-            SteamMatchmaking.AddRequestLobbyListFilterSlotsAvailable(1);
+        private void HandleQuickMatchFound(CSteamID lobbyId)
+        {
+            UnsubscribeQuickMatch();
+            SteamMatchmaking.JoinLobby(lobbyId);
+        }
 
-            SteamAPICall_t handle = SteamMatchmaking.RequestLobbyList();
-            _lobbyMatchList.Set(handle);
+        private void HandleQuickMatchFailed()
+        {
+            UnsubscribeQuickMatch();
+            OnLobbyFailed?.Invoke();
+        }
+
+        public void CancelQuickMatch()
+        {
+            UnsubscribeQuickMatch();
+            QuickMatchSearcher.Instance?.Cancel();
+        }
+
+        private void UnsubscribeQuickMatch()
+        {
+            var searcher = QuickMatchSearcher.Instance;
+            if (searcher == null) return;
+            searcher.OnMatchFound -= HandleQuickMatchFound;
+            searcher.OnMatchFailed -= HandleQuickMatchFailed;
         }
 
         // ── 4. 방 목록에서 선택한 방에 입장 ─────────────────────────
-public void JoinRoom(RoomListEntry entry)
+        public void JoinRoom(RoomListEntry entry)
         {
             if (IsHost || NetworkClient.active)
             {
@@ -283,7 +302,6 @@ public void JoinRoom(RoomListEntry entry)
                 return;
             }
 
-            // TODO: _isQuickMatch일 때 플레이어 수, 서버 거리 등 조건으로 최적의 방을 선택하는 로직 추가
             CSteamID matchedLobbyID = SteamMatchmaking.GetLobbyByIndex(0);
             SteamMatchmaking.JoinLobby(matchedLobbyID);
         }
@@ -362,7 +380,7 @@ public void JoinRoom(RoomListEntry entry)
             return new string(chars);
         }
 
-        private void ApplyLobbyMetadata()
+        private void ApplyLobbyMetadata() // 방찾기 설정
         {
             if (!CurrentLobbyId.IsValid()) return;
 
@@ -388,5 +406,8 @@ public void JoinRoom(RoomListEntry entry)
                 ? LocalizationSettings.SelectedLocale.Identifier.Code
                 : "";
         }
+
+       
+       
     }
 }

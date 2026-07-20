@@ -23,5 +23,7 @@ namespace PixelChroma
             return viewer != null ? new[] { viewer } : System.Array.Empty<RunnerPlayer>();
 
         }
+
+        public override bool ShouldShowTeammateIndicator(PlayerRole role) => role == PlayerRole.Seeker;
     }
 }

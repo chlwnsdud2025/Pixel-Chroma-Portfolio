@@ -20,7 +20,7 @@ namespace PixelChroma
         [Header("Paint Mode Settings")]
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
         [SerializeField, Range(0f, 1f)] private float paintModeSpeedMultiplier = 0.2f;
-        protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint진입가능여부로 설정
+        protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint 진입 가능 여부로 설정
 
         [Header("Camouflage")]
         [Tooltip("위장으로 인정되는 최소 색칠 비율 (0.3 = 30%)")]
@@ -30,7 +30,7 @@ namespace PixelChroma
         [SerializeField] private float exposeDuration = 1f;
         [SerializeField] private float exposeCooldown = 1f;
 
-        [Tooltip("서로 안보이게 할때 껏다켯다할 렌더러")]
+        [Tooltip("사망 또는 서로 안보이게 할 때 껏다 켯다 할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
 
         [SyncVar(hook = nameof(OnDeadStateChanged))] private bool _isDead;
@@ -231,7 +231,7 @@ namespace PixelChroma
 
             if (Input.ToggleSpectate.WasPressedThisFrame())
             {
-                if (Spectator.IsSpectating && !_isDeathSpectatorLocked)
+                if (Spectator.IsSpectating && !_isDeathSpectatorLocked && !IsCheckTimeSpectatorLocked)
                 {
                     Spectator.ExitSpectate();
                     _runnerHUD?.SetSpectatorMode(false);
