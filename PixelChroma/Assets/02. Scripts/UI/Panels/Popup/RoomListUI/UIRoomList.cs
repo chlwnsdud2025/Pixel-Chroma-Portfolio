@@ -41,6 +41,9 @@ namespace PixelChroma.UI
         [SerializeField] private LocalizedString joiningStatus;        // "입장 중..."
         [SerializeField] private LocalizedString joinFailedStatus;     // "입장에 실패했습니다."
 
+        [Header("Registry")]
+        [SerializeField] private GameModeRegistrySO gameModeRegistry;
+
         private readonly List<UIRoomListItem> _items = new();
 
         // 드롭다운 인덱스 → 실제 값 매핑 (인덱스 0 = "전체" = null/빈값)
@@ -53,10 +56,6 @@ namespace PixelChroma.UI
         public override void Initialize()
         {
             base.Initialize();
-
-            PopulateGameModeDropdown();
-            PopulateMapDropdown();
-            PopulateLanguageDropdown();
 
             if (searchButton != null) searchButton.onClick.AddListener(RequestSearch);
             if (refreshButton != null) refreshButton.onClick.AddListener(RequestSearch);
@@ -76,7 +75,9 @@ namespace PixelChroma.UI
 
             foreach (GameMode mode in Enum.GetValues(typeof(GameMode)))
             {
-                options.Add(new TMP_Dropdown.OptionData(mode.ToString()));
+                var data = gameModeRegistry != null ? gameModeRegistry.Find(mode) : null;
+                string label = data != null ? data.displayName.GetLocalizedString() : mode.ToString();
+                options.Add(new TMP_Dropdown.OptionData(label));
                 _gameModeValues.Add(mode);
             }
 
@@ -90,7 +91,7 @@ namespace PixelChroma.UI
             mapDropdown.ClearOptions();
             _mapIdValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            var options = new List<TMP_Dropdown.OptionData> { new(allFilterLabel.GetLocalizedString()) };
             _mapIdValues.Add(null);
 
             var registry = LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
@@ -115,7 +116,7 @@ namespace PixelChroma.UI
             languageDropdown.ClearOptions();
             _languageCodeValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            var options = new List<TMP_Dropdown.OptionData> { new(allFilterLabel.GetLocalizedString()) };
             _languageCodeValues.Add(null);
 
             var locales = LocalizationSettings.AvailableLocales?.Locales;
@@ -139,6 +140,10 @@ namespace PixelChroma.UI
         public override void OnBeforeShow()
         {
             base.OnBeforeShow();
+
+            PopulateGameModeDropdown();
+            PopulateMapDropdown();
+            PopulateLanguageDropdown();
 
             if (gameModeDropdown != null) gameModeDropdown.SetValueWithoutNotify(0);
             if (mapDropdown != null) mapDropdown.SetValueWithoutNotify(0);
