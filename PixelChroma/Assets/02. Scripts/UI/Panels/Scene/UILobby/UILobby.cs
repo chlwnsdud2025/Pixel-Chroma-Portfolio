@@ -142,6 +142,9 @@ namespace PixelChroma.UI
         {
             if (paintModeRoot != null)
                 paintModeRoot.SetActive(active);
+
+            if (roomOptionPanel != null)
+                roomOptionPanel.gameObject.SetActive(!active);
         }
 
         // ── Private ──────────────────────────────────────────
