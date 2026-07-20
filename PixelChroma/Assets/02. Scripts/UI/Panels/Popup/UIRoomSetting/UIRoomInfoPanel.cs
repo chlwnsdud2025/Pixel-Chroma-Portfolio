@@ -4,7 +4,7 @@ using UnityEngine.Localization;
 
 namespace PixelChroma.UI
 {
-    // 방 이름 / 닉네임 / 공개 여부 / 게임 모드를 담당한다.
+    // 방 이름 / 공개 여부 / 게임 모드를 담당한다.
     // RoomOption의 소유권은 UIRoomSetting에 있고, 여기서는 Bind로 받은 참조에 값만 반영한다.
     public class UIRoomInfoPanel : MonoBehaviour
     {
@@ -12,11 +12,6 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_InputField roomNameInput;
         [SerializeField] private TMP_Text roomNameStatusText;
         [SerializeField] private TMP_Text roomNameCountText;
-
-        [Header("Nickname")]
-        [SerializeField] private TMP_InputField nicknameInput;
-        [SerializeField] private TMP_Text nicknameStatusText;
-        [SerializeField] private TMP_Text nicknameCountText;
 
         [Header("Banned Words (비속어 필터링)")]
         [SerializeField] private BannedWordsSO bannedWords;
@@ -47,12 +42,6 @@ namespace PixelChroma.UI
                 roomNameInput.onEndEdit.AddListener(OnRoomNameInput);
             }
 
-            if (nicknameInput != null)
-            {
-                nicknameInput.characterLimit = NicknameService.MaxLength;
-                nicknameInput.onValueChanged.AddListener(OnNicknameChanged);
-            }
-
             if (publicButton != null) publicButton.OnClicked += () => SetPublic(true);
             if (privateButton != null) privateButton.OnClicked += () => SetPublic(false);
 
@@ -66,29 +55,10 @@ namespace PixelChroma.UI
             RefreshAll();
         }
 
-        // 방 이름/닉네임을 검증해 option과 PlayerPrefs에 반영한다. 실패 시 경고를 띄우고 false.
+        // 방 이름을 검증해 option에 반영한다. 실패 시 경고를 띄우고 false.
         public bool TryApply()
         {
             if (_option == null) return false;
-
-            if (nicknameInput != null)
-            {
-                string nickname = nicknameInput.text.Trim();
-                var result = NameValidator.Validate(nickname, bannedWords, NicknameService.MaxLength);
-
-                if (result != NameValidation.Valid)
-                {
-                    SetStatusMessage(nicknameStatusText, GetWarningMessage(result, NicknameService.MaxLength));
-                    return false;
-                }
-
-                // 비워두면 스팀 이름(스팀 미사용 시 임의 이름)을 대신 쓴다.
-                if (string.IsNullOrEmpty(nickname))
-                    nickname = NicknameService.GetDefaultSteamName();
-
-                // CreateLobby가 PlayerPrefs에서 hostName을 읽어가므로 방 생성보다 먼저 저장해야 한다.
-                NicknameService.Save(nickname);
-            }
 
             if (roomNameInput != null)
             {
@@ -123,13 +93,6 @@ namespace PixelChroma.UI
             SetCountMessage(roomNameCountText, text.Length, RoomOption.MaxRoomNameLength);
         }
 
-        private void OnNicknameChanged(string text)
-        {
-            SetStatusMessage(nicknameStatusText, string.Empty);
-            SetCountMessage(nicknameCountText, text.Length, NicknameService.MaxLength);
-            UpdateRoomNamePlaceholder();
-        }
-
         private void SetPublic(bool isPublic)
         {
             if (_option == null) return;
@@ -157,7 +120,6 @@ namespace PixelChroma.UI
 
         private void RefreshNameUI()
         {
-            // SetTextWithoutNotify는 onValueChanged를 태우지 않으므로 글자 수는 여기서 직접 맞춘다.
             if (roomNameInput != null)
             {
                 string roomName = _option.roomName ?? "";
@@ -165,16 +127,8 @@ namespace PixelChroma.UI
                 SetCountMessage(roomNameCountText, roomName.Length, RoomOption.MaxRoomNameLength);
             }
 
-            if (nicknameInput != null)
-            {
-                string nickname = NicknameService.LoadOrDefault();
-                nicknameInput.SetTextWithoutNotify(nickname);
-                SetCountMessage(nicknameCountText, nickname.Length, NicknameService.MaxLength);
-            }
-
             UpdateRoomNamePlaceholder();
             SetStatusMessage(roomNameStatusText, string.Empty);
-            SetStatusMessage(nicknameStatusText, string.Empty);
         }
 
         private void RefreshPublicUI()
@@ -201,11 +155,7 @@ namespace PixelChroma.UI
         {
             if (roomNameInput == null || roomNameInput.placeholder is not TMP_Text placeholderText) return;
 
-            string nickname = nicknameInput != null ? nicknameInput.text.Trim() : "";
-            if (string.IsNullOrEmpty(nickname))
-                nickname = NicknameService.LoadOrDefault();
-
-            placeholderText.text = defaultRoomNameLocalized.GetLocalizedString(nickname);
+            placeholderText.text = defaultRoomNameLocalized.GetLocalizedString(NicknameService.LoadOrDefault());
         }
 
         private string GetWarningMessage(NameValidation result, int maxLength)
