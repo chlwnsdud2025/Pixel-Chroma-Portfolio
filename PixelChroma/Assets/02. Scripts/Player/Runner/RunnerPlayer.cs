@@ -384,6 +384,8 @@ namespace PixelChroma
         {
             if (InGameManager.Instance != null)
                 InGameManager.Instance.NotifyRosterChanged();
+
+            RaiseNicknameVisibilityChanged();
         }
 
         private void HandlePaintModeChanged(bool isPaint)
@@ -396,5 +398,7 @@ namespace PixelChroma
                 _runnerHUD?.SetSpectatorMode(false);
             }
         }
+
+
     }
 }

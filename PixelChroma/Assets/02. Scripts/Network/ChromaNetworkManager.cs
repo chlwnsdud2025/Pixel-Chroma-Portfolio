@@ -179,14 +179,18 @@ namespace PixelChroma
                 GameManager.Instance.EnterLobby().Forget();
             }
         }
-    
+
 
         public override void OnServerSceneChanged(string sceneName)
         {
             base.OnServerSceneChanged(sceneName);
 
-            if (IsInGameScene(GetSceneName(sceneName)) && GameRoundManager.Instance != null)
+            string scene = GetSceneName(sceneName);
+
+            if (IsInGameScene(scene) && GameRoundManager.Instance != null)
                 GameRoundManager.Instance.BeginRound();
+            else if (scene == GetSceneName(onlineScene))
+                LobbyManager.Instance?.ChangeLobbyStatusToLobby();
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
