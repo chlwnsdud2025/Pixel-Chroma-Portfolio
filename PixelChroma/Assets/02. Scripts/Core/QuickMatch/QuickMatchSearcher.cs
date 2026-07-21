@@ -10,7 +10,7 @@ namespace PixelChroma
     public class QuickMatchSearcher : MonoSingleton<QuickMatchSearcher>
     {
         // Phase별 대기 시간(초). Phase 0은 즉시, 이후 10초 간격
-        private static readonly float[] PhaseDelays = { 0f, 10f, 10f, 10f };
+        private static readonly float[] PhaseDelays = { 0f, 3f, 3f, 3f };
 
         private CallResult<LobbyMatchList_t> _lobbyMatchList;
         private int _currentPhase;

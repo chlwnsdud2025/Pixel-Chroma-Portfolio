@@ -216,19 +216,30 @@ namespace PixelChroma.UI
 
         private void RefreshPlayerCountUI()
         {
-            if (maxPlayersInput != null) maxPlayersInput.SetTextWithoutNotify(_option.maxPlayers.ToString());
-            if (seekerCountInput != null) seekerCountInput.SetTextWithoutNotify(_option.seekerCount.ToString());
+            if (maxPlayersInput != null) ForceSetText(maxPlayersInput, _option.maxPlayers.ToString());
+            if (seekerCountInput != null) ForceSetText(seekerCountInput, _option.seekerCount.ToString());
         }
 
         private void RefreshTimeUI()
         {
-            if (hideTimeInput != null) hideTimeInput.SetTextWithoutNotify(_option.hideTime.ToString("0"));
-            if (seekTimeInput != null) seekTimeInput.SetTextWithoutNotify(_option.seekTime.ToString("0"));
-            if (checkTimeInput != null) checkTimeInput.SetTextWithoutNotify(_option.checkTime.ToString("0"));
-            if (forcedExposeIntervalInput != null) forcedExposeIntervalInput.SetTextWithoutNotify(_option.forcedExposeInterval.ToString("0"));
+            if (hideTimeInput != null) ForceSetText(hideTimeInput, _option.hideTime.ToString("0"));
+            if (seekTimeInput != null) ForceSetText(seekTimeInput, _option.seekTime.ToString("0"));
+            if (checkTimeInput != null) ForceSetText(checkTimeInput, _option.checkTime.ToString("0"));
+            if (forcedExposeIntervalInput != null) ForceSetText(forcedExposeIntervalInput, _option.forcedExposeInterval.ToString("0"));
         }
 
-        // 범위를 먼저 잡고 나서 리스너를 붙인다. (min/max 설정이 value를 건드려 콜백이 튀는 걸 피한다)
+        private static void ForceSetText(TMP_InputField input, string value)
+        {
+            input.text = value;
+
+            // 텍스트 오버플로우로 밀린 textComponent의 스크롤 오프셋을 원위치시킨다.
+            if (input.textComponent != null)
+            {
+                var rt = input.textComponent.rectTransform;
+                rt.anchoredPosition = new Vector2(0f, rt.anchoredPosition.y);
+            }
+        }
+
         private static void SetupSlider(Slider slider, float min, float max, UnityEngine.Events.UnityAction<float> onChanged)
         {
             if (slider == null) return;

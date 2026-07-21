@@ -44,7 +44,7 @@ namespace PixelChroma
 
             if (_owner == localPlayer)
             {
-                _root.SetActive(true);
+                _root.SetActive(!_owner.IsPaintMode);
                 return;
             }
 

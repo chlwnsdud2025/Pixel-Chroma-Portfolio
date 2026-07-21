@@ -1,4 +1,3 @@
-using System.Text;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Steamworks;
@@ -11,10 +10,12 @@ namespace PixelChroma.UI
     public class UILobby : UIScene, IPaintHUD
     {
         [Header("Room Info")]
-        [SerializeField] private TMP_Text roomTitleText;
+        [SerializeField] private TMP_Text roomNameText;
         [SerializeField] private TMP_Text roomCodeText;
-        [SerializeField] private TMP_Text memberListText;
         [SerializeField] private TMP_Text playerCountText;
+
+        [Header("Member List")]
+        [SerializeField] private UIMemberSlot[] memberSlots;
         [SerializeField] private Button copyCodeButton;
         [SerializeField] private Button leaveButton;
 
@@ -22,10 +23,8 @@ namespace PixelChroma.UI
 
         [Header("Show Code")]
         [SerializeField] private Button showCodeButton;
-        [SerializeField] private Image showCodeIcon;
-        [SerializeField] private Sprite shownSprite;
-        [SerializeField] private Sprite hiddenSprite;
-        [SerializeField] private TMP_Text showCodeLabel;
+        [SerializeField] private GameObject shownIcon;
+        [SerializeField] private GameObject hiddenIcon;
 
         [Header("Start (Host)")]
         [SerializeField] private GameObject startButtonPanel;
@@ -43,6 +42,9 @@ namespace PixelChroma.UI
 
         [Header("친구 초대")]
         [SerializeField] private Button inviteFriendButton;
+
+        [Header("Room Option")]
+        [SerializeField] private UIRoomOptionPanel roomOptionPanel;
 
         [Header("Customize")]
         [SerializeField] private GameObject paintModeRoot;
@@ -129,6 +131,7 @@ namespace PixelChroma.UI
             RefreshMemberList();
             RefreshPlayerCount();
             RefreshReadyUI();
+            RefreshRoomOptionPanel();
 
             return UniTask.CompletedTask;
         }
@@ -139,17 +142,20 @@ namespace PixelChroma.UI
         {
             if (paintModeRoot != null)
                 paintModeRoot.SetActive(active);
+
+            if (roomOptionPanel != null)
+                roomOptionPanel.gameObject.SetActive(!active);
         }
 
         // ── Private ──────────────────────────────────────────
 
         private void RefreshRoomTitle()
         {
-            if (roomTitleText == null)
+            if (roomNameText == null)
                 return;
 
             var option = LobbyManager.Instance?.CurrentRoomOption;
-            roomTitleText.text = option?.roomName ?? "";
+            roomNameText.text = option?.roomName ?? "";
         }
 
         private void RefreshRoomCode()
@@ -162,27 +168,20 @@ namespace PixelChroma.UI
             roomCodeText.text = display;
         }
 
-        /// <summary>
-        /// Mirror 네트워크 객체에서 동기화된 닉네임으로 멤버 목록을 구성한다.
-        /// </summary>
         private void RefreshMemberList()
         {
+            if (memberSlots == null || memberSlots.Length == 0) return;
+
             var sortedPlayers = LobbyPlayerState.AllPlayers.OrderBy(p => p.netId).ToList();
+            bool isLocalHost = LobbyManager.Instance.IsHost;
 
-            if (memberListText == null) return;
-
-            var sb = new StringBuilder();
-
-            for (int i = 0; i < sortedPlayers.Count; i++)
+            for (int i = 0; i < memberSlots.Length; i++)
             {
-                var p = sortedPlayers[i];
-                var playerBase = p.GetComponent<PlayerBase>();
-                string name = playerBase != null ? playerBase.playerName : "Player";
-                bool isHost = (i == 0);
-                sb.AppendLine(isHost ? $"{name} (방장)" : name);
+                bool active = i < sortedPlayers.Count;
+                memberSlots[i].gameObject.SetActive(active);
+                if (active)
+                    memberSlots[i].Set(sortedPlayers[i], isHost: i == 0, isLocalHost);
             }
-
-            memberListText.text = sb.ToString();
         }
 
         private void RefreshPlayerCount()
@@ -231,14 +230,16 @@ namespace PixelChroma.UI
             }
         }
 
+        private void RefreshRoomOptionPanel()
+        {
+            if (roomOptionPanel != null)
+                roomOptionPanel.Refresh(LobbyManager.Instance?.CurrentRoomOption);
+        }
+
         private void ApplyCodeVisibility()
         {
-            var sprite = _isCodeVisible ? shownSprite : hiddenSprite;
-
-            if (showCodeIcon != null && sprite != null)
-                showCodeIcon.sprite = sprite;
-            else if (showCodeLabel != null)
-                showCodeLabel.text = _isCodeVisible ? "Hide" : "Show";
+            if (shownIcon != null) shownIcon.SetActive(_isCodeVisible);
+            if (hiddenIcon != null) hiddenIcon.SetActive(!_isCodeVisible);
         }
 
         private static string MaskCode(string code)
@@ -263,6 +264,7 @@ namespace PixelChroma.UI
         /// </summary>
         private void OnReadyChanged()
         {
+            RefreshMemberList();
             RefreshReadyUI();
         }
 
@@ -274,6 +276,7 @@ namespace PixelChroma.UI
             RefreshRoomTitle();
             RefreshRoomCode();
             RefreshPlayerCount();
+            RefreshRoomOptionPanel();
         }
 
         private void OnTimeStateChanged(TimeState state, int remainingSeconds)

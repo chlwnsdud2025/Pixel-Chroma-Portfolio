@@ -1,7 +1,7 @@
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Localization;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
@@ -17,11 +17,16 @@ namespace PixelChroma.UI
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private TMP_Text createButtonText;
-        [SerializeField] private LocalizedString createButtonLocalized;
-        [SerializeField] private LocalizedString editButtonLocalized;
+
+        [Header("Localization")]
+        [SerializeField] private RoomSettingTextDataSO textData;
 
         [Header("Close")]
         [SerializeField] private Button closeButton;
+
+        [Header("Animation")]
+        [SerializeField] private RectTransform panel;
+        [SerializeField] private float animationDuration = 0.25f;
 
         private RoomOption _option;
         private bool _isEditMode = false;
@@ -38,8 +43,10 @@ namespace PixelChroma.UI
             if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
         }
 
-        protected override UniTask OnShow()
+        public override void OnBeforeShow()
         {
+            base.OnBeforeShow();
+
             var lobby = LobbyManager.Instance;
 
             bool isEdit = GameManager.Instance != null
@@ -55,6 +62,30 @@ namespace PixelChroma.UI
                 mapPanel.Refresh(lobby?.MapRegistry, _option.mapName);
             }
 
+            if (panel != null) panel.localScale = Vector3.zero;
+        }
+
+        protected override async UniTask OnShowAnimation()
+        {
+            if (panel != null)
+                await panel.DOScale(Vector3.one, animationDuration).SetEase(Ease.OutBack).ToUniTask();
+        }
+
+        protected override async UniTask OnHideAnimation()
+        {
+            if (panel != null)
+                await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
+        }
+
+        protected override UniTask OnShow()
+        {
+            if (mapPanel != null)
+            {
+                mapPanel.OnMapSelected -= OnMapSelected;
+                mapPanel.OnMapSelected += OnMapSelected;
+            }
+
+            var lobby = LobbyManager.Instance;
             if (lobby != null)
                 lobby.OnLobbyFailed += HandleLobbyFailed;
 
@@ -98,7 +129,7 @@ namespace PixelChroma.UI
         {
             if (createButtonText != null)
             {
-                var localized = _isEditMode ? editButtonLocalized : createButtonLocalized;
+                var localized = _isEditMode ? textData.editButtonLabel : textData.createButtonLabel;
                 createButtonText.text = localized.GetLocalizedString();
             }
 

@@ -36,10 +36,10 @@ namespace PixelChroma.UI
         [SerializeField] private float animationDuration = 0.25f;
 
         [Header("Localization")]
-        [SerializeField] private LocalizedString allFilterLabel;       // "전체"
-        [SerializeField] private LocalizedString searchingStatus;      // "검색 중..."
-        [SerializeField] private LocalizedString joiningStatus;        // "입장 중..."
-        [SerializeField] private LocalizedString joinFailedStatus;     // "입장에 실패했습니다."
+        [SerializeField] private RoomListTextDataSO textData;
+
+        [Header("Registry")]
+        [SerializeField] private GameModeRegistrySO gameModeRegistry;
 
         private readonly List<UIRoomListItem> _items = new();
 
@@ -54,10 +54,6 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            PopulateGameModeDropdown();
-            PopulateMapDropdown();
-            PopulateLanguageDropdown();
-
             if (searchButton != null) searchButton.onClick.AddListener(RequestSearch);
             if (refreshButton != null) refreshButton.onClick.AddListener(RequestSearch);
             if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
@@ -70,13 +66,15 @@ namespace PixelChroma.UI
             gameModeDropdown.ClearOptions();
             _gameModeValues.Clear();
 
-            string allLabel = allFilterLabel.GetLocalizedString();
+            string allLabel = textData.allFilterLabel.GetLocalizedString();
             var options = new List<TMP_Dropdown.OptionData> { new(allLabel) };
             _gameModeValues.Add(null);
 
             foreach (GameMode mode in Enum.GetValues(typeof(GameMode)))
             {
-                options.Add(new TMP_Dropdown.OptionData(mode.ToString()));
+                var data = gameModeRegistry != null ? gameModeRegistry.Find(mode) : null;
+                string label = data != null ? data.displayName.GetLocalizedString() : mode.ToString();
+                options.Add(new TMP_Dropdown.OptionData(label));
                 _gameModeValues.Add(mode);
             }
 
@@ -90,7 +88,7 @@ namespace PixelChroma.UI
             mapDropdown.ClearOptions();
             _mapIdValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            var options = new List<TMP_Dropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
             _mapIdValues.Add(null);
 
             var registry = LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
@@ -115,7 +113,7 @@ namespace PixelChroma.UI
             languageDropdown.ClearOptions();
             _languageCodeValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new("전체") };
+            var options = new List<TMP_Dropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
             _languageCodeValues.Add(null);
 
             var locales = LocalizationSettings.AvailableLocales?.Locales;
@@ -139,6 +137,10 @@ namespace PixelChroma.UI
         public override void OnBeforeShow()
         {
             base.OnBeforeShow();
+
+            PopulateGameModeDropdown();
+            PopulateMapDropdown();
+            PopulateLanguageDropdown();
 
             if (gameModeDropdown != null) gameModeDropdown.SetValueWithoutNotify(0);
             if (mapDropdown != null) mapDropdown.SetValueWithoutNotify(0);
@@ -219,7 +221,7 @@ namespace PixelChroma.UI
         {
             ClearList();
             SetEmpty(false);
-            SetStatus(searchingStatus.GetLocalizedString());
+            SetStatus(textData.searchingStatus.GetLocalizedString());
 
             if (refreshButton != null) refreshButton.interactable = false;
 
@@ -262,7 +264,7 @@ namespace PixelChroma.UI
             foreach (var item in _items)
                 item.SetInteractable(false);
 
-            SetStatus(joiningStatus.GetLocalizedString());
+            SetStatus(textData.joiningStatus.GetLocalizedString());
 
             RoomListSearcher.Instance?.StopSearch();
             LobbyManager.Instance?.JoinRoom(entry);
@@ -270,7 +272,7 @@ namespace PixelChroma.UI
 
         private void HandleJoinFailed()
         {
-            SetStatus(joinFailedStatus.GetLocalizedString());
+            SetStatus(textData.joinFailedStatus.GetLocalizedString());
 
             foreach (var item in _items)
                 item.SetInteractable(true);

@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Localization;
 using TMPro;
 using UnityEngine.UI;
 using Cysharp.Threading.Tasks;
@@ -27,8 +26,7 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text warningText;
 
         [Header("Localization")]
-        [SerializeField] private LocalizedString warningMaxLengthLocalized;
-        [SerializeField] private LocalizedString warningBannedLocalized;
+        [SerializeField] private NicknameSettingTextDataSO textData;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;      
@@ -112,10 +110,10 @@ namespace PixelChroma.UI
             switch (NameValidator.Validate(enteredName, bannedWords, maxNicknameLength))
             {
                 case NameValidation.TooLong:
-                    SetWarningMessage(warningMaxLengthLocalized.GetLocalizedString(maxNicknameLength));
+                    SetWarningMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
                     return;
                 case NameValidation.Banned:
-                    SetWarningMessage(warningBannedLocalized.GetLocalizedString());
+                    SetWarningMessage(textData.warningBanned.GetLocalizedString());
                     return;
             }
 

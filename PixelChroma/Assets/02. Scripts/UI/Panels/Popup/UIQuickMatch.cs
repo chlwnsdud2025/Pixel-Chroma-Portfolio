@@ -2,7 +2,6 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Localization;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
@@ -13,9 +12,8 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private GameObject loadingIndicator;
 
-        [Header("Status Localization")]
-        [SerializeField] private LocalizedString findingRoomStatus;
-        [SerializeField] private LocalizedString notFoundStatus;
+        [Header("Localization")]
+        [SerializeField] private QuickMatchTextDataSO textData;
 
         [Header("Buttons")]
         [SerializeField] private Button retryButton;
@@ -76,14 +74,14 @@ namespace PixelChroma.UI
 
         private void SetLoading()
         {
-            if (statusText != null) statusText.text = findingRoomStatus.GetLocalizedString();
+            if (statusText != null) statusText.text = textData.findingRoomStatus.GetLocalizedString();
             if (loadingIndicator != null) loadingIndicator.SetActive(true);
             if (retryButton != null) retryButton.gameObject.SetActive(false);
         }
 
         private void SetFailed()
         {
-            if (statusText != null) statusText.text = notFoundStatus.GetLocalizedString();
+            if (statusText != null) statusText.text = textData.notFoundStatus.GetLocalizedString();
             if (loadingIndicator != null) loadingIndicator.SetActive(false);
             if (retryButton != null) retryButton.gameObject.SetActive(true);
         }

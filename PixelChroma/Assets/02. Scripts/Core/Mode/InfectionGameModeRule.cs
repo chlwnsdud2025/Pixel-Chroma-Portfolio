@@ -1,11 +1,15 @@
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Localization;
 
 namespace PixelChroma
 {
     public class InfectionGameModeRule : GameModeRule
     {
         public override GameMode Mode => GameMode.Infection;
-        public override string DisplayName => "감염 모드";
+
+        private static readonly LocalizedString _displayName = new("GameText", "HUD_Mode_Infection");
+        public override string DisplayName => _displayName.GetLocalizedString();
         public override void OnRunnerCaught(RunnerPlayer runner) => runner.ServerConvertToSeeker();//잡힐시 술래
 
         public override bool CanSeeRunnerNickname(TimeState currentState)// Runner끼리 CheckTime전까지 닉네임 못봄

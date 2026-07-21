@@ -60,6 +60,18 @@ namespace PixelChroma
 
 
         [Command]
+        public void CmdKickPlayer(uint targetNetId)
+        {
+            if (connectionToClient != NetworkServer.localConnection)
+                return;
+
+            if (!NetworkServer.spawned.TryGetValue(targetNetId, out var targetIdentity))
+                return;
+
+            targetIdentity.connectionToClient?.Disconnect();
+        }
+
+        [Command]
         public void CmdToggleReady()
         {
             if (connectionToClient == NetworkServer.localConnection)

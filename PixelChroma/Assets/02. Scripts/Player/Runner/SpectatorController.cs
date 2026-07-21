@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Unity.Cinemachine;
+using UnityEngine.Localization;
 
 namespace PixelChroma
 {
@@ -26,6 +27,7 @@ namespace PixelChroma
         public bool IsSpectating => _mode != SpectateMode.None;
         public event Action<string, bool> OnTargetNameChanged;
 
+        private static readonly LocalizedString _freeViewName = new("GameText", "HUD_Spectate_FreeView");
         public SpectatorController(PlayerBase owner, CinemachineCamera camera, float freeCamSpeed)
         {
             _owner = owner;
@@ -66,7 +68,7 @@ namespace PixelChroma
             if (_camera != null)
                 _camera.Follow = _freeCamTarget.transform;
 
-            OnTargetNameChanged?.Invoke("자유 시점", false);
+            OnTargetNameChanged?.Invoke(_freeViewName.GetLocalizedString(), false);
         }
 
         public void EnterRunnerMode()

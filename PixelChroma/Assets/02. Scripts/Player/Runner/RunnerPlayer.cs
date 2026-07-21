@@ -1,8 +1,9 @@
+using Cysharp.Threading.Tasks;
+using Mirror;
+using PixelChroma.UI;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Mirror;
-using Cysharp.Threading.Tasks;
-using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -54,6 +55,8 @@ namespace PixelChroma
         public bool IsDead => _isDead;
         public bool IsWet => _isWet;
         public bool IsCamouflaged => _paintRatio >= camouflagedThreshold;
+
+        public static event Action<string, string> OnPlayerCaught;
 
         protected override void Awake()
         {
@@ -152,11 +155,20 @@ namespace PixelChroma
 
         //--------------------------------------사망시 로직(모드따라 다름)------------------------------------------
         [Server]
-        public void ServerNotifyCaught()
+        public void ServerNotifyCaught(string catcherName)
         {
             if (_isDead) return;
             Debug.Log($"[Runner] {netId}번 플레이어 아웃!");
+
+            RpcNotifyCaught(catcherName, playerName);
+
             GameRoundManager.Instance?.CurrentRule?.OnRunnerCaught(this);
+        }
+
+        [ClientRpc]
+        private void RpcNotifyCaught(string catcherName, string caughtName)
+        {
+            OnPlayerCaught?.Invoke(catcherName, caughtName);
         }
 
         [Server]
@@ -372,6 +384,8 @@ namespace PixelChroma
         {
             if (InGameManager.Instance != null)
                 InGameManager.Instance.NotifyRosterChanged();
+
+            RaiseNicknameVisibilityChanged();
         }
 
         private void HandlePaintModeChanged(bool isPaint)
@@ -384,5 +398,7 @@ namespace PixelChroma
                 _runnerHUD?.SetSpectatorMode(false);
             }
         }
+
+
     }
 }

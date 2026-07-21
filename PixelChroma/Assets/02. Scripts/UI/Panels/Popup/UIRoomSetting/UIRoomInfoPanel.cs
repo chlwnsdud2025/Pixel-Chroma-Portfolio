@@ -27,9 +27,7 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text gameModeDescriptionText;
 
         [Header("Localization")]
-        [SerializeField] private LocalizedString warningMaxLengthLocalized;
-        [SerializeField] private LocalizedString warningBannedLocalized;
-        [SerializeField] private LocalizedString defaultRoomNameLocalized;
+        [SerializeField] private RoomSettingTextDataSO textData;
 
         private RoomOption _option;
 
@@ -72,8 +70,7 @@ namespace PixelChroma.UI
                 }
 
                 if (string.IsNullOrEmpty(roomName))
-                    roomName = defaultRoomNameLocalized.GetLocalizedString(NicknameService.LoadOrDefault());
-
+                    roomName = textData.defaultRoomName.GetLocalizedString(NicknameService.LoadOrDefault());
                 _option.roomName = roomName;
             }
 
@@ -155,15 +152,15 @@ namespace PixelChroma.UI
         {
             if (roomNameInput == null || roomNameInput.placeholder is not TMP_Text placeholderText) return;
 
-            placeholderText.text = defaultRoomNameLocalized.GetLocalizedString(NicknameService.LoadOrDefault());
+            placeholderText.text = textData.defaultRoomName.GetLocalizedString(NicknameService.LoadOrDefault());
         }
 
         private string GetWarningMessage(NameValidation result, int maxLength)
         {
             return result switch
             {
-                NameValidation.TooLong => warningMaxLengthLocalized.GetLocalizedString(maxLength),
-                NameValidation.Banned => warningBannedLocalized.GetLocalizedString(),
+                NameValidation.TooLong => textData.warningMaxLength.GetLocalizedString(maxLength),
+                NameValidation.Banned => textData.warningBanned.GetLocalizedString(),
                 _ => string.Empty,
             };
         }

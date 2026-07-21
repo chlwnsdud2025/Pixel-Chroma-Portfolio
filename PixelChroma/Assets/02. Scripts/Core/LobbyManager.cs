@@ -341,6 +341,13 @@ namespace PixelChroma
                 SteamMatchmaking.SetLobbyData(CurrentLobbyId, RoomStatusKey, StatusInGame);
         }
 
+        public void ChangeLobbyStatusToLobby()
+        {
+            if (GameManager.SteamActive && NetworkServer.active)
+                SteamMatchmaking.SetLobbyData(CurrentLobbyId, RoomStatusKey, StatusLobby);
+        }
+
+
         public void LeaveLobby()
         {
             if (CurrentLobbyId.IsValid()) 
