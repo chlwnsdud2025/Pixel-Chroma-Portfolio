@@ -36,10 +36,7 @@ namespace PixelChroma.UI
         [SerializeField] private float animationDuration = 0.25f;
 
         [Header("Localization")]
-        [SerializeField] private LocalizedString allFilterLabel;       // "전체"
-        [SerializeField] private LocalizedString searchingStatus;      // "검색 중..."
-        [SerializeField] private LocalizedString joiningStatus;        // "입장 중..."
-        [SerializeField] private LocalizedString joinFailedStatus;     // "입장에 실패했습니다."
+        [SerializeField] private RoomListTextDataSO textData;
 
         [Header("Registry")]
         [SerializeField] private GameModeRegistrySO gameModeRegistry;
@@ -69,7 +66,7 @@ namespace PixelChroma.UI
             gameModeDropdown.ClearOptions();
             _gameModeValues.Clear();
 
-            string allLabel = allFilterLabel.GetLocalizedString();
+            string allLabel = textData.allFilterLabel.GetLocalizedString();
             var options = new List<TMP_Dropdown.OptionData> { new(allLabel) };
             _gameModeValues.Add(null);
 
@@ -91,7 +88,7 @@ namespace PixelChroma.UI
             mapDropdown.ClearOptions();
             _mapIdValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new(allFilterLabel.GetLocalizedString()) };
+            var options = new List<TMP_Dropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
             _mapIdValues.Add(null);
 
             var registry = LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
@@ -116,7 +113,7 @@ namespace PixelChroma.UI
             languageDropdown.ClearOptions();
             _languageCodeValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new(allFilterLabel.GetLocalizedString()) };
+            var options = new List<TMP_Dropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
             _languageCodeValues.Add(null);
 
             var locales = LocalizationSettings.AvailableLocales?.Locales;
@@ -224,7 +221,7 @@ namespace PixelChroma.UI
         {
             ClearList();
             SetEmpty(false);
-            SetStatus(searchingStatus.GetLocalizedString());
+            SetStatus(textData.searchingStatus.GetLocalizedString());
 
             if (refreshButton != null) refreshButton.interactable = false;
 
@@ -267,7 +264,9 @@ namespace PixelChroma.UI
             foreach (var item in _items)
                 item.SetInteractable(false);
 
-            SetStatus(joiningStatus.GetLocalizedString());
+
+            SetStatus(textData.joiningStatus.GetLocalizedString());
+
 
             RoomListSearcher.Instance?.StopSearch();
             LobbyManager.Instance?.JoinRoom(entry);
@@ -275,7 +274,7 @@ namespace PixelChroma.UI
 
         private void HandleJoinFailed()
         {
-            SetStatus(joinFailedStatus.GetLocalizedString());
+            SetStatus(textData.joinFailedStatus.GetLocalizedString());
 
             foreach (var item in _items)
                 item.SetInteractable(true);

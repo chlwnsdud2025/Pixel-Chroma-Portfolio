@@ -41,8 +41,17 @@ namespace PixelChroma.UI
             if (roomCodeInput != null)
             {
                 roomCodeInput.characterLimit = LobbyManager.CodeLength;
+                roomCodeInput.onValidateInput = ValidateCodeChar;
                 roomCodeInput.onValueChanged.AddListener(OnCodeChanged);
             }
+        }
+
+        private char ValidateCodeChar(string text, int charIndex, char addedChar)
+        {
+            if (addedChar >= 'A' && addedChar <= 'Z') return addedChar;
+            if (addedChar >= 'a' && addedChar <= 'z') return char.ToUpper(addedChar);
+            if (addedChar >= '0' && addedChar <= '9') return addedChar;
+            return '\0';
         }
 
         public override void OnBeforeShow()
@@ -87,11 +96,23 @@ namespace PixelChroma.UI
 
         private void OnCodeChanged(string value)
         {
+            string filtered = FilterToAlphanumeric(value);
             string upper = value.ToUpper();
             if (upper != value) roomCodeInput.SetTextWithoutNotify(upper);
 
             SetStatusVisible(false);
             RefreshJoinButton(upper.Length);
+        }
+
+        private static string FilterToAlphanumeric(string input)
+        {
+            var sb = new System.Text.StringBuilder(input.Length);
+            foreach (char c in input)
+            {
+                if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
+                    sb.Append(c);
+            }
+            return sb.ToString();
         }
 
         private void RefreshJoinButton(int length)

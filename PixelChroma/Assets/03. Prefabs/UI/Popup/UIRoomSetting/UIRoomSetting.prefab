@@ -2687,7 +2687,6 @@ GameObject:
   - component: {fileID: 8905550491003569754}
   - component: {fileID: 8687938147107070081}
   - component: {fileID: 2111525629400846522}
-  - component: {fileID: 1511222860419624665}
   m_Layer: 5
   m_Name: CreateButtonText
   m_TagString: Untagged
@@ -2814,46 +2813,6 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &1511222860419624665
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1175501448447684307}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 56eb0353ae6e5124bb35b17aff880f16, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Localization::UnityEngine.Localization.Components.LocalizeStringEvent
-  m_StringReference:
-    m_TableReference:
-      m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
-    m_TableEntryReference:
-      m_KeyId: 2875555963187200
-      m_Key: 
-    m_FallbackState: 0
-    m_WaitForCompletion: 0
-    m_LocalVariables: []
-  m_FormatArguments: []
-  m_UpdateString:
-    m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 2111525629400846522}
-        m_TargetAssemblyTypeName: TMPro.TextMeshProUGUI, Unity.TextMeshPro
-        m_MethodName: set_text
-        m_Mode: 0
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
-  references:
-    version: 2
-    RefIds: []
 --- !u!1 &1188058081339774734
 GameObject:
   m_ObjectHideFlags: 0
@@ -5036,36 +4995,7 @@ MonoBehaviour:
   infectionModeButton: {fileID: 241333486655262847}
   gameModeRegistry: {fileID: 11400000, guid: 7a20d15800b91c64487e0fca355826a6, type: 2}
   gameModeDescriptionText: {fileID: 4197547218902270630}
-  warningMaxLengthLocalized:
-    m_TableReference:
-      m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
-    m_TableEntryReference:
-      m_KeyId: 2934136224874496
-      m_Key: 
-    m_FallbackState: 0
-    m_WaitForCompletion: 0
-    m_LocalVariables: []
-  warningBannedLocalized:
-    m_TableReference:
-      m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
-    m_TableEntryReference:
-      m_KeyId: 2947221810581504
-      m_Key: 
-    m_FallbackState: 0
-    m_WaitForCompletion: 0
-    m_LocalVariables: []
-  defaultRoomNameLocalized:
-    m_TableReference:
-      m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
-    m_TableEntryReference:
-      m_KeyId: 2961972029566976
-      m_Key: 
-    m_FallbackState: 0
-    m_WaitForCompletion: 0
-    m_LocalVariables: []
-  references:
-    version: 2
-    RefIds: []
+  textData: {fileID: 11400000, guid: 815a01d59f4f3b34a8360a2861614b40, type: 2}
 --- !u!1 &2117437879490470266
 GameObject:
   m_ObjectHideFlags: 0
@@ -6253,30 +6183,10 @@ MonoBehaviour:
   mapPanel: {fileID: 9035258097491168109}
   createButton: {fileID: 4270392564522953045}
   createButtonText: {fileID: 2111525629400846522}
-  createButtonLocalized:
-    m_TableReference:
-      m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
-    m_TableEntryReference:
-      m_KeyId: 3000000000000017
-      m_Key: 
-    m_FallbackState: 0
-    m_WaitForCompletion: 0
-    m_LocalVariables: []
-  editButtonLocalized:
-    m_TableReference:
-      m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
-    m_TableEntryReference:
-      m_KeyId: 3000000000000018
-      m_Key: 
-    m_FallbackState: 0
-    m_WaitForCompletion: 0
-    m_LocalVariables: []
+  textData: {fileID: 11400000, guid: 815a01d59f4f3b34a8360a2861614b40, type: 2}
   closeButton: {fileID: 183205485720263896}
   panel: {fileID: 4313772217844266178}
   animationDuration: 0.25
-  references:
-    version: 2
-    RefIds: []
 --- !u!1 &2792875806049655367
 GameObject:
   m_ObjectHideFlags: 0

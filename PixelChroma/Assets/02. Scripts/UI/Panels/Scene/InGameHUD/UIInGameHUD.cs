@@ -2,7 +2,6 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Localization;
 
 namespace PixelChroma.UI
 {
@@ -32,17 +31,8 @@ namespace PixelChroma.UI
         [Header("Catch Log")]
         [SerializeField] private UICatchLog catchLog;
 
-        // ── Localization ──
-        [Header("Localization - State")]
-        [SerializeField] private LocalizedString stateWaiting;
-        [SerializeField] private LocalizedString stateHideTime;
-        [SerializeField] private LocalizedString stateSeekTime;
-        [SerializeField] private LocalizedString stateCheckTime;
-        [SerializeField] private LocalizedString stateGameEnd;
-
-        [Header("Localization - Result")]
-        [SerializeField] private LocalizedString resultSeekerWin;
-        [SerializeField] private LocalizedString resultRunnerWin;
+        [Header("Localization")]
+        [SerializeField] private HUDTextDataSO textData;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -144,11 +134,11 @@ namespace PixelChroma.UI
             {
                 stateText.text = state switch
                 {
-                    TimeState.Waiting => stateWaiting.GetLocalizedString(),
-                    TimeState.HideTime => stateHideTime.GetLocalizedString(),
-                    TimeState.SeekTime => stateSeekTime.GetLocalizedString(),
-                    TimeState.CheckTime => stateCheckTime.GetLocalizedString(),
-                    TimeState.GameEnd => stateGameEnd.GetLocalizedString(),
+                    TimeState.Waiting => textData.stateWaiting.GetLocalizedString(),
+                    TimeState.HideTime => textData.stateHideTime.GetLocalizedString(),
+                    TimeState.SeekTime => textData.stateSeekTime.GetLocalizedString(),
+                    TimeState.CheckTime => textData.stateCheckTime.GetLocalizedString(),
+                    TimeState.GameEnd => textData.stateGameEnd.GetLocalizedString(),
                     _ => ""
                 };
             }
@@ -165,8 +155,8 @@ namespace PixelChroma.UI
 
             gameResultOverlayText.gameObject.SetActive(true);
             gameResultOverlayText.text = winner == PlayerRole.Seeker
-                ? $"<color=#FF2222>{resultSeekerWin.GetLocalizedString()}</color>"
-                : $"<color=#00FFFF>{resultRunnerWin.GetLocalizedString()}</color>";
+                ? $"<color=#FF2222>{textData.resultSeekerWin.GetLocalizedString()}</color>"
+                : $"<color=#00FFFF>{textData.resultRunnerWin.GetLocalizedString()}</color>";
         }
 
         private void UpdateTimerText(int remainingSeconds)

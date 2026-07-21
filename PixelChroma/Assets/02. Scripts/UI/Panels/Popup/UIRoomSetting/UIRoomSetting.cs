@@ -2,7 +2,6 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Localization;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
@@ -18,8 +17,9 @@ namespace PixelChroma.UI
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private TMP_Text createButtonText;
-        [SerializeField] private LocalizedString createButtonLocalized;
-        [SerializeField] private LocalizedString editButtonLocalized;
+
+        [Header("Localization")]
+        [SerializeField] private RoomSettingTextDataSO textData;
 
         [Header("Close")]
         [SerializeField] private Button closeButton;
@@ -129,7 +129,7 @@ namespace PixelChroma.UI
         {
             if (createButtonText != null)
             {
-                var localized = _isEditMode ? editButtonLocalized : createButtonLocalized;
+                var localized = _isEditMode ? textData.editButtonLabel : textData.createButtonLabel;
                 createButtonText.text = localized.GetLocalizedString();
             }
 

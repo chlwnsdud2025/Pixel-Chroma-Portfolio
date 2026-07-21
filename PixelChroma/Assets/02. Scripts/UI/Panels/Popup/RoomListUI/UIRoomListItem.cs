@@ -17,10 +17,10 @@ namespace PixelChroma.UI
         [SerializeField] private Button joinButton;
 
         [Header("Localization")]
-        [SerializeField] private LocalizedString lobbyStatusLabel;    // "대기 중"
-        [SerializeField] private LocalizedString inGameStatusLabel;   // "게임 중"
-        [SerializeField] private LocalizedString[] gameModeLabels;
-        [SerializeField] private LocalizedString defaultRoomNameFormat;
+        [SerializeField] private RoomListTextDataSO textData;
+
+        [Header("Registry")]
+        [SerializeField] private GameModeRegistrySO gameModeRegistry;
 
         private RoomListEntry _entry;
 
@@ -39,15 +39,15 @@ namespace PixelChroma.UI
             if (roomNameText != null)
             {
                 roomNameText.text = string.IsNullOrEmpty(entry.roomName)
-                    ? string.Format(defaultRoomNameFormat.GetLocalizedString(), entry.hostName)
+                    ? string.Format(textData.defaultRoomNameFormat.GetLocalizedString(), entry.hostName)
                     : entry.roomName;
             }
             if (playerCountText != null) playerCountText.text = $"{entry.currentPlayers}/{entry.maxPlayers}";
             if (gameModeText != null)
             {
-                int modeIndex = (int)entry.gameMode;
-                gameModeText.text = modeIndex < gameModeLabels.Length
-                    ? gameModeLabels[modeIndex].GetLocalizedString()
+                var data = gameModeRegistry != null ? gameModeRegistry.Find(entry.gameMode) : null;
+                gameModeText.text = data != null
+                    ? data.displayName.GetLocalizedString()
                     : entry.gameMode.ToString();
             }
 
@@ -68,9 +68,8 @@ namespace PixelChroma.UI
             if (statusText != null)
             {
                 statusText.text = entry.IsJoinable
-                    ? lobbyStatusLabel.GetLocalizedString()
-                    : inGameStatusLabel.GetLocalizedString();
-                statusText.color = entry.IsJoinable ? Color.green : Color.red;
+                    ? textData.lobbyStatusLabel.GetLocalizedString()
+                    : textData.inGameStatusLabel.GetLocalizedString();
             }
             if (joinButton != null) joinButton.interactable = entry.IsJoinable;
         }
