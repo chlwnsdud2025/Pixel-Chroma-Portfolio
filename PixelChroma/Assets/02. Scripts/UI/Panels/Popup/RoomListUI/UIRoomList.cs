@@ -264,9 +264,7 @@ namespace PixelChroma.UI
             foreach (var item in _items)
                 item.SetInteractable(false);
 
-
             SetStatus(textData.joiningStatus.GetLocalizedString());
-
 
             RoomListSearcher.Instance?.StopSearch();
             LobbyManager.Instance?.JoinRoom(entry);

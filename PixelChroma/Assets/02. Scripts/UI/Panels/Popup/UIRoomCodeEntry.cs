@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using TMPro;
@@ -22,13 +23,17 @@ namespace PixelChroma.UI
         [SerializeField] private Button closeButton;
 
         [Header("Status")]
-        [SerializeField] private GameObject statusText;
+        [SerializeField] private TMP_Text statusText;
+
+        [Header("Localization")]
+        [SerializeField] private RoomCodeEntryTextDataSO textData;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
         [SerializeField] private float animationDuration = 0.25f;
 
         private bool _isCodeVisible;
+        private bool _isFiltering;
 
         public override void Initialize()
         {
@@ -41,17 +46,8 @@ namespace PixelChroma.UI
             if (roomCodeInput != null)
             {
                 roomCodeInput.characterLimit = LobbyManager.CodeLength;
-                roomCodeInput.onValidateInput = ValidateCodeChar;
                 roomCodeInput.onValueChanged.AddListener(OnCodeChanged);
             }
-        }
-
-        private char ValidateCodeChar(string text, int charIndex, char addedChar)
-        {
-            if (addedChar >= 'A' && addedChar <= 'Z') return addedChar;
-            if (addedChar >= 'a' && addedChar <= 'z') return char.ToUpper(addedChar);
-            if (addedChar >= '0' && addedChar <= '9') return addedChar;
-            return '\0';
         }
 
         public override void OnBeforeShow()
@@ -96,23 +92,22 @@ namespace PixelChroma.UI
 
         private void OnCodeChanged(string value)
         {
-            string filtered = FilterToAlphanumeric(value);
-            string upper = value.ToUpper();
-            if (upper != value) roomCodeInput.SetTextWithoutNotify(upper);
+            if (_isFiltering) return;
+
+            string filtered = Regex.Replace(value, @"[^A-Za-z0-9]", "").ToUpper();
+
+            if (filtered != value)
+            {
+                _isFiltering = true;
+                roomCodeInput.text = filtered;
+                roomCodeInput.caretPosition = filtered.Length;
+                _isFiltering = false;
+                ShowStatus(textData.invalidCharWarning.GetLocalizedString());
+                return;
+            }
 
             SetStatusVisible(false);
-            RefreshJoinButton(upper.Length);
-        }
-
-        private static string FilterToAlphanumeric(string input)
-        {
-            var sb = new System.Text.StringBuilder(input.Length);
-            foreach (char c in input)
-            {
-                if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-                    sb.Append(c);
-            }
-            return sb.ToString();
+            RefreshJoinButton(value.Length);
         }
 
         private void RefreshJoinButton(int length)
@@ -147,10 +142,10 @@ namespace PixelChroma.UI
         private void OnClickJoin()
         {
             string code = roomCodeInput != null ? roomCodeInput.text.Trim() : string.Empty;
-            if (code.Length != LobbyManager.CodeLength) 
+            if (code.Length != LobbyManager.CodeLength)
                 return;
 
-            if (joinButton != null) 
+            if (joinButton != null)
                 joinButton.interactable = false;
 
             SetStatusVisible(false);
@@ -159,15 +154,24 @@ namespace PixelChroma.UI
 
         private void HandleLobbyFailed()
         {
-            SetStatusVisible(true);
+            ShowStatus(textData.joinFailedWarning.GetLocalizedString());
 
             if (roomCodeInput != null)
                 RefreshJoinButton(roomCodeInput.text.Trim().Length);
         }
 
+        private void ShowStatus(string message)
+        {
+            if (statusText != null)
+            {
+                statusText.text = message;
+                statusText.gameObject.SetActive(true);
+            }
+        }
+
         private void SetStatusVisible(bool visible)
         {
-            if (statusText != null) statusText.SetActive(visible);
+            if (statusText != null) statusText.gameObject.SetActive(visible);
         }
     }
 }
