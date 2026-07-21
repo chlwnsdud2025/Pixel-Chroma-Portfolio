@@ -23,6 +23,9 @@ namespace PixelChroma
         private const string ActionRedo = "Redo";
         private const string ActionChatToggle = "ChatToggle";
         private const string ActionCancel = "Cancel";
+        private const string ActionLike = "Like";
+        private const string ActionToggleLikeDisplay = "ToggleLikeDisplay";
+        private const string ActionRadialMenu = "RadialMenu";
         private readonly InputActionMap _map;
 
         public InputAction Move { get; }
@@ -43,6 +46,9 @@ namespace PixelChroma
         public InputAction Redo { get; }
         public InputAction ChatToggle { get; }
         public InputAction Cancel { get; }
+        public InputAction Like { get; }
+        public InputAction ToggleLikeDisplay { get; }
+        public InputAction RadialMenu { get; }
 
         public PlayerInputActions(InputActionAsset asset)
         {
@@ -65,6 +71,9 @@ namespace PixelChroma
             Redo = _map.FindAction(ActionRedo);
             ChatToggle = _map.FindAction(ActionChatToggle);
             Cancel = _map.FindAction(ActionCancel);
+            Like = _map.FindAction(ActionLike);
+            ToggleLikeDisplay = _map.FindAction(ActionToggleLikeDisplay);
+            RadialMenu = _map.FindAction(ActionRadialMenu);
         }
 
         public void EnableAll() => _map.Enable();
