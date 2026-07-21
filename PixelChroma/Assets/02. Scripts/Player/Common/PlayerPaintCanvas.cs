@@ -15,7 +15,9 @@ namespace PixelChroma
         public enum PaintFormType
         {
             Default,
-            Test1,
+            Mushroom,
+            Star,
+            BigCube,
         }
 
         private static readonly int PaintMaskID = Shader.PropertyToID("_PaintMask");
@@ -34,6 +36,8 @@ namespace PixelChroma
 
             [Tooltip("이 폼 전용 AnimatorOverrideController. 기본 폼(index 0)은 비워두면 원본 컨트롤러를 사용합니다.")]
             public AnimatorOverrideController overrideController;
+
+            public Collider2D formCollider;
 
             [System.NonSerialized] public int texWidth;
             [System.NonSerialized] public int texHeight;
@@ -188,7 +192,7 @@ namespace PixelChroma
         {
             if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
 
-            EndStroke();      // 떠나는 폼에 진행 중이던 스트로크를 확정(폼별 히스토리는 유지)
+            EndStroke();
             _activeForm = form;
             _currentIndex = -1;
 
@@ -202,6 +206,15 @@ namespace PixelChroma
                         ? form.overrideController
                         : _baseAnimatorController;
             }
+
+            // 콜라이더 전환 추가
+            //foreach (var f in forms)
+            //{
+            //    if (f.formCollider != null)
+            //        f.formCollider.enabled = false;
+            //}
+            //if (form.formCollider != null)
+            //    form.formCollider.enabled = true;
         }
 
         [Command]

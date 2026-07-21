@@ -27,6 +27,9 @@ namespace PixelChroma
         public bool IsSpectating => _mode != SpectateMode.None;
         public event Action<string, bool> OnTargetNameChanged;
 
+        private PlayerBase _currentTarget;
+        public PlayerBase CurrentTarget => _currentTarget;
+
         private static readonly LocalizedString _freeViewName = new("GameText", "HUD_Spectate_FreeView");
         public SpectatorController(PlayerBase owner, CinemachineCamera camera, float freeCamSpeed)
         {
@@ -54,6 +57,7 @@ namespace PixelChroma
         {
             _mode = SpectateMode.Free;
             _targetIndex = -1;
+            _currentTarget = null;
 
             if (_freeCamTarget == null)
             {
@@ -89,6 +93,7 @@ namespace PixelChroma
         {
             _mode = SpectateMode.None;
             _targetIndex = -1;
+            _currentTarget = null;
 
             if (_camera != null)
                 _camera.Follow = _owner.transform;
@@ -158,9 +163,9 @@ namespace PixelChroma
         private void FollowTarget(PlayerBase target)
         {
             if (target == null || _camera == null) return;
+            _currentTarget = target;
             _camera.Follow = target.transform;
             OnTargetNameChanged?.Invoke(target.playerName, target == _owner);
         }
-
     }
 }
