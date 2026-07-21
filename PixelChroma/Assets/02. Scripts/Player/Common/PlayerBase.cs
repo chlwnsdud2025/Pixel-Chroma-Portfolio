@@ -4,7 +4,6 @@ using System;
 using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
-using System.Collections;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
 using DG.Tweening;
@@ -73,7 +72,6 @@ namespace PixelChroma
         private Camera _mainCamera;
         private PixelPerfectCamera _pixelPerfectCamera;
         private PlayerNicknameDisplay _nicknameDisplay;
-        private Coroutine _zoomResetCoroutine;
         private Tween _zoomTween;
         private SpectatorController _spectator;
         private bool _isChatActive = false;
@@ -102,7 +100,8 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
 
-            if (role != PlayerRole.Seeker && radialMenu != null)
+            if (role != PlayerRole.Seeker && radialMenu != null
+                && (_spectator == null || !_spectator.IsSpectating))
             {
                 if (_input.RadialMenu.WasPressedThisFrame())
                     radialMenu.Open();
@@ -111,7 +110,12 @@ namespace PixelChroma
                 {
                     int selected = radialMenu.Close();
                     if (selected >= 0)
+                    {
+                        if (_paintController.IsPaintMode)
+                            _paintController.TogglePaintMode();
+
                         paintCanvas.SwitchForm((PlayerPaintCanvas.PaintFormType)selected);
+                    }
                 }
             }
 
@@ -139,7 +143,7 @@ namespace PixelChroma
         {
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
-            if (radialMenu != null && radialMenu.IsOpen) return;
+            //if (radialMenu != null && radialMenu.IsOpen) return; // 변신중 움직임 금지
             HandleMovement();
         }
 
@@ -537,6 +541,9 @@ namespace PixelChroma
 
             if (_isChatActive)
             {
+                if (Rb != null) Rb.linearVelocity = Vector2.zero;
+                if (animator != null) animator.SetBool(IsMoving, false);
+
                 if (Rb != null) Rb.linearVelocity = Vector2.zero;
                 if (animator != null) animator.SetBool(IsMoving, false);
             }

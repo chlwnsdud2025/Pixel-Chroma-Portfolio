@@ -99,7 +99,6 @@ namespace PixelChroma
 
             if (!isLocalPlayer) return;
 
-
             SyncPaintRatioIfNeeded();
 
             if (IsChatActive) return;

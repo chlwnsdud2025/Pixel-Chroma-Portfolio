@@ -18,6 +18,7 @@ namespace PixelChroma
             Mushroom,
             Star,
             BigCube,
+            test,
         }
 
         private static readonly int PaintMaskID = Shader.PropertyToID("_PaintMask");
@@ -208,13 +209,13 @@ namespace PixelChroma
             }
 
             // 콜라이더 전환 추가
-            //foreach (var f in forms)
-            //{
-            //    if (f.formCollider != null)
-            //        f.formCollider.enabled = false;
-            //}
-            //if (form.formCollider != null)
-            //    form.formCollider.enabled = true;
+            foreach (var f in forms)
+            {
+                if (f.formCollider != null)
+                    f.formCollider.enabled = false;
+            }
+            if (form.formCollider != null)
+                form.formCollider.enabled = true;
         }
 
         [Command]
@@ -430,7 +431,7 @@ namespace PixelChroma
         private void ProcessFading()
         {
             var form = _activeForm;
-            if (form.fading == null || form.fading.Count == 0) return;
+            if (form == null || form.fading == null || form.fading.Count == 0) return;
 
             float now = Time.time;
             _fadeRemoveBuffer.Clear();

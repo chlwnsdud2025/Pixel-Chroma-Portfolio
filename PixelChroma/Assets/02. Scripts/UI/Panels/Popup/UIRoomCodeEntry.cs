@@ -94,20 +94,32 @@ namespace PixelChroma.UI
         {
             if (_isFiltering) return;
 
-            string filtered = Regex.Replace(value, @"[^A-Za-z0-9]", "").ToUpper();
+            string stripped = Regex.Replace(value, @"[^A-Za-z0-9]", "");
 
+            if (stripped.Length != value.Length)
+            {
+                _isFiltering = true;
+                roomCodeInput.DeactivateInputField();
+                roomCodeInput.text = string.Empty;
+                roomCodeInput.ActivateInputField();
+                roomCodeInput.caretPosition = 0;
+                _isFiltering = false;
+                ShowStatus(textData.invalidCharWarning.GetLocalizedString());
+                RefreshJoinButton(0);
+                return;
+            }
+
+            string filtered = value.ToUpper();
             if (filtered != value)
             {
                 _isFiltering = true;
                 roomCodeInput.text = filtered;
                 roomCodeInput.caretPosition = filtered.Length;
                 _isFiltering = false;
-                ShowStatus(textData.invalidCharWarning.GetLocalizedString());
-                return;
             }
 
             SetStatusVisible(false);
-            RefreshJoinButton(value.Length);
+            RefreshJoinButton(filtered.Length);
         }
 
         private void RefreshJoinButton(int length)
