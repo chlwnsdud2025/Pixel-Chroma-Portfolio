@@ -1,16 +1,19 @@
 using System.Collections.Generic;
 using DG.Tweening;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace PixelChroma
 {
-    /// <summary>좋아요를 받을 때마다 반투명 아이콘이 하나씩 떠올랐다 사라지는 연출.</summary>
+    /// <summary>좋아요를 받을 때마다 반투명 아이콘이 하나씩 떠오르고, 카운트 텍스트가 같이 튀어오르는 연출.</summary>
     public class LikeRiseEffect : MonoBehaviour
     {
         [Header("References")]
         [Tooltip("복제해서 띄울 아이콘 원본")]
         [SerializeField] private Image iconTemplate;
+        [Tooltip("아이콘이 뜰 때마다 같이 튀어오를 카운트 텍스트. 비워두면 아이콘만 나옵니다.")]
+        [SerializeField] private TMP_Text countText;
 
         [Header("Burst")]
         [Tooltip("한 번에 띄울 최대 개수. 여러 명이 동시에 누르거나 델타가 크게 들어와도 여기까지만 나옵니다.")]
@@ -35,14 +38,32 @@ namespace PixelChroma
         [Range(0f, 1f)]
         [SerializeField] private float fadeStartRatio = 0.45f;
 
+        [Header("Count Text Punch")]
+        [Tooltip("텍스트가 커졌다 돌아오는 비율. 0.35면 최대 1.35배까지 커집니다.")]
+        [SerializeField] private float punchScale = 0.35f;
+        [Tooltip("커지는 데 걸리는 시간(초)")]
+        [SerializeField] private float punchInDuration = 0.1f;
+        [Tooltip("원래 크기로 돌아오는 데 걸리는 시간(초). 살짝 작아졌다 복귀합니다.")]
+        [SerializeField] private float punchOutDuration = 0.25f;
+        [Tooltip("펀치하는 순간 입힐 강조 색. 원래 색과 같게 두면 색 변화 없이 크기만 튑니다.")]
+        [SerializeField] private Color punchColor = new(1f, 0.42f, 0.55f);
+
         private readonly Stack<Image> _pool = new();
         private readonly List<Image> _active = new();
         private readonly List<Tween> _running = new();
 
-        /// <summary>좋아요 증가분만큼(최대 maxBurst) 아이콘을 띄웁니다.</summary>
+        private Color _countBaseColor = Color.white;
+        private Sequence _countPunch;
+
+        private void Awake()
+        {
+            if (countText != null)
+                _countBaseColor = countText.color;
+        }
+
+        /// <summary>좋아요 증가분만큼(최대 maxBurst) 아이콘을 띄우고 카운트 텍스트를 튕깁니다.</summary>
         public void Play(int count)
         {
-            if (iconTemplate == null) return;
             if (!isActiveAndEnabled) return;
 
             int spawnCount = Mathf.Clamp(count, 1, Mathf.Max(1, maxBurst));
@@ -50,11 +71,11 @@ namespace PixelChroma
             {
                 if (i == 0)
                 {
-                    SpawnOne();
+                    PlayOne();
                     continue;
                 }
 
-                Track(DOVirtual.DelayedCall(i * burstInterval, SpawnOne, false));
+                Track(DOVirtual.DelayedCall(i * burstInterval, PlayOne, false));
             }
         }
 
@@ -68,11 +89,50 @@ namespace PixelChroma
             foreach (var icon in _active.ToArray())
                 Release(icon);
             _active.Clear();
+
+            ResetCountText();
+        }
+
+        // 아이콘 하나가 뜰 때 텍스트도 같이 튕겨야 연출이 한 덩어리로 보입니다.
+        private void PlayOne()
+        {
+            if (!isActiveAndEnabled) return;
+
+            SpawnOne();
+            PunchCountText();
+        }
+
+        private void PunchCountText()
+        {
+            if (countText == null) return;
+
+            // 연타로 들어와도 항상 기본 크기에서 다시 시작하게 만듭니다.
+            ResetCountText();
+
+            RectTransform rect = countText.rectTransform;
+            _countPunch = DOTween.Sequence()
+                .Append(rect.DOScale(1f + punchScale, punchInDuration).SetEase(Ease.OutQuad))
+                .Join(countText.DOColor(punchColor, punchInDuration))
+                .Append(rect.DOScale(1f, punchOutDuration).SetEase(Ease.OutBack))
+                .Join(countText.DOColor(_countBaseColor, punchOutDuration));
+
+            // 시퀀스는 자체 정리가 필요해 _running 대신 _countPunch로만 관리합니다.
+        }
+
+        private void ResetCountText()
+        {
+            _countPunch?.Kill();
+            _countPunch = null;
+
+            if (countText == null) return;
+
+            countText.rectTransform.localScale = Vector3.one;
+            countText.color = _countBaseColor;
         }
 
         private void SpawnOne()
         {
-            if (!isActiveAndEnabled) return;
+            if (iconTemplate == null) return;
 
             Image icon = Rent();
             if (icon == null) return;
