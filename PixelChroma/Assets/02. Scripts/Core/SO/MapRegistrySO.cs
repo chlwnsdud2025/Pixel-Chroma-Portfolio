@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PixelChroma
@@ -21,19 +21,6 @@ namespace PixelChroma
             }
 
             return null;
-        }
-
-        public bool ContainsScene(string sceneName)
-        {
-            if (string.IsNullOrEmpty(sceneName)) return false;
-
-            for (int i = 0; i < maps.Count; i++)
-            {
-                if (maps[i] != null && maps[i].SceneName == sceneName)
-                    return true;
-            }
-
-            return false;
         }
     }
 }

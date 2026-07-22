@@ -179,9 +179,12 @@ namespace PixelChroma
 
         public override void OnClientSceneChanged()
         {
-            base.OnClientSceneChanged();
-
             string currentScene = SceneManager.GetActiveScene().name;
+
+            if (IsInGameScene(currentScene) && !NetworkServer.active)
+                LoadSelectedMap();
+
+            base.OnClientSceneChanged();
 
             if (IsInGameScene(currentScene) && GameManager.Instance != null)
                 GameManager.Instance.EnterInGame().Forget();
@@ -194,16 +197,19 @@ namespace PixelChroma
 
         public override void OnServerSceneChanged(string sceneName)
         {
-            base.OnServerSceneChanged(sceneName);
-
             string scene = GetSceneName(sceneName);
+
+            if (IsInGameScene(scene))
+                LoadSelectedMap();
+
+            base.OnServerSceneChanged(sceneName);
 
             if (IsInGameScene(scene) && GameRoundManager.Instance != null)
                 GameRoundManager.Instance.BeginRound();
             else if (scene == GetSceneName(onlineScene))
             {
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
-                ClearLikeRecords();   // 로비 복귀 시 추천 중복 기록 초기화
+                ClearLikeRecords();
             }
         }
 
@@ -251,23 +257,25 @@ namespace PixelChroma
 
         public bool IsInGameScene(string sceneName)
         {
-            if (sceneName == GetSceneName(inGameScene))
-                return true;
-
-            return MapRegistry != null && MapRegistry.ContainsScene(sceneName);
+            return sceneName == GetSceneName(inGameScene);
         }
 
-        public string ResolveMapScene()
+        private void LoadSelectedMap()
         {
-            var roomOption = GameRoundManager.Instance?.CurrentRoomOption;
-            if (MapRegistry != null && roomOption != null)
+            if (MapLoader.Instance == null)
             {
-                var mapData = MapRegistry.FindById(roomOption.mapName);
-                if (mapData != null && !string.IsNullOrEmpty(mapData.sceneName))
-                    return mapData.sceneName;
+                Debug.LogError("[ChromaNetworkManager] MapLoader 인스턴스가 없습니다.");
+                return;
             }
 
-            return inGameScene;
+            var roomOption = GameRoundManager.Instance?.CurrentRoomOption;
+            if (roomOption == null || MapRegistry == null) return;
+
+            var mapData = MapRegistry.FindById(roomOption.mapName);
+            if (mapData != null)
+                MapLoader.Instance.LoadBuiltInMap(mapData);
+            else
+                Debug.LogWarning($"[ChromaNetworkManager] 맵을 찾을 수 없습니다: {roomOption.mapName}");
         }
 
         private string GetSceneName(string scenePath)
