@@ -9,18 +9,30 @@ namespace PixelChroma
         private readonly PlayerBase _owner;
         private readonly TMP_Text _text;
         private readonly GameObject _root;
+        private readonly TMP_Text _likeCountText;
 
-        public PlayerNicknameDisplay(PlayerBase owner, TMP_Text text, GameObject root)
+        public PlayerNicknameDisplay(PlayerBase owner, TMP_Text text, GameObject root,
+            TMP_Text likeCountText)
         {
             _owner = owner;
             _text = text;
             _root = root;
+            _likeCountText = likeCountText;
         }
 
         public void Refresh()
         {
             if (_text != null)
                 _text.text = _owner.playerName;
+
+            RefreshLikeCount();
+        }
+
+        // 좋아요 카운트는 닉네임 UI의 일부라 별도 표시 규칙이 없습니다. 여기서는 값만 갱신합니다.
+        public void RefreshLikeCount()
+        {
+            if (_likeCountText != null)
+                _likeCountText.text = _owner.LikeCount.ToString();
         }
 
         public void HandlePaintModeChanged(bool isPaintMode)

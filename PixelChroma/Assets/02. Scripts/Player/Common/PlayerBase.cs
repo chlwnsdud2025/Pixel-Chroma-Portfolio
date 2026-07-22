@@ -39,21 +39,15 @@ namespace PixelChroma
         [Header("Free Cam Settings")]
         [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
         [SerializeField] private float freeCamSpeed = 15f;
-        protected bool IsCheckTimeSpectatorLocked { get; private set; }
 
         [Header("Nickname UI")]
         [SerializeField] private GameObject nicknameRoot;
         [SerializeField] private TMP_Text nicknameText;
-
-        [Header("Like UI")]
-        [SerializeField] private GameObject likeRoot;
         [SerializeField] private TMP_Text likeCountText;
-        [SerializeField] private LikeEffect likeEffect;
+        [SerializeField] private LikeRiseEffect likeRiseEffect;
 
         [Header("Radial Menu")]
         [SerializeField] private RadialMenu radialMenu;
-
-        private PlayerLikeDisplay _likeDisplay;
 
         [SyncVar(hook = nameof(OnPlayerNameChanged))]
         public string playerName = "Player";
@@ -63,7 +57,6 @@ namespace PixelChroma
 
         [SyncVar(hook = nameof(OnLikeCountChanged))]
         private int _likeCount;
-        public int LikeCount => _likeCount;
 
         protected CinemachineCamera cinemachineCamera;
 
@@ -74,21 +67,34 @@ namespace PixelChroma
         private PlayerNicknameDisplay _nicknameDisplay;
         private Tween _zoomTween;
         private SpectatorController _spectator;
-        private bool _isChatActive = false;
+        private bool _isChatActive;
+        private bool _likeEffectsReady;
+        private bool _likedByLocal;
 
         protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
 
-        protected PlayerInputActions Input => _input;
-        protected PlayerPaintController PaintController => _paintController;
-        protected Rigidbody2D Rb { get; private set; }
-        protected bool IsChatActive => _isChatActive;
-        protected SpectatorController Spectator => _spectator;
-        protected virtual UIInGameHUD InGameHUD => null;
-        protected virtual bool CanTogglePaintMode => true;//PaintMode 진입가능여부
+        public int LikeCount => _likeCount;
+        public bool CanReceiveLike => role == PlayerRole.Runner;
+        public bool LikedByLocal => _likedByLocal;
 
         // 분리된 컴포넌트(SeekerWaterGun 등)가 페인트 모드 여부만 좁게 조회할 수 있도록 공개합니다.
         public bool IsPaintMode => _paintController != null && _paintController.IsPaintMode;
+
+        protected PlayerInputActions Input => _input;
+        protected PlayerPaintController PaintController => _paintController;
+        protected SpectatorController Spectator => _spectator;
+        protected Rigidbody2D Rb { get; private set; }
+        protected bool IsChatActive => _isChatActive;
+        protected bool IsCheckTimeSpectatorLocked { get; private set; }
+
+        protected virtual UIInGameHUD InGameHUD => null;
+        protected virtual bool CanTogglePaintMode => true;   // PaintMode 진입 가능 여부
+
+        // CheckTime 동안에만 좋아요를 주고받을 수 있습니다. 클라이언트 입력 차단과 서버 검증에 함께 씁니다.
+        private static bool IsLikeAllowedNow =>
+            GameRoundManager.Instance != null
+            && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
 
         protected virtual void Awake()
         {
@@ -119,17 +125,10 @@ namespace PixelChroma
                 }
             }
 
-
             if (radialMenu != null && radialMenu.IsOpen) return;
 
             if (CanTogglePaintMode && !IsCheckTimeSpectatorLocked && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
-
-            if (_input.ToggleLikeDisplay.WasPressedThisFrame())
-                PlayerLikeDisplay.ToggleGlobalVisibility();
-
-            
-
 
             HandleScrollWheel();
 
@@ -166,15 +165,12 @@ namespace PixelChroma
             if (InGameManager.Instance != null)
                 InGameManager.Instance.RegisterPlayer(this);
 
-            _nicknameDisplay ??= new PlayerNicknameDisplay(this, nicknameText, nicknameRoot);
+            _nicknameDisplay ??= new PlayerNicknameDisplay(this, nicknameText, nicknameRoot, likeCountText);
             _nicknameDisplay.Refresh();
             _nicknameDisplay.UpdateVisibility();
             NicknameVisibilityChanged += _nicknameDisplay.UpdateVisibility;
 
-            _likeDisplay ??= new PlayerLikeDisplay(this, likeCountText, likeRoot);
-            _likeDisplay.Refresh();
-            _likeDisplay.UpdateSelfVisibility();
-            PlayerLikeDisplay.OnGlobalVisibilityChanged += _likeDisplay.UpdateSelfVisibility;
+            _likeEffectsReady = true;
         }
 
         public override void OnStopClient()
@@ -186,9 +182,6 @@ namespace PixelChroma
 
             if (_nicknameDisplay != null)
                 NicknameVisibilityChanged -= _nicknameDisplay.UpdateVisibility;
-
-            if (_likeDisplay != null)
-                PlayerLikeDisplay.OnGlobalVisibilityChanged -= _likeDisplay.UpdateSelfVisibility;
         }
 
         public override void OnStartLocalPlayer()
@@ -208,7 +201,7 @@ namespace PixelChroma
             _paintController.RefreshCursor();
             RaiseNicknameVisibilityChanged();
 
-            string mySavedName = PlayerPrefs.GetString(UINickNameSetting.NicknamePrefsKey, GetDefaultSteamName());
+            string mySavedName = NicknameService.LoadOrDefault();
             CmdRegisterMyNameWithManager(mySavedName);
 
             // 이미 칠해둔 다른 플레이어들의 현재 페인트 상태를 요청(late-join 동기화).
@@ -237,19 +230,6 @@ namespace PixelChroma
 
         protected virtual void OnLocalPlayerStarted() { }
         protected virtual void OnLocalPlayerStopped() { }
-
-        public static string GetDefaultSteamName()
-        {
-            try
-            {
-                if (Steamworks.SteamAPI.IsSteamRunning())
-                {
-                    return Steamworks.SteamFriends.GetPersonaName();
-                }
-            }
-            catch (System.Exception) { }
-            return "PixelPlayer_" + UnityEngine.Random.Range(1000, 9999);
-        }
 
         protected static void RaiseNicknameVisibilityChanged() => NicknameVisibilityChanged?.Invoke();
 
@@ -331,14 +311,36 @@ namespace PixelChroma
                 if (_input.Like.WasPressedThisFrame()) TryLikeCurrentTarget();
             }
         }
+
         private void TryLikeCurrentTarget()
         {
             if (_spectator == null) return;
+            if (!IsLikeAllowedNow) return;   // 좋아요는 CheckTime에만 가능합니다.
 
             var target = _spectator.CurrentTarget;
             if (target == null || target == this) return;
+            if (!target.CanReceiveLike) return;    // 시커 관전 중에는 좋아요를 줄 수 없습니다.
+            if (target.LikedByLocal) return;       // 이미 준 대상이면 서버까지 갈 필요가 없습니다.
 
             target.CmdAddLike();
+            target._likedByLocal = true;   // 기록은 대상 오브젝트와 수명을 같이 합니다.
+
+            RefreshLikeGuide();
+        }
+
+        // 좋아요 안내는 "지금 보고 있는 대상 한 명"에 대한 것이라 로컬 플레이어 HUD에서만 판정합니다.
+        private void RefreshLikeGuide()
+        {
+            if (!isLocalPlayer) return;
+
+            var target = _spectator?.CurrentTarget;
+
+            InGameHUD?.SetLikeGuide(
+                IsLikeAllowedNow
+                && target != null
+                && target != this
+                && target.CanReceiveLike
+                && !target.LikedByLocal);
         }
 
         private void HandleCheckTimeSpectator(TimeState state, int remainingSeconds) // CheckTime 전용
@@ -359,10 +361,13 @@ namespace PixelChroma
                     InGameHUD?.SetActiveSpectateMode(SpectateMode.Runner);
                 }
 
+                RefreshLikeGuide();
                 OnCheckTimeSpectatorEnter();
             }
             else
             {
+                RefreshLikeGuide();
+
                 if (IsCheckTimeSpectatorLocked)
                 {
                     IsCheckTimeSpectatorLocked = false;
@@ -377,20 +382,22 @@ namespace PixelChroma
         protected void InitializeSpectator()
         {
             _spectator = new SpectatorController(this, cinemachineCamera, freeCamSpeed);
-            _spectator.OnTargetNameChanged += HandleSpectateTargetChanged;
+            _spectator.OnTargetChanged += HandleSpectateTargetChanged;
         }
 
         protected void CleanupSpectator()
         {
             if (_spectator != null)
-                _spectator.OnTargetNameChanged -= HandleSpectateTargetChanged;
+                _spectator.OnTargetChanged -= HandleSpectateTargetChanged;
+
             _spectator?.Dispose();
             _spectator = null;
         }
 
-        private void HandleSpectateTargetChanged(string targetName, bool isSelf)
+        private void HandleSpectateTargetChanged(PlayerBase target)
         {
-            InGameHUD?.SetSpectateTargetName(targetName, isSelf);
+            InGameHUD?.SetSpectateTarget(target, target == this);
+            RefreshLikeGuide();
         }
 
         // 스폰된 다른 플레이어 캔버스들이 각자의 현재 페인트를 요청자에게 보내도록 한다.
@@ -426,12 +433,17 @@ namespace PixelChroma
         public void CmdAddLike(NetworkConnectionToClient sender = null)
         {
             if (sender == null) return;
+            if (!IsLikeAllowedNow) return;
+            if (!CanReceiveLike) return;
+            if (connectionToClient == null) return;
             var senderPlayer = sender.identity?.GetComponent<PlayerBase>();
             if (senderPlayer == this) return;
 
             var netManager = NetworkManager.singleton as ChromaNetworkManager;
             if (netManager == null) return;
 
+            // 클라이언트가 자체 판정으로 중복을 걸러주지만, 그건 UI 편의일 뿐이라
+            // 카운트 정확성은 서버 장부(_likeRecords)로만 보장합니다.
             if (!netManager.AddLike(sender.connectionId, connectionToClient.connectionId))
                 return;
 
@@ -530,9 +542,12 @@ namespace PixelChroma
 
         private void OnLikeCountChanged(int oldVal, int newVal)
         {
-            _likeDisplay?.Refresh();
-            if (newVal > oldVal)
-                likeEffect?.Play();
+            _nicknameDisplay?.RefreshLikeCount();
+
+            if (!_likeEffectsReady) return;   // 스폰 시 초기 동기화는 값만 반영하고 연출은 생략
+            if (newVal <= oldVal) return;
+
+            likeRiseEffect?.Play(newVal - oldVal);
         }
 
         private void HandleChatToggled(bool isActive)

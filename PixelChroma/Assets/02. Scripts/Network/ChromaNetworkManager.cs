@@ -198,12 +198,16 @@ namespace PixelChroma
 
             string scene = GetSceneName(sceneName);
 
-            if (IsInGameScene(scene) && GameRoundManager.Instance != null)
-                GameRoundManager.Instance.BeginRound();
+            if (IsInGameScene(scene))
+            {
+                ClearLikeRecords();
+
+                if (GameRoundManager.Instance != null)
+                    GameRoundManager.Instance.BeginRound();
+            }
             else if (scene == GetSceneName(onlineScene))
             {
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
-                ClearLikeRecords();   // 로비 복귀 시 추천 중복 기록 초기화
             }
         }
 
