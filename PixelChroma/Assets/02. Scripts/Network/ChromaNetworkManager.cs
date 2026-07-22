@@ -18,6 +18,8 @@ namespace PixelChroma
         public GameObject seekerPrefab;
 
         private readonly Dictionary<int, string> _playerNicknames = new();
+        private readonly Dictionary<int, int> _playerLikes = new();
+        private readonly HashSet<(int sender, int target)> _likeRecords = new();
 
         private MapRegistrySO MapRegistry => LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
 
@@ -68,6 +70,9 @@ namespace PixelChroma
         {
             base.OnStopServer();
 
+            _playerLikes.Clear();
+            _likeRecords.Clear();
+
             if (!GameManager.SteamActive && ChromaNetworkDiscovery.Instance != null)
                 ChromaNetworkDiscovery.Instance.StopDiscovery();
         }
@@ -86,6 +91,12 @@ namespace PixelChroma
 
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.Cleanup();
+        }
+
+        public override void OnServerConnect(NetworkConnectionToClient conn)
+        {
+            base.OnServerConnect(conn);
+            _playerLikes[conn.connectionId] = 0;
         }
 
         public override void OnClientConnect()
@@ -190,13 +201,19 @@ namespace PixelChroma
             if (IsInGameScene(scene) && GameRoundManager.Instance != null)
                 GameRoundManager.Instance.BeginRound();
             else if (scene == GetSceneName(onlineScene))
+            {
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
+                ClearLikeRecords();   // 로비 복귀 시 추천 중복 기록 초기화
+            }
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
         {
             base.OnServerDisconnect(conn);
             _playerNicknames.Remove(conn.connectionId);
+
+            _playerLikes.Remove(conn.connectionId);
+            _likeRecords.RemoveWhere(r => r.sender == conn.connectionId || r.target == conn.connectionId);
 
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.RemovePlayer(conn.connectionId);
@@ -257,6 +274,29 @@ namespace PixelChroma
         {
             if (string.IsNullOrEmpty(scenePath)) return string.Empty;
             return System.IO.Path.GetFileNameWithoutExtension(scenePath);
+        }
+
+
+        [Server]
+        public bool AddLike(int senderConnId, int targetConnId)
+        {
+            if (!_likeRecords.Add((senderConnId, targetConnId)))
+                return false;
+
+            _playerLikes.TryGetValue(targetConnId, out int current);
+            _playerLikes[targetConnId] = current + 1;
+            return true;
+        }
+
+        public int GetLikeCount(int connId)
+        {
+            return _playerLikes.TryGetValue(connId, out int count) ? count : 0;
+        }
+
+        [Server]
+        public void ClearLikeRecords()
+        {
+            _likeRecords.Clear();
         }
 
     }

@@ -4,10 +4,10 @@ using System;
 using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
-using System.Collections;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
 using DG.Tweening;
+
 
 namespace PixelChroma
 {
@@ -45,11 +45,25 @@ namespace PixelChroma
         [SerializeField] private GameObject nicknameRoot;
         [SerializeField] private TMP_Text nicknameText;
 
+        [Header("Like UI")]
+        [SerializeField] private GameObject likeRoot;
+        [SerializeField] private TMP_Text likeCountText;
+        [SerializeField] private LikeEffect likeEffect;
+
+        [Header("Radial Menu")]
+        [SerializeField] private RadialMenu radialMenu;
+
+        private PlayerLikeDisplay _likeDisplay;
+
         [SyncVar(hook = nameof(OnPlayerNameChanged))]
         public string playerName = "Player";
 
         [SyncVar(hook = nameof(OnRoleChanged))]
         public PlayerRole role = PlayerRole.None;
+
+        [SyncVar(hook = nameof(OnLikeCountChanged))]
+        private int _likeCount;
+        public int LikeCount => _likeCount;
 
         protected CinemachineCamera cinemachineCamera;
 
@@ -58,7 +72,6 @@ namespace PixelChroma
         private Camera _mainCamera;
         private PixelPerfectCamera _pixelPerfectCamera;
         private PlayerNicknameDisplay _nicknameDisplay;
-        private Coroutine _zoomResetCoroutine;
         private Tween _zoomTween;
         private SpectatorController _spectator;
         private bool _isChatActive = false;
@@ -87,8 +100,36 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
 
+            if (role != PlayerRole.Seeker && radialMenu != null
+                && (_spectator == null || !_spectator.IsSpectating))
+            {
+                if (_input.RadialMenu.WasPressedThisFrame())
+                    radialMenu.Open();
+
+                if (_input.RadialMenu.WasReleasedThisFrame())
+                {
+                    int selected = radialMenu.Close();
+                    if (selected >= 0)
+                    {
+                        if (_paintController.IsPaintMode)
+                            _paintController.TogglePaintMode();
+
+                        paintCanvas.SwitchForm((PlayerPaintCanvas.PaintFormType)selected);
+                    }
+                }
+            }
+
+
+            if (radialMenu != null && radialMenu.IsOpen) return;
+
             if (CanTogglePaintMode && !IsCheckTimeSpectatorLocked && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
+
+            if (_input.ToggleLikeDisplay.WasPressedThisFrame())
+                PlayerLikeDisplay.ToggleGlobalVisibility();
+
+            
+
 
             HandleScrollWheel();
 
@@ -102,7 +143,19 @@ namespace PixelChroma
         {
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
+            //if (radialMenu != null && radialMenu.IsOpen) return; // 변신중 움직임 금지
             HandleMovement();
+        }
+
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+            if (connectionToClient != null)
+            {
+                var netManager = NetworkManager.singleton as ChromaNetworkManager;
+                if (netManager != null)
+                    _likeCount = netManager.GetLikeCount(connectionToClient.connectionId);
+            }
         }
 
         public override void OnStartClient()
@@ -117,6 +170,11 @@ namespace PixelChroma
             _nicknameDisplay.Refresh();
             _nicknameDisplay.UpdateVisibility();
             NicknameVisibilityChanged += _nicknameDisplay.UpdateVisibility;
+
+            _likeDisplay ??= new PlayerLikeDisplay(this, likeCountText, likeRoot);
+            _likeDisplay.Refresh();
+            _likeDisplay.UpdateSelfVisibility();
+            PlayerLikeDisplay.OnGlobalVisibilityChanged += _likeDisplay.UpdateSelfVisibility;
         }
 
         public override void OnStopClient()
@@ -128,6 +186,9 @@ namespace PixelChroma
 
             if (_nicknameDisplay != null)
                 NicknameVisibilityChanged -= _nicknameDisplay.UpdateVisibility;
+
+            if (_likeDisplay != null)
+                PlayerLikeDisplay.OnGlobalVisibilityChanged -= _likeDisplay.UpdateSelfVisibility;
         }
 
         public override void OnStartLocalPlayer()
@@ -166,6 +227,7 @@ namespace PixelChroma
                 _paintController.OnPaintModeChanged -= HandlePaintModeChangedForZoom;
                 _paintController.OnPaintModeChanged -= _nicknameDisplay.HandlePaintModeChanged;
             }
+
             _paintController?.Dispose();
 
             GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
@@ -266,7 +328,17 @@ namespace PixelChroma
             {
                 if (_input.CyclePrev.WasPressedThisFrame()) _spectator.CycleTarget(-1);
                 if (_input.CycleNext.WasPressedThisFrame()) _spectator.CycleTarget(1);
+                if (_input.Like.WasPressedThisFrame()) TryLikeCurrentTarget();
             }
+        }
+        private void TryLikeCurrentTarget()
+        {
+            if (_spectator == null) return;
+
+            var target = _spectator.CurrentTarget;
+            if (target == null || target == this) return;
+
+            target.CmdAddLike();
         }
 
         private void HandleCheckTimeSpectator(TimeState state, int remainingSeconds) // CheckTime 전용
@@ -348,6 +420,22 @@ namespace PixelChroma
                 netManager.RegisterNickname(connectionToClient.connectionId, trimmed);
                 playerName = trimmed;
             }
+        }
+
+        [Command(requiresAuthority = false)]
+        public void CmdAddLike(NetworkConnectionToClient sender = null)
+        {
+            if (sender == null) return;
+            var senderPlayer = sender.identity?.GetComponent<PlayerBase>();
+            if (senderPlayer == this) return;
+
+            var netManager = NetworkManager.singleton as ChromaNetworkManager;
+            if (netManager == null) return;
+
+            if (!netManager.AddLike(sender.connectionId, connectionToClient.connectionId))
+                return;
+
+            _likeCount = netManager.GetLikeCount(connectionToClient.connectionId);
         }
 
         private void SetupCinemachineFollow()
@@ -440,12 +528,22 @@ namespace PixelChroma
             RaiseNicknameVisibilityChanged();
         }
 
+        private void OnLikeCountChanged(int oldVal, int newVal)
+        {
+            _likeDisplay?.Refresh();
+            if (newVal > oldVal)
+                likeEffect?.Play();
+        }
+
         private void HandleChatToggled(bool isActive)
         {
             _isChatActive = isActive;
 
             if (_isChatActive)
             {
+                if (Rb != null) Rb.linearVelocity = Vector2.zero;
+                if (animator != null) animator.SetBool(IsMoving, false);
+
                 if (Rb != null) Rb.linearVelocity = Vector2.zero;
                 if (animator != null) animator.SetBool(IsMoving, false);
             }

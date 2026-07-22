@@ -14,6 +14,9 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text targetNameText;
         [SerializeField] private Color selfTargetNameColor = Color.yellow;
 
+        [Header("Like")]
+        [SerializeField] private GameObject likeKeyHint;
+
         private Color _defaultTargetNameColor = Color.white;
 
         private void Awake()
@@ -30,6 +33,7 @@ namespace PixelChroma.UI
         public void Hide()
         {
             gameObject.SetActive(false);
+            if (likeKeyHint != null) likeKeyHint.SetActive(false);
         }
 
         public void SetActiveMode(SpectateMode mode)
@@ -40,6 +44,8 @@ namespace PixelChroma.UI
                 runnerButton.sprite = mode == SpectateMode.Runner ? buttonSelected : buttonNormal;
             if (freeButton != null)
                 freeButton.sprite = mode == SpectateMode.Free ? buttonSelected : buttonNormal;
+            if (likeKeyHint != null)
+                likeKeyHint.SetActive(mode != SpectateMode.Free);
         }
 
         public void SetTargetName(string name, bool isSelf)
