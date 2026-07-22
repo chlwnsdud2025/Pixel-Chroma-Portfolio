@@ -5,7 +5,7 @@ namespace PixelChroma
 {
     public class MapLoader : MonoSingleton<MapLoader>
     {
-        private static readonly Vector2 MapOffset = new Vector2(1000f, 1000f);
+        private readonly Vector2 MapOffset = new Vector2(1000f, 1000f);
 
         private GameObject _currentMapInstance;
         private AssetBundle _currentBundle;
