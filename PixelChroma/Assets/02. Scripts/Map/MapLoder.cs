@@ -8,7 +8,7 @@ namespace PixelChroma
         private readonly Vector2 MapOffset = new Vector2(1000f, 1000f);
 
         private GameObject _currentMapInstance;
-        private AssetBundle _currentBundle;
+        //private AssetBundle _currentBundle;
 
         public void LoadBuiltInMap(MapDataSO mapData)
         {
@@ -34,11 +34,11 @@ namespace PixelChroma
                 _currentMapInstance = null;
             }
 
-            if (_currentBundle != null)
-            {
-                _currentBundle.Unload(true);
-                _currentBundle = null;
-            }
+            //if (_currentBundle != null)
+            //{
+            //    _currentBundle.Unload(true);
+            //    _currentBundle = null;
+            //}
         }
 
         private void SetupMap(GameObject mapRoot)

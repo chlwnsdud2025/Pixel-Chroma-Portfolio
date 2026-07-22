@@ -68,6 +68,10 @@ PrefabInstance:
       propertyPath: _assetId
       value: 3775082905
       objectReference: {fileID: 0}
+    - target: {fileID: 2522633609704509906, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2561063886888847266, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_AnchorMax.y
       value: 1
@@ -121,6 +125,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5076602233018039120, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 5076602233018039120, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
@@ -132,6 +140,14 @@ PrefabInstance:
       propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7416666179242397531, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: eraseWaveSpreadTime
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7416666179242397531, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: forms.Array.data[0].formCollider
+      value: 
+      objectReference: {fileID: 6367870445838354988}
     - target: {fileID: 8522043192306028194, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -265,6 +281,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23a81b8823b21ba48aa2ea91138e7c8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.PlayerPaintCanvas
+--- !u!61 &6367870445838354988 stripped
+BoxCollider2D:
+  m_CorrespondingSourceObject: {fileID: 7939687966517465771, guid: 78cb76db270489845893b629331fd5da, type: 3}
+  m_PrefabInstance: {fileID: 3922714772001314951}
+  m_PrefabAsset: {fileID: 0}
 --- !u!114 &6583649736024657161 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7867114276145124750, guid: 78cb76db270489845893b629331fd5da, type: 3}
