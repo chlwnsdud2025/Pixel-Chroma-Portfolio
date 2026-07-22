@@ -1,4 +1,3 @@
-﻿using Mirror;
 using UnityEngine;
 using UnityEngine.Localization;
 
@@ -8,10 +7,8 @@ namespace PixelChroma
     public class MapDataSO : ScriptableObject
     {
         public LocalizedString displayName;
-        [Scene] public string sceneName;
+        public GameObject mapPrefab;
         public Sprite previewSprite;
-
-        public string SceneName => System.IO.Path.GetFileNameWithoutExtension(sceneName);
 
         public string GetDisplayName()
         {

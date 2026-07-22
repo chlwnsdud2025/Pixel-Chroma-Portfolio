@@ -188,8 +188,7 @@ namespace PixelChroma
             AssignRoles();
 
             var networkManager = (ChromaNetworkManager)NetworkManager.singleton;
-            string targetScene = networkManager.ResolveMapScene();
-            networkManager.ServerChangeScene(targetScene);
+            networkManager.ServerChangeScene(networkManager.inGameScene);
         }
 
         [Server]
