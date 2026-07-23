@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 3902596359770005256}
   - component: {fileID: 1997743925106261471}
   - component: {fileID: 3088370655331550004}
-  - component: {fileID: 6806178883311290879}
   m_Layer: 5
   m_Name: RadiusCanvas
   m_TagString: Untagged
@@ -29,7 +28,7 @@ RectTransform:
   m_GameObject: {fileID: 848861460377885471}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6149901377222216736}
@@ -49,7 +48,7 @@ Canvas:
   m_GameObject: {fileID: 848861460377885471}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 2
+  m_RenderMode: 0
   m_Camera: {fileID: 0}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
@@ -61,7 +60,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 100
   m_TargetDisplay: 0
 --- !u!114 &1997743925106261471
 MonoBehaviour:
@@ -103,20 +102,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &6806178883311290879
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 848861460377885471}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
-  m_HorizontalFit: 2
-  m_VerticalFit: 2
 --- !u!1 &3653209938317403453
 GameObject:
   m_ObjectHideFlags: 0
@@ -167,13 +152,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.RadialMenu
   items:
   - icon: {fileID: -6324186549791852965, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
-  - icon: {fileID: -60769507474408397, guid: d349853f64ee14240b78d6dd19ffeb88, type: 3}
   - icon: {fileID: -7668106594474033842, guid: 1b843d9d85d91e548b2dda9a4f48ce93, type: 3}
   - icon: {fileID: 6868057083968539256, guid: e3fe68f149cf27046ad6bb4042568a81, type: 3}
+  - icon: {fileID: -60769507474408397, guid: d349853f64ee14240b78d6dd19ffeb88, type: 3}
+  - icon: {fileID: -6598946016331564889, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
   innerRadius: 100
   outerRadius: 250
-  gapAngle: 4
-  iconSize: 60
+  gapAngle: 1
+  iconSize: 75
   deadZone: 50
   normalColor: {r: 0.15, g: 0.15, b: 0.25, a: 0.85}
   highlightColor: {r: 0.35, g: 0.35, b: 0.75, a: 0.95}

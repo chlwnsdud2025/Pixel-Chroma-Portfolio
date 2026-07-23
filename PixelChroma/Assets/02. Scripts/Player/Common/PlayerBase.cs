@@ -46,8 +46,8 @@ namespace PixelChroma
         [SerializeField] private TMP_Text likeCountText;
         [SerializeField] private LikeRiseEffect likeRiseEffect;
 
-        [Header("Radial Menu")]
-        [SerializeField] private RadialMenu radialMenu;
+        [Header("Form Wheel")]
+        [SerializeField] private RadialMenu formWheel;
 
         [SyncVar(hook = nameof(OnPlayerNameChanged))]
         public string playerName = "Player";
@@ -106,15 +106,15 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
 
-            if (role != PlayerRole.Seeker && radialMenu != null
+            if (role != PlayerRole.Seeker && formWheel != null
                 && (_spectator == null || !_spectator.IsSpectating))
             {
-                if (_input.RadialMenu.WasPressedThisFrame())
-                    radialMenu.Open();
+                if (_input.FormWheel.WasPressedThisFrame())
+                    formWheel.Open();
 
-                if (_input.RadialMenu.WasReleasedThisFrame())
+                if (_input.FormWheel.WasReleasedThisFrame())
                 {
-                    int selected = radialMenu.Close();
+                    int selected = formWheel.Close();
                     if (selected >= 0)
                     {
                         if (_paintController.IsPaintMode)
@@ -125,7 +125,7 @@ namespace PixelChroma
                 }
             }
 
-            if (radialMenu != null && radialMenu.IsOpen) return;
+            if (formWheel != null && formWheel.IsOpen) return;
 
             if (CanTogglePaintMode && !IsCheckTimeSpectatorLocked && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
@@ -142,7 +142,7 @@ namespace PixelChroma
         {
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
-            //if (radialMenu != null && radialMenu.IsOpen) return; // 변신중 움직임 금지
+            //if (formWheel != null && formWheel.IsOpen) return; // 변신중 움직임 금지
             HandleMovement();
         }
 
