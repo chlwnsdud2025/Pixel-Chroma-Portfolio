@@ -12,6 +12,9 @@ namespace PixelChroma
     {
         public GameState CurrentState { get; private set; } = GameState.Boot;
 
+        [Header("Localization")]
+        [SerializeField] private FontTableSO fontTable;
+
         [Header("Scene Essentials")]
         [SerializeField] private GameObject mainCameraPrefab;
         [SerializeField] private GameObject cinemachineCameraPrefab;
@@ -33,10 +36,13 @@ namespace PixelChroma
                 Application.Quit();
                 return;
             }
-            // Localization대기 및 설정 복원
+
+            // Localization 대기 및 설정 복원
             var initOp = LocalizationSettings.InitializationOperation;
-            await UniTask.WaitUntil(() => initOp.IsDone); LocalizationManager.ApplySavedLocale();
-            LocalizationManager.ApplySavedLocale();
+            await UniTask.WaitUntil(() => initOp.IsDone);
+
+            LocalizationManager.Initialize(fontTable);
+            await LocalizationManager.ApplySavedLocaleAsync();
             await UIManager.Instance.InitializeAsync();
 
             // [변경] UIManager를 통해 초기 로딩 화면을 숨깁니다.

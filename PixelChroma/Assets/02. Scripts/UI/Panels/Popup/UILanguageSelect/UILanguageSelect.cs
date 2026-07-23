@@ -23,6 +23,24 @@ namespace PixelChroma.UI
 
         private readonly List<LanguageButton> _spawned = new();
 
+        // 언어 선택 버튼에 표시할 이름을 명시적으로 지정한다.
+        private static readonly Dictionary<string, string> DisplayNames = new()
+        {
+            ["ko"] = "한국어",
+            ["en"] = "English",
+            ["ja"] = "日本語",
+            ["zh-Hans"] = "简体中文",
+            ["zh-Hant"] = "繁體中文",
+            ["ru"] = "Русский",
+            ["pt-BR"] = "Português (Brasil)",
+            ["es"] = "Español",
+            ["de"] = "Deutsch",
+            ["fr"] = "Français",
+            ["it"] = "Italiano",
+            ["pl"] = "Polski",
+            ["tr"] = "Türkçe",
+        };
+
         public override void Initialize()
         {
             base.Initialize();
@@ -73,8 +91,10 @@ namespace PixelChroma.UI
                 var btn = Instantiate(languageButtonPrefab, contentRoot);
                 _spawned.Add(btn);
 
-                string name = locale.Identifier.CultureInfo?.NativeName
-                              ?? locale.Identifier.Code;
+                string code = locale.Identifier.Code;
+                string name = DisplayNames.TryGetValue(code, out var display)
+                    ? display
+                    : (locale.Identifier.CultureInfo?.NativeName ?? code);
                 btn.Setup(name, locale == current);
 
                 Locale captured = locale;
@@ -84,7 +104,12 @@ namespace PixelChroma.UI
 
         private void OnLanguageSelected(Locale locale)
         {
-            LocalizationManager.SetLocale(locale);
+            OnLanguageSelectedAsync(locale).Forget();
+        }
+
+        private async UniTask OnLanguageSelectedAsync(Locale locale)
+        {
+            await LocalizationManager.SetLocaleAsync(locale);
             RefreshFocus();
             OnClickBack();
         }
