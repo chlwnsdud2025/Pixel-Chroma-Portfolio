@@ -144,16 +144,16 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 9
       objectReference: {fileID: 0}
-    - target: {fileID: 189455084545341097, guid: 78cb76db270489845893b629331fd5da, type: 3}
-      propertyPath: m_Layer
-      value: 9
-      objectReference: {fileID: 0}
     - target: {fileID: 231391601616134080, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 231391601616134080, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 231391601616134080, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 231391601616134080, guid: 78cb76db270489845893b629331fd5da, type: 3}
@@ -234,21 +234,13 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2561063886888847266, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3197368738052463856, guid: 78cb76db270489845893b629331fd5da, type: 3}
-      propertyPath: m_Layer
-      value: 9
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 3329247650249689647, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_Name
       value: SeekerPlayer
       objectReference: {fileID: 0}
     - target: {fileID: 3329247650249689647, guid: 78cb76db270489845893b629331fd5da, type: 3}
-      propertyPath: m_Layer
-      value: 9
-      objectReference: {fileID: 0}
-    - target: {fileID: 4298820840411680995, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_Layer
       value: 9
       objectReference: {fileID: 0}
@@ -268,17 +260,9 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 9
       objectReference: {fileID: 0}
-    - target: {fileID: 5185813590703409202, guid: 78cb76db270489845893b629331fd5da, type: 3}
-      propertyPath: m_Layer
-      value: 9
-      objectReference: {fileID: 0}
-    - target: {fileID: 5501011240073663455, guid: 78cb76db270489845893b629331fd5da, type: 3}
-      propertyPath: m_Layer
-      value: 9
-      objectReference: {fileID: 0}
-    - target: {fileID: 8355563152104745725, guid: 78cb76db270489845893b629331fd5da, type: 3}
-      propertyPath: m_Layer
-      value: 9
+    - target: {fileID: 8334985008435438074, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: m_fontSize
+      value: 20.6
       objectReference: {fileID: 0}
     - target: {fileID: 8515753638654249472, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_Layer
@@ -290,6 +274,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8522043192306028194, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8522043192306028194, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8522043192306028194, guid: 78cb76db270489845893b629331fd5da, type: 3}
@@ -358,9 +346,8 @@ MonoBehaviour:
   freeCamSpeed: 15
   nicknameRoot: {fileID: 2763492050235784611}
   nicknameText: {fileID: 3940827996639946310}
-  likeRoot: {fileID: 8143726736832909355}
-  likeCountText: {fileID: 6320939627147504836}
-  likeEffect: {fileID: 2304700676072686119}
+  likeCountText: {fileID: 8548650488576737284}
+  likeRiseEffect: {fileID: 7112056309027656464}
   radialMenu: {fileID: 0}
   playerName: Player
   role: 2
@@ -398,9 +385,6 @@ MonoBehaviour:
   wetDuration: 2
   drawAoeGizmo: 1
   gizmoDisplayDuration: 0.4
-  recoilDistance: 0.25
-  recoilKickAngle: 20
-  recoilReturnTime: 0.2
 --- !u!114 &189824416933930901
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -415,23 +399,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.WaterGunEffects
   laserPrefab: {fileID: 8869732654689229243, guid: 0165dbdcee1f1c24582812cf7a55302f, type: 3}
   waterSplashPrefab: {fileID: 3044295998657176925, guid: 05cdf3d523593cc4ea17989642e54978, type: 3}
-  laserSpeed: 45
+  laserSpeed: 30
   splashFadeDuration: 0.4
-  muzzleFlashPrefab: {fileID: 8869732654689229243, guid: b8ff347201a105b46937f9d14de869a0, type: 3}
-  muzzleFlashDuration: 0.05
-  muzzleFlashScaleRange: {x: 0.85, y: 1.15}
-  muzzleFlashRandomRot: 12
---- !u!114 &2304700676072686119 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4316802086847860505, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8143726736832909355}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 926f59b3be39f04408a9b972cabe65e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.LikeEffect
 --- !u!1 &2763492050235784611 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 165024383658258589, guid: 78cb76db270489845893b629331fd5da, type: 3}
@@ -459,9 +428,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23a81b8823b21ba48aa2ea91138e7c8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.PlayerPaintCanvas
---- !u!114 &6320939627147504836 stripped
+--- !u!114 &7112056309027656464 stripped
 MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8334985008435438074, guid: 78cb76db270489845893b629331fd5da, type: 3}
+  m_CorrespondingSourceObject: {fileID: 5089265652569103918, guid: 78cb76db270489845893b629331fd5da, type: 3}
+  m_PrefabInstance: {fileID: 2599612371665227070}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3f2d0d7a4b01d74c8ce10eef218ac9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.LikeRiseEffect
+--- !u!114 &8548650488576737284 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5958620739719859514, guid: 78cb76db270489845893b629331fd5da, type: 3}
   m_PrefabInstance: {fileID: 2599612371665227070}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
@@ -470,11 +450,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
---- !u!1 &8143726736832909355 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6131644279993916693, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &9065390561776009410 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6475350542838631932, guid: 78cb76db270489845893b629331fd5da, type: 3}

@@ -101,10 +101,22 @@ namespace PixelChroma.UI
                 spectatorPanel.SetActiveMode(mode);
         }
 
-        public void SetSpectateTargetName(string name, bool isSelf)
+        public void SetSpectateTarget(PlayerBase target, bool isSelf)
+        {
+            if (spectatorPanel == null) return;
+
+            // 대상이 없으면 자유 시점입니다. 표시 문구는 HUD 텍스트 데이터가 가지고 있습니다.
+            string displayName = target != null
+                ? target.playerName
+                : (textData != null ? textData.spectateFreeView.GetLocalizedString() : string.Empty);
+
+            spectatorPanel.SetTargetName(displayName, isSelf);
+        }
+
+        public void SetLikeGuide(bool canLike)
         {
             if (spectatorPanel != null)
-                spectatorPanel.SetTargetName(name, isSelf);
+                spectatorPanel.SetLikeGuide(canLike);
         }
 
         private void SyncToCurrentState()
