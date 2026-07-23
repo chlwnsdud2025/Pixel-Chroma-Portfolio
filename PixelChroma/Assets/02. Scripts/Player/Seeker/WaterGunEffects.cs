@@ -23,6 +23,13 @@ namespace PixelChroma
         [Tooltip("물 스플래시 이펙트가 서서히 사라지는 시간(초)")]
         [SerializeField] private float splashFadeDuration = 0.6f;
 
+        [Header("Splash Punch (착탄 스케일 팝)")]
+        [Tooltip("스플래시가 최대로 튀어오르는 배율(프리팹 기준 크기 대비). 1이면 팝 없음")]
+        [SerializeField] private float splashPunchScale = 1.3f;
+        [Tooltip("0 → overshoot → 기준크기로 팝하는 데 걸리는 시간(초). 페이드보다 짧게")]
+        [SerializeField] private float splashPunchDuration = 0.13f;
+
+
         [Header("Muzzle Flash")]
         [Tooltip("발사 순간 총구에 잠깐 뜨는 플래시 프리팹(스프라이트 또는 파티클)")]
         [SerializeField] private GameObject muzzleFlashPrefab;
@@ -96,6 +103,10 @@ namespace PixelChroma
                 Quaternion splashRotation = Quaternion.Euler(0, 0, angle);   // 스프라이트 기본 방향에 따라 필요시 오프셋 조정
 
                 GameObject splash = Instantiate(waterSplashPrefab, targetPos, splashRotation);
+
+                if (splashPunchScale > 1f && splashPunchDuration > 0f)
+                    StartCoroutine(PunchScale(splash.transform, splashPunchScale, splashPunchDuration));
+
                 var splashRenderer = splash.GetComponentInChildren<SpriteRenderer>();
 
                 if (splashRenderer != null)
@@ -118,6 +129,41 @@ namespace PixelChroma
             }
 
             Destroy(target);
+        }
+
+        private IEnumerator PunchScale(Transform target, float overshoot, float duration)
+        {
+            if (target == null) yield break;
+
+            Vector3 baseScale = target.localScale;   // 프리팹이 지정한 기준 크기
+            float e = 0f;
+
+            while (e < duration)
+            {
+                if (target == null) yield break;     // 페이드가 먼저 파괴했을 때 방어
+
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / duration);
+
+                float s;
+                if (k < 0.5f)
+                {
+                    // 전반: 0 → overshoot (빠르게 커짐, ease-out)
+                    float p = k / 0.5f;
+                    s = Mathf.Lerp(0f, overshoot, 1f - (1f - p) * (1f - p));
+                }
+                else
+                {
+                    // 후반: overshoot → 1 (수축해 안착, smoothstep)
+                    float p = (k - 0.5f) / 0.5f;
+                    s = Mathf.Lerp(overshoot, 1f, p * p * (3f - 2f * p));
+                }
+
+                target.localScale = baseScale * s;
+                yield return null;
+            }
+
+            if (target != null) target.localScale = baseScale;   // 정확히 기준 크기로 안착
         }
     }
 }
