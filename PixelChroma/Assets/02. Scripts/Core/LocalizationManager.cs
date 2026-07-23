@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -14,7 +14,8 @@ namespace PixelChroma
         private const string PrefsKey = "SelectedLocaleCode";
 
         public static TMP_FontAsset CurrentFont { get; private set; }
-        public static event Action<TMP_FontAsset> OnFontChanged;
+
+        private static readonly HashSet<TMP_Text> _texts = new();
 
         private static FontTableSO _fontTable;
         private static AsyncOperationHandle<TMP_FontAsset> _handle;
@@ -23,6 +24,21 @@ namespace PixelChroma
         public static void Initialize(FontTableSO fontTable)
         {
             _fontTable = fontTable;
+        }
+
+        public static void Register(TMP_Text text)
+        {
+            if (text == null || !_texts.Add(text))
+                return;
+
+            if (CurrentFont != null)
+                text.font = CurrentFont;
+        }
+
+        public static void Unregister(TMP_Text text)
+        {
+            if (text != null)
+                _texts.Remove(text);
         }
 
         public static async UniTask ApplySavedLocaleAsync()
@@ -77,15 +93,23 @@ namespace PixelChroma
             _handle = newHandle;
             _currentRuntimeKey = reference.RuntimeKey;
 
-            OnFontChanged?.Invoke(newFont);
+            ApplyToRegistered(newFont);
 
             if (oldHandle.IsValid())
                 Addressables.Release(oldHandle);
         }
 
+        private static void ApplyToRegistered(TMP_FontAsset font)
+        {
+            _texts.RemoveWhere(t => t == null);
+
+            foreach (var text in _texts)
+                text.font = font;
+        }
+
         public static void Release()
         {
-            OnFontChanged = null;
+            _texts.Clear();
             CurrentFont = null;
             _currentRuntimeKey = null;
 
