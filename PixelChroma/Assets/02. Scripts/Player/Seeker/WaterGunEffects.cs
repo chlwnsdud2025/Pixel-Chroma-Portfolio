@@ -23,13 +23,44 @@ namespace PixelChroma
         [Tooltip("물 스플래시 이펙트가 서서히 사라지는 시간(초)")]
         [SerializeField] private float splashFadeDuration = 0.6f;
 
+        [Header("Muzzle Flash")]
+        [Tooltip("발사 순간 총구에 잠깐 뜨는 플래시 프리팹(스프라이트 또는 파티클)")]
+        [SerializeField] private GameObject muzzleFlashPrefab;
+        [Tooltip("플래시가 유지되는 시간(초)")]
+        [SerializeField] private float muzzleFlashDuration = 0.05f;
+        [Tooltip("매 발 크기를 이 범위에서 랜덤(x=최소, y=최대) — 반복돼도 안 지루하게")]
+        [SerializeField] private Vector2 muzzleFlashScaleRange = new Vector2(0.85f, 1.15f);
+        [Tooltip("매 발 회전을 ±이 각도만큼 랜덤(도)")]
+        [SerializeField] private float muzzleFlashRandomRot = 12f;
+
         public void PlayFireEffect(Transform firePoint, Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
             StartCoroutine(AnimateLaserAndSplash(firePoint, targetPos, didHit, direction, hitNormal));
         }
 
+        private void SpawnMuzzleFlash(Transform firePoint, Vector2 direction)
+        {
+            if (muzzleFlashPrefab == null || firePoint == null) return;
+
+            // 조준 방향 + 랜덤 회전
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg
+                          + Random.Range(-muzzleFlashRandomRot, muzzleFlashRandomRot);
+
+            // 총구(firePoint)에 부착 → 조준을 따라가고 총 끝에 딱 붙음
+            GameObject flash = Instantiate(
+                muzzleFlashPrefab, firePoint.position,
+                Quaternion.Euler(0f, 0f, angle), firePoint);
+
+            float s = Random.Range(muzzleFlashScaleRange.x, muzzleFlashScaleRange.y);
+            flash.transform.localScale = Vector3.one * s;
+
+            Destroy(flash, muzzleFlashDuration);
+        }
+
         private IEnumerator AnimateLaserAndSplash(Transform firePoint, Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
+            SpawnMuzzleFlash(firePoint, direction);
+
             GameObject laserObj = null;
 
             Vector2 startPos = firePoint != null ? (Vector2)firePoint.position : (Vector2)transform.position;

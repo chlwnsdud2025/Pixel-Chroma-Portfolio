@@ -85,6 +85,10 @@ namespace PixelChroma
             _spawnPoint = null;
             _runners.Clear();
             _seekers.Clear();
+
+            if (MapLoader.Instance != null)
+                MapLoader.Instance.UnloadCurrentMap();
+
             Debug.Log("[InGameManager] 이전 판의 스폰 포인트 데이터가 초기화되었습니다.");
         }
 

@@ -1,7 +1,6 @@
 using System;
 using UnityEngine;
 using Unity.Cinemachine;
-using UnityEngine.Localization;
 
 namespace PixelChroma
 {
@@ -22,22 +21,22 @@ namespace PixelChroma
         private SpectateMode _mode = SpectateMode.None;
         private GameObject _freeCamTarget;
         private int _targetIndex = -1;
+        private PlayerBase _currentTarget;
+
+        // 관전 대상이 바뀔 때 발생합니다. null이면 자유 시점이거나 관전을 끝낸 상태입니다.
+        public event Action<PlayerBase> OnTargetChanged;
 
         public SpectateMode Mode => _mode;
         public bool IsSpectating => _mode != SpectateMode.None;
-        public event Action<string, bool> OnTargetNameChanged;
-
-        private PlayerBase _currentTarget;
         public PlayerBase CurrentTarget => _currentTarget;
 
-        private static readonly LocalizedString _freeViewName = new("GameText", "HUD_Spectate_FreeView");
         public SpectatorController(PlayerBase owner, CinemachineCamera camera, float freeCamSpeed)
         {
             _owner = owner;
             _camera = camera;
             _freeCamSpeed = freeCamSpeed;
 
-            _freeCamTarget = new GameObject("FreeCamTarget");
+            _freeCamTarget = new GameObject($"FreeCamTarget_{_owner.netId}");
             _freeCamTarget.transform.position = owner.transform.position;
         }
 
@@ -55,24 +54,21 @@ namespace PixelChroma
 
         public void EnterFreeMode()
         {
+            if (_freeCamTarget == null)
+                _freeCamTarget = new GameObject($"FreeCamTarget_{_owner.netId}");
+
+            // 보던 시점에서 이어서 시작하도록, 관전 중이던 대상 위치에서 자유 카메라를 띄웁니다.
+            if (_mode != SpectateMode.Free)
+            {
+                _freeCamTarget.transform.position = _currentTarget != null
+                    ? _currentTarget.transform.position
+                    : _owner.transform.position;
+            }
+
             _mode = SpectateMode.Free;
             _targetIndex = -1;
-            _currentTarget = null;
 
-            if (_freeCamTarget == null)
-            {
-                _freeCamTarget = new GameObject($"FreeCamTarget_{_owner.netId}");
-                _freeCamTarget.transform.position = _owner.transform.position;
-            }
-            else
-            {
-                _freeCamTarget.transform.position = _owner.transform.position;
-            }
-
-            if (_camera != null)
-                _camera.Follow = _freeCamTarget.transform;
-
-            OnTargetNameChanged?.Invoke(_freeViewName.GetLocalizedString(), false);
+            SetTarget(null, _freeCamTarget.transform);
         }
 
         public void EnterRunnerMode()
@@ -93,10 +89,8 @@ namespace PixelChroma
         {
             _mode = SpectateMode.None;
             _targetIndex = -1;
-            _currentTarget = null;
 
-            if (_camera != null)
-                _camera.Follow = _owner.transform;
+            SetTarget(null, _owner.transform);
         }
 
         public void CycleTarget(int direction)
@@ -133,7 +127,7 @@ namespace PixelChroma
 
                 if (target != null && !target.IsDead)
                 {
-                    FollowTarget(target);
+                    SetTarget(target, target.transform);
                     return;
                 }
                 attemptCount++;
@@ -153,19 +147,22 @@ namespace PixelChroma
 
                 if (target != null)
                 {
-                    FollowTarget(target);
+                    SetTarget(target, target.transform);
                     return;
                 }
                 attemptCount++;
             }
         }
 
-        private void FollowTarget(PlayerBase target)
+        private void SetTarget(PlayerBase target, Transform cameraFollow)
         {
-            if (target == null || _camera == null) return;
+            if (_camera != null)
+                _camera.Follow = cameraFollow;
+
+            if (_currentTarget == target) return;
+
             _currentTarget = target;
-            _camera.Follow = target.transform;
-            OnTargetNameChanged?.Invoke(target.playerName, target == _owner);
+            OnTargetChanged?.Invoke(target);
         }
     }
 }

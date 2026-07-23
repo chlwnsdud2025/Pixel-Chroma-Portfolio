@@ -8,8 +8,6 @@ namespace PixelChroma.UI
 {
     public class UINickNameSetting : UIPopup
     {
-        public const string NicknamePrefsKey = NicknameService.PrefsKey;
-
         [Header("Nickname Limits Settings")]
         [Tooltip("닉네임 최대 글자 수 제한 설정")]
         [SerializeField] private int maxNicknameLength = 10; 
@@ -91,8 +89,6 @@ namespace PixelChroma.UI
                     nicknameInputField.ActivateInputField();
             }
         }
-
-        public string GetDefaultSteamName() => NicknameService.GetDefaultSteamName();
 
         // 실시간 타이핑 감지 함수
         private void OnNicknameInputChanged(string value)

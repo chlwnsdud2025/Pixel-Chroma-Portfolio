@@ -5,6 +5,7 @@ using PixelChroma.UI;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
+using System.Collections;
 
 namespace PixelChroma
 {
@@ -40,6 +41,20 @@ namespace PixelChroma
         [Tooltip("피격 범위 기즈모가 표시되는 시간(초)")]
         [SerializeField] private float gizmoDisplayDuration = 1f;
 
+
+        [Header("Recoil (발사 반동)")]
+        [Tooltip("발사 시 총이 총구 반대방향으로 밀리는 거리(월드 유닛). 0이면 반동 없음")]
+        [SerializeField] private float recoilDistance = 0.15f;
+
+        [Tooltip("발사 시 총구가 들리는 각도(도). 0이면 회전 킥 없음")]
+        [SerializeField] private float recoilKickAngle = 8f;
+
+        [Tooltip("밀린 총이 원위치로 복귀하는 시간(초). 짧을수록 탄력적")]
+        [SerializeField] private float recoilReturnTime = 0.12f;
+
+
+
+
         // 마지막 발사의 착탄 지점과 시각. 기즈모를 발사 직후 잠깐만 그리기 위한 값입니다.
         private Vector2 _lastImpactPos;
         private float _lastImpactGizmoTime = -100f;
@@ -52,6 +67,11 @@ namespace PixelChroma
         private Vector2 _aimDirection = Vector2.right;
         private Camera _mainCam;
         private WaterGunEffects _effects;
+
+        // 반동 연출용: 총 스프라이트의 원위치와 진행 중인 반동 코루틴
+        private Vector3 _weaponRestLocalPos;
+        private Coroutine _recoilRoutine;
+        private Quaternion _weaponRestLocalRot;
 
         public float FireCooldownDuration => fireCooldown;
 
@@ -69,6 +89,12 @@ namespace PixelChroma
         private void Awake()
         {
             _effects = GetComponent<WaterGunEffects>();
+
+            if (weaponRenderer != null)
+            {
+                _weaponRestLocalPos = weaponRenderer.transform.localPosition;
+                _weaponRestLocalRot = weaponRenderer.transform.localRotation;
+            }
         }
 
         public override void OnStartLocalPlayer()
@@ -154,6 +180,52 @@ namespace PixelChroma
             weaponPivot.localScale = localScale;
         }
 
+        private void PlayRecoil()
+        {
+            if (weaponRenderer == null) return;
+            if (recoilDistance <= 0f && recoilKickAngle <= 0f) return;
+
+            if (_recoilRoutine != null) StopCoroutine(_recoilRoutine);
+            _recoilRoutine = StartCoroutine(RecoilRoutine());
+        }
+
+        private IEnumerator RecoilRoutine()
+        {
+            Transform t = weaponRenderer.transform;
+
+            Vector3 kickedPos = _weaponRestLocalPos - Vector3.right * recoilDistance;
+
+            // 회전: 총구가 위로 들리도록 로컬 Z를 +방향으로 킥.
+            // 반동은 weaponRenderer 로컬 공간에 적용되고, 뒤집힘(S(1,-1))+조준회전(~180°)이
+            // 합쳐지면 Y축 반사가 되어 상하 방향이 보존됨 → 좌우 어느 쪽이든 +kick이 위로 향함.
+            Quaternion kickedRot =
+                _weaponRestLocalRot * Quaternion.Euler(0f, 0f, recoilKickAngle);
+
+            // 즉발 킥
+            t.localPosition = kickedPos;
+            t.localRotation = kickedRot;
+
+            float elapsed = 0f;
+            while (elapsed < recoilReturnTime)
+            {
+                elapsed += Time.deltaTime;
+                float k = Mathf.Clamp01(elapsed / recoilReturnTime);
+
+                // ease-out: 처음 빠르게 돌아오다 끝에서 부드럽게 안착
+                float eased = 1f - (1f - k) * (1f - k);
+
+                t.localPosition = Vector3.Lerp(kickedPos, _weaponRestLocalPos, eased);
+                t.localRotation = Quaternion.Slerp(kickedRot, _weaponRestLocalRot, eased);
+
+                yield return null;
+            }
+
+            // 오차 없이 정확히 복귀
+            t.localPosition = _weaponRestLocalPos;
+            t.localRotation = _weaponRestLocalRot;
+            _recoilRoutine = null;
+        }
+
         [Command]
         private void CmdUpdateAimAngle(float angle)
         {
@@ -172,17 +244,9 @@ namespace PixelChroma
             if (isPaintMode || !Mouse.current.leftButton.wasPressedThisFrame) return;
             if (!CanFireLocally) return;
 
-            // 실제 마우스가 아니라 사거리 끝에 고정된 커서 위치를 향해 쏩니다.
-            //Vector2? overridePos = CursorManager.Instance != null ? CursorManager.Instance.overrideScreenPosition : null;
-            //Vector2 mouseScreenPos = overridePos ?? Mouse.current.position.ReadValue();
-            //Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(mouseScreenPos);
-            //mouseWorldPos.z = 0;
-
-            //// 클라 예측·서버 판정·이펙트가 모두 총구(FireOrigin) 기준으로 일치하도록 통일합니다.
-            //Vector2 targetPos = ResolveImpactPoint(FireOrigin, mouseWorldPos);
-
             _lastFireTime = Time.time;
             CmdFireWaterGun(_aimDirection);
+            PlayRecoil();//반동
         }
 
         [Command]
@@ -206,7 +270,7 @@ namespace PixelChroma
                 Collider2D[] hitColliders = Physics2D.OverlapCircleAll(laserEndPos, aoeRadius, runnerLayer);
                 foreach (var col in hitColliders)
                 {
-                    var runner = col.GetComponent<RunnerPlayer>();
+                    var runner = col.GetComponentInParent<RunnerPlayer>();
                     if (runner != null)
                     {
                         runner.ServerTakeEraseDamage(laserEndPos, aoeRadius);
@@ -226,6 +290,8 @@ namespace PixelChroma
                 _lastImpactPos = targetPos;
                 _lastImpactGizmoTime = Time.time;
             }
+
+            if (!isLocalPlayer) PlayRecoil();
 
             if (_effects != null)
                 _effects.PlayFireEffect(firePoint, targetPos, didHit, direction, hitNormal);

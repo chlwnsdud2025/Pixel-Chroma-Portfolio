@@ -14,4 +14,7 @@ public class HUDTextDataSO : ScriptableObject
     [Header("Result")]
     public LocalizedString resultSeekerWin;
     public LocalizedString resultRunnerWin;
+
+    [Header("Spectate")]
+    public LocalizedString spectateFreeView;
 }

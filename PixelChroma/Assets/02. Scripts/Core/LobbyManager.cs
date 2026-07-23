@@ -115,7 +115,7 @@ namespace PixelChroma
         public void CreateLobby(RoomOption option)
         {
             CurrentRoomOption = option.Clone();
-            CurrentRoomOption.hostName = GetLocalPlayerName();
+            CurrentRoomOption.hostName = NicknameService.LoadOrDefault();
 
             NetworkManager.singleton.maxConnections = CurrentRoomOption.maxPlayers;
 
@@ -369,16 +369,6 @@ namespace PixelChroma
 
         public CSteamID GetMember(int index) =>
             SteamMatchmaking.GetLobbyMemberByIndex(CurrentLobbyId, index);
-
-        private static string GetLocalPlayerName()
-        {
-            string nickname = PlayerPrefs.GetString("CustomPlayerNickname", "");
-            if (string.IsNullOrEmpty(nickname) && GameManager.SteamActive)
-                nickname = SteamFriends.GetPersonaName();
-            if (string.IsNullOrEmpty(nickname))
-                nickname = "Player";
-            return nickname;
-        }
 
         private static string GenerateCode()
         {

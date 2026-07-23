@@ -14,8 +14,8 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text targetNameText;
         [SerializeField] private Color selfTargetNameColor = Color.yellow;
 
-        [Header("Like")]
-        [SerializeField] private GameObject likeKeyHint;
+        [Header("Like Guide")]
+        [SerializeField] private GameObject likeGuideRoot;
 
         private Color _defaultTargetNameColor = Color.white;
 
@@ -23,6 +23,9 @@ namespace PixelChroma.UI
         {
             if (targetNameText != null)
                 _defaultTargetNameColor = targetNameText.color;
+
+            if (likeGuideRoot != null)
+                likeGuideRoot.SetActive(false);
         }
 
         public void Show()
@@ -33,7 +36,6 @@ namespace PixelChroma.UI
         public void Hide()
         {
             gameObject.SetActive(false);
-            if (likeKeyHint != null) likeKeyHint.SetActive(false);
         }
 
         public void SetActiveMode(SpectateMode mode)
@@ -44,16 +46,23 @@ namespace PixelChroma.UI
                 runnerButton.sprite = mode == SpectateMode.Runner ? buttonSelected : buttonNormal;
             if (freeButton != null)
                 freeButton.sprite = mode == SpectateMode.Free ? buttonSelected : buttonNormal;
-            if (likeKeyHint != null)
-                likeKeyHint.SetActive(mode != SpectateMode.Free);
         }
 
-        public void SetTargetName(string name, bool isSelf)
+        public void SetTargetName(string displayName, bool isSelf)
         {
             if (targetNameText == null) return;
 
-            targetNameText.text = name;
+            targetNameText.text = displayName;
             targetNameText.color = isSelf ? selfTargetNameColor : _defaultTargetNameColor;
+        }
+
+        /// <summary>
+        /// 지금 보고 있는 대상에게 좋아요를 줄 수 있는지 여부를 받아 안내를 표시합니다.
+        /// </summary>
+        public void SetLikeGuide(bool canLike)
+        {
+            if (likeGuideRoot != null)
+                likeGuideRoot.SetActive(canLike);
         }
     }
 }
