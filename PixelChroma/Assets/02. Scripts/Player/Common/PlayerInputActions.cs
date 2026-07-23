@@ -24,7 +24,7 @@ namespace PixelChroma
         private const string ActionChatToggle = "ChatToggle";
         private const string ActionCancel = "Cancel";
         private const string ActionLike = "Like";
-        private const string ActionRadialMenu = "RadialMenu";
+        private const string ActionFormWheel = "FormWheel";
         private readonly InputActionMap _map;
 
         public InputAction Move { get; }
@@ -46,7 +46,7 @@ namespace PixelChroma
         public InputAction ChatToggle { get; }
         public InputAction Cancel { get; }
         public InputAction Like { get; }
-        public InputAction RadialMenu { get; }
+        public InputAction FormWheel { get; }
 
         public PlayerInputActions(InputActionAsset asset)
         {
@@ -70,7 +70,7 @@ namespace PixelChroma
             ChatToggle = _map.FindAction(ActionChatToggle);
             Cancel = _map.FindAction(ActionCancel);
             Like = _map.FindAction(ActionLike);
-            RadialMenu = _map.FindAction(ActionRadialMenu);
+            FormWheel = _map.FindAction(ActionFormWheel);
         }
 
         public void EnableAll() => _map.Enable();
