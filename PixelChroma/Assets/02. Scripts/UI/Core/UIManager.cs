@@ -1,7 +1,7 @@
 using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using TMPro;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 
@@ -35,6 +35,17 @@ namespace PixelChroma.UI
                 tasks.Add(LoadAndRegisterPanel(reference, popupRoot));
 
             await UniTask.WhenAll(tasks);
+
+            LocalizationManager.OnFontChanged += HandleFontChanged;
+
+            // 부팅 시 저장된 언어 폰트를 새 패널들에 직접 적용한다.
+            if (LocalizationManager.CurrentFont != null)
+                HandleFontChanged(LocalizationManager.CurrentFont);
+        }
+
+        private void OnDestroy()
+        {
+            LocalizationManager.OnFontChanged -= HandleFontChanged;
         }
 
         public async UniTask ShowInitialLoading()
@@ -127,6 +138,12 @@ namespace PixelChroma.UI
             Debug.LogError($"[UIManager] 패널을 찾을 수 없습니다: {typeof(T)}");
             panel = null;
             return false;
+        }
+
+        private void HandleFontChanged(TMP_FontAsset font)
+        {
+            foreach (var panel in _panels.Values)
+                panel.ApplyFont(font);
         }
     }
 }

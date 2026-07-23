@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using TMPro;
 using UnityEngine;
 
 namespace PixelChroma.UI
@@ -6,6 +7,17 @@ namespace PixelChroma.UI
     public abstract class UIPanel : MonoBehaviour
     {
         public virtual void Initialize() { }
+
+        public virtual void ApplyFont(TMP_FontAsset font)
+        {
+            foreach (var text in GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text.GetComponentInParent<LocalizedFontIgnore>(true) != null)
+                    continue;
+
+                text.font = font;
+            }
+        }
 
         public async UniTask Show()
         {
