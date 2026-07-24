@@ -8,14 +8,14 @@ namespace PixelChroma.UI
     {
         public virtual void Initialize() { }
 
-        public virtual void ApplyFont(TMP_FontAsset font)
+        public virtual void RegisterLocalizedTexts()
         {
             foreach (var text in GetComponentsInChildren<TMP_Text>(true))
             {
                 if (text.GetComponentInParent<LocalizedFontIgnore>(true) != null)
                     continue;
 
-                text.font = font;
+                LocalizationManager.Register(text);
             }
         }
 
