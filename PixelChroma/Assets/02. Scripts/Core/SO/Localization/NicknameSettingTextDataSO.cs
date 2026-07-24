@@ -6,4 +6,5 @@ public class NicknameSettingTextDataSO : ScriptableObject
 {
     public LocalizedString warningMaxLength;
     public LocalizedString warningBanned;
+    public LocalizedString warningUnsupported;
 }
