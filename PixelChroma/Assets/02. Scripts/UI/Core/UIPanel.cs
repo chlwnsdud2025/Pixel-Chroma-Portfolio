@@ -15,6 +15,9 @@ namespace PixelChroma.UI
                 if (text.GetComponentInParent<LocalizedFontIgnore>(true) != null)
                     continue;
 
+                if (text.GetComponent<DynamicFontText>() != null)
+                    continue;
+
                 LocalizationManager.Register(text);
             }
         }
