@@ -168,7 +168,7 @@ MonoBehaviour:
   m_CaretWidth: 1
   m_ReadOnly: 0
   m_RichText: 1
-  m_GlobalFontAsset: {fileID: 11400000, guid: 288ef8c9f5e539c4c9254e7974e699b2, type: 2}
+  m_GlobalFontAsset: {fileID: 11400000, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
   m_OnFocusSelectAll: 1
   m_ResetOnDeActivation: 1
   m_KeepTextSelectionVisible: 0
@@ -583,6 +583,7 @@ GameObject:
   - component: {fileID: 5871588458977750233}
   - component: {fileID: 4886336376533141412}
   - component: {fileID: 2963921616378290289}
+  - component: {fileID: 6045287492772472413}
   m_Layer: 5
   m_Name: Placeholder
   m_TagString: Untagged
@@ -639,8 +640,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\uB2C9\uB124\uC784 \uC785\uB825"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 288ef8c9f5e539c4c9254e7974e699b2, type: 2}
-  m_sharedMaterial: {fileID: 5868403412299681115, guid: 288ef8c9f5e539c4c9254e7974e699b2, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
+  m_sharedMaterial: {fileID: -3906527179811501268, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -670,7 +671,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 1
   m_fontSizeMax: 40
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -749,6 +750,19 @@ MonoBehaviour:
   references:
     version: 2
     RefIds: []
+--- !u!114 &6045287492772472413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3210178748074339245}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.DynamicFontText
+  _style: {fileID: 11400000, guid: 643eac29db67afc4cb5eec30c26c68c5, type: 2}
 --- !u!1 &3398042093008295347
 GameObject:
   m_ObjectHideFlags: 0
@@ -760,7 +774,7 @@ GameObject:
   - component: {fileID: 1153551710460076912}
   - component: {fileID: 5902842294499947593}
   - component: {fileID: 5888632560522122937}
-  - component: {fileID: 4099497522256029401}
+  - component: {fileID: 1103322074243728203}
   m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
@@ -817,8 +831,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u200B"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 288ef8c9f5e539c4c9254e7974e699b2, type: 2}
-  m_sharedMaterial: {fileID: 5868403412299681115, guid: 288ef8c9f5e539c4c9254e7974e699b2, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
+  m_sharedMaterial: {fileID: -3906527179811501268, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -848,7 +862,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 1
   m_fontSizeMax: 40
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -887,7 +901,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &4099497522256029401
+--- !u!114 &1103322074243728203
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -896,9 +910,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 3398042093008295347}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7a88936371e19e84b9bc2798a05280de, type: 3}
+  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontIgnore
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.DynamicFontText
+  _style: {fileID: 11400000, guid: 643eac29db67afc4cb5eec30c26c68c5, type: 2}
 --- !u!1 &4952724545716236603
 GameObject:
   m_ObjectHideFlags: 0

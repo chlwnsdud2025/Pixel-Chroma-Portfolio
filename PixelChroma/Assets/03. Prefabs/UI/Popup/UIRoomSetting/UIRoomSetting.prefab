@@ -1027,7 +1027,8 @@ GameObject:
   - component: {fileID: 8628140793059771785}
   - component: {fileID: 3695188203922698415}
   - component: {fileID: 7828506542350335977}
-  - component: {fileID: 1605359440469436488}
+  - component: {fileID: 6788749924763771121}
+  - component: {fileID: 8935371315900776439}
   m_Layer: 5
   m_Name: Placeholder
   m_TagString: Untagged
@@ -1084,8 +1085,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Enter text...
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
-  m_sharedMaterial: {fileID: -9582923918095126, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: a55c417620b31744daf5c961ebf22fa5, type: 2}
+  m_sharedMaterial: {fileID: 2982579771923956516, guid: a55c417620b31744daf5c961ebf22fa5, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1109,7 +1110,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 23.35
+  m_fontSize: 23.45
   m_fontSizeBase: 14
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -1154,7 +1155,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &1605359440469436488
+--- !u!114 &6788749924763771121
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1174,6 +1175,19 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
+--- !u!114 &8935371315900776439
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 453429649305468695}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.DynamicFontText
+  _style: {fileID: 11400000, guid: 643eac29db67afc4cb5eec30c26c68c5, type: 2}
 --- !u!1 &532496788640820211
 GameObject:
   m_ObjectHideFlags: 0
@@ -5007,6 +5021,7 @@ GameObject:
   - component: {fileID: 5591637695048212296}
   - component: {fileID: 1645780785428609270}
   - component: {fileID: 1394833019888836097}
+  - component: {fileID: 5058889843678160904}
   m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
@@ -5063,8 +5078,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u200B"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
-  m_sharedMaterial: {fileID: -9582923918095126, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: a55c417620b31744daf5c961ebf22fa5, type: 2}
+  m_sharedMaterial: {fileID: 2982579771923956516, guid: a55c417620b31744daf5c961ebf22fa5, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -5088,7 +5103,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 23.35
+  m_fontSize: 23.45
   m_fontSizeBase: 14
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -5133,6 +5148,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &5058889843678160904
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2117437879490470266}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.DynamicFontText
+  _style: {fileID: 11400000, guid: 643eac29db67afc4cb5eec30c26c68c5, type: 2}
 --- !u!1 &2182360452465668894
 GameObject:
   m_ObjectHideFlags: 0
@@ -13578,7 +13606,7 @@ MonoBehaviour:
   m_CaretWidth: 1
   m_ReadOnly: 0
   m_RichText: 1
-  m_GlobalFontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
+  m_GlobalFontAsset: {fileID: 11400000, guid: a55c417620b31744daf5c961ebf22fa5, type: 2}
   m_OnFocusSelectAll: 1
   m_ResetOnDeActivation: 1
   m_KeepTextSelectionVisible: 0
@@ -18350,7 +18378,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4997973851574086194, guid: 3eb280123f87f5b4ab756ad1367e9bc7, type: 3}
       propertyPath: m_fontSize
-      value: 27.45
+      value: 25.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -18456,7 +18484,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4997973851574086194, guid: 3eb280123f87f5b4ab756ad1367e9bc7, type: 3}
       propertyPath: m_fontSize
-      value: 27.45
+      value: 25.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -18562,7 +18590,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4997973851574086194, guid: 3eb280123f87f5b4ab756ad1367e9bc7, type: 3}
       propertyPath: m_fontSize
-      value: 27.45
+      value: 25.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -18668,7 +18696,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4997973851574086194, guid: 3eb280123f87f5b4ab756ad1367e9bc7, type: 3}
       propertyPath: m_fontSize
-      value: 27.45
+      value: 25.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -18774,7 +18802,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4997973851574086194, guid: 3eb280123f87f5b4ab756ad1367e9bc7, type: 3}
       propertyPath: m_fontSize
-      value: 27.45
+      value: 25.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -18880,7 +18908,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4997973851574086194, guid: 3eb280123f87f5b4ab756ad1367e9bc7, type: 3}
       propertyPath: m_fontSize
-      value: 27.45
+      value: 25.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

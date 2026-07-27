@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using Cysharp.Threading.Tasks;
+using PixelChroma.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -13,18 +15,32 @@ namespace PixelChroma
     {
         private const string PrefsKey = "SelectedLocaleCode";
 
+        // ── Static ──────────────────────────────────────────────────────
+
         public static TMP_FontAsset CurrentFont { get; private set; }
 
         private static readonly HashSet<TMP_Text> _texts = new();
-
-        private static FontTableSO _fontTable;
         private static AsyncOperationHandle<TMP_FontAsset> _handle;
         private static object _currentRuntimeKey;
+
+        // ── Dynamic ─────────────────────────────────────────────────────
+
+        public static TMP_FontAsset CurrentDynamicFont { get; private set; }
+
+        private static readonly HashSet<DynamicFontText> _dynamicTexts = new();
+        private static AsyncOperationHandle<TMP_FontAsset> _dynamicHandle;
+        private static object _dynamicRuntimeKey;
+
+        // ── Shared ──────────────────────────────────────────────────────
+
+        private static FontTableSO _fontTable;
 
         public static void Initialize(FontTableSO fontTable)
         {
             _fontTable = fontTable;
         }
+
+        // ── Static register ─────────────────────────────────────────────
 
         public static void Register(TMP_Text text)
         {
@@ -41,6 +57,25 @@ namespace PixelChroma
                 _texts.Remove(text);
         }
 
+        // ── Dynamic register ────────────────────────────────────────────
+
+        public static void RegisterDynamic(DynamicFontText dft)
+        {
+            if (dft == null || !_dynamicTexts.Add(dft))
+                return;
+
+            if (CurrentDynamicFont != null)
+                dft.Apply(CurrentDynamicFont);
+        }
+
+        public static void UnregisterDynamic(DynamicFontText dft)
+        {
+            if (dft != null)
+                _dynamicTexts.Remove(dft);
+        }
+
+        // ── Locale ──────────────────────────────────────────────────────
+
         public static async UniTask ApplySavedLocaleAsync()
         {
             string savedCode = PlayerPrefs.GetString(PrefsKey, "");
@@ -54,19 +89,19 @@ namespace PixelChroma
 
             var locale = LocalizationSettings.SelectedLocale;
             if (locale != null)
-                await ApplyFontAsync(locale);
+                await ApplyFontsAsync(locale);
         }
 
         public static async UniTask SetLocaleAsync(Locale locale)
         {
             if (locale == null) return;
 
-            await ApplyFontAsync(locale);
+            await ApplyFontsAsync(locale);
             LocalizationSettings.SelectedLocale = locale;
             PlayerPrefs.SetString(PrefsKey, locale.Identifier.Code);
         }
 
-        private static async UniTask ApplyFontAsync(Locale locale)
+        private static async UniTask ApplyFontsAsync(Locale locale)
         {
             if (_fontTable == null)
             {
@@ -74,10 +109,19 @@ namespace PixelChroma
                 return;
             }
 
+            var t1 = ApplyStaticFontAsync(locale);
+            var t2 = ApplyDynamicFontAsync(locale);
+            await UniTask.WhenAll(t1, t2);
+        }
+
+        // ── Static font ─────────────────────────────────────────────────
+
+        private static async UniTask ApplyStaticFontAsync(Locale locale)
+        {
             var reference = _fontTable.Resolve(locale.Identifier);
             if (reference == null || !reference.RuntimeKeyIsValid())
             {
-                Debug.LogWarning($"[LocalizationManager] locale '{locale.Identifier.Code}'에 대한 폰트가 없습니다.");
+                Debug.LogWarning($"[LocalizationManager] locale '{locale.Identifier.Code}'에 대한 Static 폰트가 없습니다.");
                 return;
             }
 
@@ -86,26 +130,48 @@ namespace PixelChroma
 
             var newHandle = Addressables.LoadAssetAsync<TMP_FontAsset>(reference.RuntimeKey);
             var newFont = await newHandle.ToUniTask();
-
             var oldHandle = _handle;
 
             CurrentFont = newFont;
             _handle = newHandle;
             _currentRuntimeKey = reference.RuntimeKey;
 
-            ApplyToRegistered(newFont);
+            _texts.RemoveWhere(t => t == null);
+            foreach (var text in _texts)
+                text.font = newFont;
 
             if (oldHandle.IsValid())
                 Addressables.Release(oldHandle);
         }
 
-        private static void ApplyToRegistered(TMP_FontAsset font)
-        {
-            _texts.RemoveWhere(t => t == null);
+        // ── Dynamic font ────────────────────────────────────────────────
 
-            foreach (var text in _texts)
-                text.font = font;
+        private static async UniTask ApplyDynamicFontAsync(Locale locale)
+        {
+            var reference = _fontTable.ResolveDynamic(locale.Identifier);
+            if (reference == null || !reference.RuntimeKeyIsValid())
+                return;
+
+            if (_dynamicRuntimeKey != null && _dynamicRuntimeKey.Equals(reference.RuntimeKey))
+                return;
+
+            var newHandle = Addressables.LoadAssetAsync<TMP_FontAsset>(reference.RuntimeKey);
+            var newFont = await newHandle.ToUniTask();
+            var oldHandle = _dynamicHandle;
+
+            CurrentDynamicFont = newFont;
+            _dynamicHandle = newHandle;
+            _dynamicRuntimeKey = reference.RuntimeKey;
+
+            _dynamicTexts.RemoveWhere(d => d == null);
+            foreach (var dft in _dynamicTexts)
+                dft.Apply(newFont);
+
+            if (oldHandle.IsValid())
+                Addressables.Release(oldHandle);
         }
+
+        // ── Cleanup ─────────────────────────────────────────────────────
 
         public static void Release()
         {
@@ -117,6 +183,16 @@ namespace PixelChroma
             {
                 Addressables.Release(_handle);
                 _handle = default;
+            }
+
+            _dynamicTexts.Clear();
+            CurrentDynamicFont = null;
+            _dynamicRuntimeKey = null;
+
+            if (_dynamicHandle.IsValid())
+            {
+                Addressables.Release(_dynamicHandle);
+                _dynamicHandle = default;
             }
         }
     }
