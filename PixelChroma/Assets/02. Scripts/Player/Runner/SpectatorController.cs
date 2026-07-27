@@ -157,7 +157,10 @@ namespace PixelChroma
         private void SetTarget(PlayerBase target, Transform cameraFollow)
         {
             if (_camera != null)
+            {
                 _camera.Follow = cameraFollow;
+                _camera.ForceCameraPosition(cameraFollow.position, _camera.transform.rotation);
+            }
 
             if (_currentTarget == target) return;
 

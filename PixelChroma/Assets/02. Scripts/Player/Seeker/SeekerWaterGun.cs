@@ -6,6 +6,7 @@ using PixelChroma.UI;
 using UnityEditor;
 #endif
 using System.Collections;
+using Unity.Cinemachine;
 
 namespace PixelChroma
 {
@@ -45,6 +46,8 @@ namespace PixelChroma
         [Header("Recoil (발사 반동)")]
         [Tooltip("발사 시 총이 총구 반대방향으로 밀리는 거리(월드 유닛). 0이면 반동 없음")]
         [SerializeField] private float recoilDistance = 0.15f;
+        [Tooltip("발사 시 카메라 쉐이크 강도")]
+        [SerializeField] private float impulseStrength = 1f;
 
         [Tooltip("발사 시 총구가 들리는 각도(도). 0이면 회전 킥 없음")]
         [SerializeField] private float recoilKickAngle = 8f;
@@ -72,6 +75,7 @@ namespace PixelChroma
         private Vector3 _weaponRestLocalPos;
         private Coroutine _recoilRoutine;
         private Quaternion _weaponRestLocalRot;
+        private CinemachineImpulseSource _impulseSource;
 
         public float FireCooldownDuration => fireCooldown;
 
@@ -89,11 +93,12 @@ namespace PixelChroma
         private void Awake()
         {
             _effects = GetComponent<WaterGunEffects>();
-
+            _impulseSource = GetComponent<CinemachineImpulseSource>();
             if (weaponRenderer != null)
             {
                 _weaponRestLocalPos = weaponRenderer.transform.localPosition;
                 _weaponRestLocalRot = weaponRenderer.transform.localRotation;
+                
             }
         }
 
@@ -247,6 +252,12 @@ namespace PixelChroma
             _lastFireTime = Time.time;
             CmdFireWaterGun(_aimDirection);
             PlayRecoil();//반동
+
+            if (_impulseSource != null)
+            {
+                Vector2 rand = UnityEngine.Random.insideUnitCircle.normalized * impulseStrength;
+                _impulseSource.GenerateImpulse(new Vector3(rand.x, rand.y, 0f));
+            }
         }
 
         [Command]
