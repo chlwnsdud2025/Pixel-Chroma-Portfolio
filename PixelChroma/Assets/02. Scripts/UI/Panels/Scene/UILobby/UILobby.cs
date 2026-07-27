@@ -69,6 +69,8 @@ namespace PixelChroma.UI
             if (roomSettingsButton != null) roomSettingsButton.onClick.AddListener(OnClickRoomSettings);
             if (showCodeButton != null) showCodeButton.onClick.AddListener(OnClickToggleCode);
 
+            if (colorPicker != null) colorPicker.Initialize();
+
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
         }
 

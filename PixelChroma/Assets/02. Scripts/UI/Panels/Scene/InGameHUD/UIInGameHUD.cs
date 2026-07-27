@@ -44,6 +44,9 @@ namespace PixelChroma.UI
         public override void Initialize()
         {
             base.Initialize();
+            if (colorPicker != null) 
+                colorPicker.Initialize();
+
             ResetHUDState();
         }
 
