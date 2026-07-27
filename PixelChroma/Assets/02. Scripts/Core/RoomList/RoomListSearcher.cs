@@ -119,6 +119,26 @@ namespace PixelChroma
 
                     _entries.Add(entry);
                 }
+
+                _entries.Sort((a, b) =>
+                {
+                    // 1순위: 대기중(Lobby)인 방이 위로
+                    bool aIsLobby = a.roomStatus == LobbyManager.StatusLobby;
+                    bool bIsLobby = b.roomStatus == LobbyManager.StatusLobby;
+                    if (aIsLobby != bIsLobby)
+                        return aIsLobby ? -1 : 1;
+
+                    // 2순위: 빈자리 있으면서 인원 많은 순
+                    bool aHasSlot = a.currentPlayers < a.maxPlayers;
+                    bool bHasSlot = b.currentPlayers < b.maxPlayers;
+                    if (aHasSlot != bHasSlot)
+                        return aHasSlot ? -1 : 1;
+
+                    // 둘 다 빈자리 있으면 인원 많은 순
+                    return b.currentPlayers.CompareTo(a.currentPlayers);
+                });
+
+                OnSearchCompleted?.Invoke(_entries);
             }
 
             OnSearchCompleted?.Invoke(_entries);
