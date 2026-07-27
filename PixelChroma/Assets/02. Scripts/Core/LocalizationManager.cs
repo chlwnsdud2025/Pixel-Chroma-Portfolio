@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using System.Linq;
 using Cysharp.Threading.Tasks;
 using PixelChroma.UI;
+using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -80,6 +80,10 @@ namespace PixelChroma
         {
             string savedCode = PlayerPrefs.GetString(PrefsKey, "");
 
+            // 저장된 선택이 없으면(최초 실행 등) Steam 게임 언어를 기본값으로 시도합니다.
+            if (string.IsNullOrEmpty(savedCode) && GameManager.SteamActive)
+                savedCode = TryGetSteamLocaleCode();
+
             if (!string.IsNullOrEmpty(savedCode))
             {
                 var saved = LocalizationSettings.AvailableLocales.GetLocale(savedCode);
@@ -101,6 +105,30 @@ namespace PixelChroma
             PlayerPrefs.SetString(PrefsKey, locale.Identifier.Code);
         }
 
+        // ── Cleanup ─────────────────────────────────────────────────────
+        public static void Release()
+        {
+            _texts.Clear();
+            CurrentFont = null;
+            _currentRuntimeKey = null;
+
+            if (_handle.IsValid())
+            {
+                Addressables.Release(_handle);
+                _handle = default;
+            }
+
+            _dynamicTexts.Clear();
+            CurrentDynamicFont = null;
+            _dynamicRuntimeKey = null;
+
+            if (_dynamicHandle.IsValid())
+            {
+                Addressables.Release(_dynamicHandle);
+                _dynamicHandle = default;
+            }
+        }
+
         private static async UniTask ApplyFontsAsync(Locale locale)
         {
             if (_fontTable == null)
@@ -115,7 +143,6 @@ namespace PixelChroma
         }
 
         // ── Static font ─────────────────────────────────────────────────
-
         private static async UniTask ApplyStaticFontAsync(Locale locale)
         {
             var reference = _fontTable.Resolve(locale.Identifier);
@@ -145,12 +172,14 @@ namespace PixelChroma
         }
 
         // ── Dynamic font ────────────────────────────────────────────────
-
         private static async UniTask ApplyDynamicFontAsync(Locale locale)
         {
             var reference = _fontTable.ResolveDynamic(locale.Identifier);
             if (reference == null || !reference.RuntimeKeyIsValid())
+            {
+                Debug.LogWarning($"[LocalizationManager] locale '{locale.Identifier.Code}'에 대한 Dynamic 폰트가 없습니다.");
                 return;
+            }
 
             if (_dynamicRuntimeKey != null && _dynamicRuntimeKey.Equals(reference.RuntimeKey))
                 return;
@@ -171,29 +200,30 @@ namespace PixelChroma
                 Addressables.Release(oldHandle);
         }
 
-        // ── Cleanup ─────────────────────────────────────────────────────
-
-        public static void Release()
+        private static string TryGetSteamLocaleCode()
         {
-            _texts.Clear();
-            CurrentFont = null;
-            _currentRuntimeKey = null;
-
-            if (_handle.IsValid())
-            {
-                Addressables.Release(_handle);
-                _handle = default;
-            }
-
-            _dynamicTexts.Clear();
-            CurrentDynamicFont = null;
-            _dynamicRuntimeKey = null;
-
-            if (_dynamicHandle.IsValid())
-            {
-                Addressables.Release(_dynamicHandle);
-                _dynamicHandle = default;
-            }
+            string steamLang = SteamApps.GetCurrentGameLanguage();
+            return SteamLangToLocaleCode(steamLang);
         }
+
+        private static string SteamLangToLocaleCode(string steamLang) => steamLang switch
+        {
+            "english" => "en",
+            "koreana" => "ko",   // Steam은 한국어를 "korean"이 아닌 "koreana"로 반환
+            "japanese" => "ja",
+            "schinese" => "zh-Hans",
+            "tchinese" => "zh-Hant",
+            "french" => "fr",
+            "german" => "de",
+            "spanish" => "es",   // Spanish-Spain
+            "latam" => "es",   // Spanish-Latin America → es로 통합
+            "italian" => "it",
+            "polish" => "pl",
+            "russian" => "ru",
+            "turkish" => "tr",
+            "brazilian" => "pt-BR",
+            "portuguese" => "pt-BR",
+            _ => "" // 미지원 언어 → 시스템/기본 로케일로 fallback
+        };
     }
 }
