@@ -19,6 +19,8 @@ namespace PixelChroma
         [SerializeField] private GameObject mainCameraPrefab;
         [SerializeField] private GameObject cinemachineCameraPrefab;
 
+        public static bool SteamInitialized { get; private set; }
+
         private async void Start()
         {
             await Boot();
@@ -26,28 +28,40 @@ namespace PixelChroma
 
         private async UniTask Boot()
         {
-            // [변경] UIManager를 통해 초기 로딩 화면을 띄웁니다.
-            if (UIManager.Instance != null) 
-                UIManager.Instance.ShowInitialLoading().Forget();
+            var initialLoading = UIManager.Instance.InitialLoading;
 
+            // 초기 로딩 화면을 띄웁니다.
+            if (initialLoading != null)
+            {
+                initialLoading.Initialize();
+                initialLoading.RegisterLocalizedTexts();
+                initialLoading.Show().Forget();
+            }
+
+            // Localization 시스템을 먼저 초기화합니다.
+            var initOp = LocalizationSettings.InitializationOperation;
+            await UniTask.WaitUntil(() => initOp.IsDone);
+            LocalizationManager.Initialize(fontTable);
+
+            // Steam 초기화 실패 시 경고 패널을 띄우고 부팅을 중단합니다(종료는 종료 버튼이 처리).
             if (!InitializeSteam())
             {
-                Debug.LogError("[GameManager] Steam 초기화 실패");
-                Application.Quit();
+                Debug.LogWarning("[GameManager] Steam 초기화 실패 — 경고 패널을 표시합니다.");
+                await LocalizationManager.ApplySavedLocaleAsync();
+
+                if (initialLoading != null)
+                    await initialLoading.ShowSteamWarning();
+
                 return;
             }
 
-            // Localization 대기 및 설정 복원
-            var initOp = LocalizationSettings.InitializationOperation;
-            await UniTask.WaitUntil(() => initOp.IsDone);
-
-            LocalizationManager.Initialize(fontTable);
+            // 로케일·폰트 적용 (Steam 정상 & 최초 실행이면 Steam 언어를 기본값으로 사용)
             await LocalizationManager.ApplySavedLocaleAsync();
             await UIManager.Instance.InitializeAsync();
 
-            // [변경] UIManager를 통해 초기 로딩 화면을 숨깁니다.
-            if (UIManager.Instance != null) 
-                UIManager.Instance.HideInitialLoading().Forget();
+            // 초기 로딩 화면을 숨깁니다.
+            if (initialLoading != null)
+                initialLoading.Hide().Forget();
 
             await EnterMainMenu();
         }
@@ -67,7 +81,8 @@ namespace PixelChroma
             if (!SteamActive)
                 return true;
 
-            return Steamworks.SteamAPI.Init();
+            SteamInitialized = Steamworks.SteamAPI.Init();
+            return SteamInitialized;
         }
 
         public void HandleDisconnect()
@@ -111,7 +126,6 @@ namespace PixelChroma
             CurrentState = GameState.InGame;
             EnsureSceneEssentials();
             await UIManager.Instance.HideAllPopups();
-            //await UIManager.Instance.ShowScene<UIInGameHUD>();
         }
 
         // 씬 전환 시 필수 오브젝트를 보장한다. 없으면 프리팹으로 생성한다.

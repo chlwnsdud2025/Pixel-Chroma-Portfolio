@@ -39,9 +39,7 @@ namespace PixelChroma.UI
 
             if (nicknameInputField != null)
             {
-                // 인풋필드 자체 글자 제한 걸기
                 nicknameInputField.characterLimit = maxNicknameLength;
-                // 유저가 타이핑을 칠 때마다 실시간으로 글자 수 경고나 비속어 경고를 초기화/검사할 수 있게 이벤트 등록
                 nicknameInputField.onValueChanged.AddListener(OnNicknameInputChanged);
             }
         }
@@ -73,7 +71,6 @@ namespace PixelChroma.UI
                 await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
         }
 
-        // 경고창 메시지 주입 연출 함수
         private void SetWarningMessage(string message)
         {
             if (warningText == null) return;
@@ -90,10 +87,8 @@ namespace PixelChroma.UI
             }
         }
 
-        // 실시간 타이핑 감지 함수
         private void OnNicknameInputChanged(string value)
         {
-            // 글자를 고치기 시작하면 경고 텍스트를 부드럽게 지워줍니다.
             SetWarningMessage(string.Empty);
         }
 
@@ -103,7 +98,10 @@ namespace PixelChroma.UI
 
             string enteredName = nicknameInputField.text.Trim();
 
-            switch (NameValidator.Validate(enteredName, bannedWords, maxNicknameLength))
+            // 실제 렌더에 쓰이는 폰트를 넘겨, 이 폰트로 표시 불가능한(□) 문자를 저장 전에 막는다.
+            TMP_FontAsset font = nicknameInputField.textComponent != null ? nicknameInputField.textComponent.font : null;
+
+            switch (NicknameService.Validate(enteredName, bannedWords, maxNicknameLength, font))
             {
                 case NameValidation.TooLong:
                     SetWarningMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
@@ -111,16 +109,17 @@ namespace PixelChroma.UI
                 case NameValidation.Banned:
                     SetWarningMessage(textData.warningBanned.GetLocalizedString());
                     return;
+                case NameValidation.Unsupported:
+                    if (!textData.warningUnsupported.IsEmpty)
+                        SetWarningMessage(textData.warningUnsupported.GetLocalizedString());
+                    return;
             }
 
             // 비워두면 스팀 이름(스팀 미사용 시 임의 이름)을 대신 저장한다.
             if (string.IsNullOrEmpty(enteredName))
                 enteredName = NicknameService.GetDefaultSteamName();
 
-            // 모든 철저한 검증 보안 통과 시 저장 후 팝업 Close
             NicknameService.Save(enteredName);
-
-            Debug.Log($"[UI] 커스텀 닉네임 저장 완료: {enteredName}");
             OnClickBack();
         }
     }

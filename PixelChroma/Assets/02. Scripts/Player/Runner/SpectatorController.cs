@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Unity.Cinemachine;
+using System.Collections;
 
 namespace PixelChroma
 {
@@ -22,6 +23,9 @@ namespace PixelChroma
         private GameObject _freeCamTarget;
         private int _targetIndex = -1;
         private PlayerBase _currentTarget;
+
+        private bool _pendingForcePosition;
+        private Transform _pendingFollowTarget;
 
         // 관전 대상이 바뀔 때 발생합니다. null이면 자유 시점이거나 관전을 끝낸 상태입니다.
         public event Action<PlayerBase> OnTargetChanged;
@@ -157,12 +161,26 @@ namespace PixelChroma
         private void SetTarget(PlayerBase target, Transform cameraFollow)
         {
             if (_camera != null)
+            {
                 _camera.Follow = cameraFollow;
+                _pendingForcePosition = true;
+                _pendingFollowTarget = cameraFollow;
+            }
 
             if (_currentTarget == target) return;
 
             _currentTarget = target;
             OnTargetChanged?.Invoke(target);
+        }
+
+        // 새 public 메서드 추가
+        public void ProcessLateUpdate()
+        {
+            if (!_pendingForcePosition) return;
+            _pendingForcePosition = false;
+
+            if (_camera != null && _pendingFollowTarget != null)
+                _camera.ForceCameraPosition(_pendingFollowTarget.position, _camera.transform.rotation);
         }
     }
 }

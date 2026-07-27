@@ -14,6 +14,7 @@ namespace PixelChroma.UI
 
         [Header("Initial Loading")]
         [SerializeField] private UIInitialLoading initialLoading;
+        public UIInitialLoading InitialLoading => initialLoading;
 
         private readonly Dictionary<Type, UIPanel> _panels = new();
         private readonly Stack<UIPopup> _popupStack = new();
@@ -34,33 +35,6 @@ namespace PixelChroma.UI
                 tasks.Add(LoadAndRegisterPanel(reference, popupRoot));
 
             await UniTask.WhenAll(tasks);
-        }
-
-        public async UniTask ShowInitialLoading()
-        {
-            if (initialLoading != null) await initialLoading.Show();
-        }
-
-        public async UniTask HideInitialLoading()
-        {
-            if (initialLoading != null) await initialLoading.Hide();
-        }
-
-        private async UniTask LoadAndRegisterPanel(AssetReferenceGameObject reference, Transform root)
-        {
-            var go = await reference.InstantiateAsync(root).ToUniTask();
-            var panel = go.GetComponent<UIPanel>();
-
-            if (panel == null)
-            {
-                Debug.LogError($"[UIManager] 프리팹에 UIPanel 컴포넌트가 없습니다: {go.name}");
-                return;
-            }
-
-            panel.Initialize();
-            panel.RegisterLocalizedTexts();
-            panel.gameObject.SetActive(false);
-            _panels.Add(panel.GetType(), panel);
         }
 
         public async UniTask<T> ShowScene<T>() where T : UIScene
@@ -114,6 +88,24 @@ namespace PixelChroma.UI
         {
             _panels.TryGetValue(typeof(T), out var panel);
             return panel as T;
+        }
+
+
+        private async UniTask LoadAndRegisterPanel(AssetReferenceGameObject reference, Transform root)
+        {
+            var go = await reference.InstantiateAsync(root).ToUniTask();
+            var panel = go.GetComponent<UIPanel>();
+
+            if (panel == null)
+            {
+                Debug.LogError($"[UIManager] 프리팹에 UIPanel 컴포넌트가 없습니다: {go.name}");
+                return;
+            }
+
+            panel.Initialize();
+            panel.RegisterLocalizedTexts();
+            panel.gameObject.SetActive(false);
+            _panels.Add(panel.GetType(), panel);
         }
 
         private bool TryGetPanel<T>(out T panel) where T : UIPanel
