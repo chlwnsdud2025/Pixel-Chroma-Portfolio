@@ -34,6 +34,7 @@ namespace PixelChroma
             if (initialLoading != null)
             {
                 initialLoading.Initialize();
+                initialLoading.RegisterLocalizedTexts();
                 initialLoading.Show().Forget();
             }
 
