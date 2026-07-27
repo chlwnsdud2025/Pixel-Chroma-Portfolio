@@ -16,7 +16,8 @@ namespace PixelChroma.UI
 
     public class UIColorPicker : MonoBehaviour
     {
-        private const int DefaultMaxBrushSize = 20;
+        private const int DefaultMaxBrushSize = 5;
+        private const int DefaultBrushSize = 1;
 
         [Header("SV Rectangle")]
         [SerializeField] private RectTransform svArea;
@@ -47,6 +48,7 @@ namespace PixelChroma.UI
         private float _hue;
         private float _saturation = 1f;
         private float _value = 1f;
+        private bool _initialized;
 
         public Color SelectedColor => Color.HSVToRGB(_hue, _saturation, _value);
         public int BrushSize => brushSizeSlider != null ? (int)brushSizeSlider.value : 1;
@@ -58,8 +60,11 @@ namespace PixelChroma.UI
         public event Action OnUndoButtonClicked;
         public event Action OnRedoButtonClicked;
 
-        private void Awake()
+        public void Initialize()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             _svTexture = new Texture2D(64, 64, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
@@ -184,7 +189,7 @@ namespace PixelChroma.UI
             brushSizeSlider.wholeNumbers = true;
             brushSizeSlider.minValue = 1;
             brushSizeSlider.maxValue = maxBrushSize;
-            brushSizeSlider.value = 3;
+            brushSizeSlider.value = DefaultBrushSize;
             brushSizeSlider.onValueChanged.AddListener(OnBrushSizeSliderChanged);
             UpdateBrushSizeLabel();
         }
