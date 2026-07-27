@@ -10,6 +10,7 @@ namespace PixelChroma.UI
     /// 에디트 모드에서도 갱신되어 플레이하지 않고도 프리팹에서 실제 키를 확인할 수 있습니다.
     /// </summary>
     [ExecuteAlways]
+    [RequireComponent(typeof(LocalizedFontIgnore))]
     public class UIKeyLabel : MonoBehaviour
     {
         [Tooltip("표시할 액션. Input Actions 에셋에서 액션을 드래그해 연결합니다.")]

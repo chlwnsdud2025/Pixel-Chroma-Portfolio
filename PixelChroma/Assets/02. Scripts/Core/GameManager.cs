@@ -28,6 +28,14 @@ namespace PixelChroma
 
         private async UniTask Boot()
         {
+            // Localization 시스템을 먼저 초기화합니다.
+            var initOp = LocalizationSettings.InitializationOperation;
+            await UniTask.WaitUntil(() => initOp.IsDone);
+            LocalizationManager.Initialize(fontTable);
+
+            // 로케일·폰트 적용 (Steam 정상 & 최초 실행이면 Steam 언어를 기본값으로 사용)
+            await LocalizationManager.ApplySavedLocaleAsync();
+
             var initialLoading = UIManager.Instance.InitialLoading;
 
             // 초기 로딩 화면을 띄웁니다.
@@ -38,25 +46,15 @@ namespace PixelChroma
                 initialLoading.Show().Forget();
             }
 
-            // Localization 시스템을 먼저 초기화합니다.
-            var initOp = LocalizationSettings.InitializationOperation;
-            await UniTask.WaitUntil(() => initOp.IsDone);
-            LocalizationManager.Initialize(fontTable);
-
             // Steam 초기화 실패 시 경고 패널을 띄우고 부팅을 중단합니다(종료는 종료 버튼이 처리).
             if (!InitializeSteam())
             {
                 Debug.LogWarning("[GameManager] Steam 초기화 실패 — 경고 패널을 표시합니다.");
-                await LocalizationManager.ApplySavedLocaleAsync();
-
                 if (initialLoading != null)
                     await initialLoading.ShowSteamWarning();
-
                 return;
             }
 
-            // 로케일·폰트 적용 (Steam 정상 & 최초 실행이면 Steam 언어를 기본값으로 사용)
-            await LocalizationManager.ApplySavedLocaleAsync();
             await UIManager.Instance.InitializeAsync();
 
             // 초기 로딩 화면을 숨깁니다.
