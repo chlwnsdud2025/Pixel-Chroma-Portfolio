@@ -15,25 +15,18 @@ namespace PixelChroma
     {
         private const string PrefsKey = "SelectedLocaleCode";
 
-        // ── Static ──────────────────────────────────────────────────────
-
-        public static TMP_FontAsset CurrentFont { get; private set; }
-
         private static readonly HashSet<TMP_Text> _texts = new();
         private static AsyncOperationHandle<TMP_FontAsset> _handle;
         private static object _currentRuntimeKey;
-
-        // ── Dynamic ─────────────────────────────────────────────────────
-
-        public static TMP_FontAsset CurrentDynamicFont { get; private set; }
 
         private static readonly HashSet<DynamicFontText> _dynamicTexts = new();
         private static AsyncOperationHandle<TMP_FontAsset> _dynamicHandle;
         private static object _dynamicRuntimeKey;
 
-        // ── Shared ──────────────────────────────────────────────────────
-
         private static FontTableSO _fontTable;
+
+        public static TMP_FontAsset CurrentFont { get; private set; }
+        public static TMP_FontAsset CurrentDynamicFont { get; private set; }
 
         public static void Initialize(FontTableSO fontTable)
         {
