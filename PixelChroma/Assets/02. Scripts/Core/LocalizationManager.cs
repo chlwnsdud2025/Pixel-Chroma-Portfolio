@@ -74,7 +74,8 @@ namespace PixelChroma
             string savedCode = PlayerPrefs.GetString(PrefsKey, "");
 
             // 저장된 선택이 없으면(최초 실행 등) Steam 게임 언어를 기본값으로 시도합니다.
-            if (string.IsNullOrEmpty(savedCode) && GameManager.SteamActive)
+            // Steam이 실제 초기화된 경우에만 조회합니다(초기화 실패 시 경고 패널 경로에서는 건너뜀).
+            if (string.IsNullOrEmpty(savedCode) && GameManager.SteamInitialized)
                 savedCode = TryGetSteamLocaleCode();
 
             if (!string.IsNullOrEmpty(savedCode))
