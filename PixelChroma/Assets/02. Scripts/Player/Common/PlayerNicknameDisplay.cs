@@ -54,15 +54,21 @@ namespace PixelChroma
             PlayerBase localPlayer = NetworkClient.localPlayer.GetComponent<PlayerBase>();
             if (localPlayer == null) return;
 
+            if (_owner is RunnerPlayer runner && runner.IsDead)
+            {
+                bool isCheckTime = GameRoundManager.Instance != null
+                    && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
+                if (!isCheckTime)
+                {
+                    _root.SetActive(false);
+                    return;
+                }
+            }
+
+
             if (_owner == localPlayer)
             {
                 _root.SetActive(!_owner.IsPaintMode);
-                return;
-            }
-
-            if (_owner is RunnerPlayer runner && runner.IsDead)
-            {
-                _root.SetActive(false);
                 return;
             }
 

@@ -129,7 +129,10 @@ namespace PixelChroma
                 _targetIndex = (_targetIndex + direction + runners.Count) % runners.Count;
                 var target = runners[_targetIndex];
 
-                if (target != null && !target.IsDead)
+                bool isCheckTime = GameRoundManager.Instance != null
+                    && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
+
+                if (target != null && (!target.IsDead || isCheckTime))
                 {
                     SetTarget(target, target.transform);
                     return;

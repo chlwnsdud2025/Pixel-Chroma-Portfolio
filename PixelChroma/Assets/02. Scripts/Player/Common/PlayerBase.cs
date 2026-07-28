@@ -249,7 +249,8 @@ namespace PixelChroma
         protected virtual void HandleMovement()
         {
             if (Rb == null) return;
-
+            if (this is RunnerPlayer runner && runner.IsDead) return;
+            //if (this is RunnerPlayer runner && (runner.IsDead || runner.IsKnockedBack)) return;
             if (_spectator != null && _spectator.IsSpectating)
             {
                 Rb.linearVelocity = Vector2.zero;

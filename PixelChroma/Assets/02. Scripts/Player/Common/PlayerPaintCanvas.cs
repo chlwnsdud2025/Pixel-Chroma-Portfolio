@@ -231,6 +231,28 @@ namespace PixelChroma
             ActivateForm(formType);
         }
 
+        //-------- 사망시 캡쳐--------------------------------------------
+        public void DisableActiveCollider() // 현재 폼 콜라이더 끄기(사망시 사용)
+        {
+            if (_activeForm.formCollider != null)
+                _activeForm.formCollider.enabled = false;
+        }
+
+        public Color32[] GetActiveFormMaskPixels()
+        {
+            return _activeForm.maskPixels;
+        }
+
+        public void RestoreMaskPixels(PaintFormType formType, Color32[] pixels)
+        {
+            if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
+            if (form.maskPixels == null || pixels == null) return;
+
+            System.Array.Copy(pixels, form.maskPixels, Mathf.Min(pixels.Length, form.maskPixels.Length));
+            form.paintMask.SetPixels32(form.maskPixels);
+            form.paintMask.Apply();
+        }
+
         // ── Late-join 동기화 ─────────────────────────────────────────────────────
         //   접속 전에 칠해진 내용을 새 클라에 반영. 호스트 maskPixels가 최신 상태이므로
         //   요청자에게만 스냅샷 전송(마스크가 커서 청크 분할). 트리거는 PlayerBase.

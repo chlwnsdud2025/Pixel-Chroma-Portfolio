@@ -152,6 +152,14 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 5540163446145785508, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: m_Constraints
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 5540163446145785508, guid: 78cb76db270489845893b629331fd5da, type: 3}
+      propertyPath: m_CollisionDetection
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6105675089103647849, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_SizeDelta.x
       value: 0
@@ -265,6 +273,13 @@ MonoBehaviour:
   exposeDuration: 1.5
   exposeCooldown: 0.5
   visualRenderer: {fileID: 2820592367099867149}
+  knockbackImpulse: 100
+  knockbackDrag: 1
+  knockbackDuration: 2
+  knockbackRotSpeed: 720
+  bouncyMaterial: {fileID: 6200000, guid: 7a6018d6ff35f5d4c8f6efcca13ef894, type: 2}
+  deathBlinkDuration: 1
+  deathBlinkCount: 3
 --- !u!95 &1949376277204024676 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 3278017070318577123, guid: 78cb76db270489845893b629331fd5da, type: 3}
