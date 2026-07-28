@@ -14,6 +14,9 @@ namespace PixelChroma.UI
         [SerializeField] private Transform contentRoot;
         [SerializeField] private LanguageButton languageButtonPrefab;
 
+        [Header("Localization")]
+        [SerializeField] private LanguageTextDataSO languageTable;
+
         [Header("Button")]
         [SerializeField] private Button closeButton;
 
@@ -22,24 +25,6 @@ namespace PixelChroma.UI
         [SerializeField] private float animationDuration = 0.25f;
 
         private readonly List<LanguageButton> _spawned = new();
-
-        // 언어 선택 버튼에 표시할 이름을 명시적으로 지정한다.
-        private static readonly Dictionary<string, string> DisplayNames = new()
-        {
-            ["ko"] = "한국어",
-            ["en"] = "English",
-            ["ja"] = "日本語",
-            ["zh-Hans"] = "简体中文",
-            ["zh-Hant"] = "繁體中文",
-            ["ru"] = "Русский",
-            ["pt-BR"] = "Português (Brasil)",
-            ["es"] = "Español",
-            ["de"] = "Deutsch",
-            ["fr"] = "Français",
-            ["it"] = "Italiano",
-            ["pl"] = "Polski",
-            ["tr"] = "Türkçe",
-        };
 
         public override void Initialize()
         {
@@ -91,10 +76,10 @@ namespace PixelChroma.UI
                 var btn = Instantiate(languageButtonPrefab, contentRoot);
                 _spawned.Add(btn);
 
-                string code = locale.Identifier.Code;
-                string name = DisplayNames.TryGetValue(code, out var display)
+                // 언어 선택 UI는 자국어 표기(endonym)를 사용, 미등록 시 NativeName 폴백
+                string name = languageTable != null && languageTable.TryGetNativeName(locale.Identifier, out var display)
                     ? display
-                    : (locale.Identifier.CultureInfo?.NativeName ?? code);
+                    : (locale.Identifier.CultureInfo?.NativeName ?? locale.Identifier.Code);
                 btn.Setup(name, locale == current);
 
                 Locale captured = locale;
