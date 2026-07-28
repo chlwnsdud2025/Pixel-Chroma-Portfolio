@@ -10,8 +10,7 @@ namespace PixelChroma
 {
     public class GameRoundManager : MonoSingleton<GameRoundManager>
     {
-        [Header("Countdown")]
-        public float countdownDuration = 5f;
+        private const float CountdownDuration = 10f;
 
         private const float LobbyReturnDelayOnWipe = 5f;
         private const float LobbyReturnDelayOnCheckEnd = 0.5f;
@@ -99,7 +98,7 @@ namespace PixelChroma
 
             NetworkServer.SendToAll(new RoomOptionSyncMessage { option = option.ToData() });
 
-            SetTimeState(TimeState.Countdown, countdownDuration);
+            SetTimeState(TimeState.Countdown, CountdownDuration);
         }
 
         [Server]

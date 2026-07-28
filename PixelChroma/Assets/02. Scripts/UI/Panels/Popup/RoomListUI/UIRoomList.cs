@@ -37,6 +37,7 @@ namespace PixelChroma.UI
 
         [Header("Localization")]
         [SerializeField] private RoomListTextDataSO textData;
+        [SerializeField] private LanguageTextDataSO languageTable;
 
         [Header("Registry")]
         [SerializeField] private GameModeRegistrySO gameModeRegistry;
@@ -121,11 +122,17 @@ namespace PixelChroma.UI
             {
                 foreach (var locale in locales)
                 {
-                    string label = locale.Identifier.CultureInfo != null
-                        ? locale.Identifier.CultureInfo.NativeName
-                        : locale.Identifier.Code;
+                    string code = locale.Identifier.Code;
+
+                    // 라벨은 현재 UI 언어 기준 이름 우선, 미등록 시 자국어 표기로 폴백
+                    string label = languageTable != null && languageTable.TryGetLocalizedName(locale.Identifier, out var localized)
+                        ? localized
+                        : locale.Identifier.CultureInfo != null
+                            ? locale.Identifier.CultureInfo.NativeName
+                            : code;
+
                     options.Add(new TMP_Dropdown.OptionData(label));
-                    _languageCodeValues.Add(locale.Identifier.Code);
+                    _languageCodeValues.Add(code); // 필터 값은 항상 로케일 코드
                 }
             }
 

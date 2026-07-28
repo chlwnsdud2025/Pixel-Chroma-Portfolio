@@ -1,6 +1,5 @@
 using System.Linq;
 using Cysharp.Threading.Tasks;
-using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -38,7 +37,8 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text readyCountText;
 
         [Header("Countdown")]
-        [SerializeField] private TMP_Text timerText;
+        [SerializeField] private GameObject timerPanel;
+        [SerializeField] private UIPunchText timerText;
 
         [Header("친구 초대")]
         [SerializeField] private Button inviteFriendButton;
@@ -108,8 +108,8 @@ namespace PixelChroma.UI
 
         protected override UniTask OnShow()
         {
-            if (timerText != null)
-                timerText.gameObject.SetActive(false);
+            if (timerPanel != null)
+                timerPanel.SetActive(false);
 
             bool isHost = LobbyManager.Instance.IsHost;
 
@@ -162,7 +162,7 @@ namespace PixelChroma.UI
 
         private void RefreshRoomCode()
         {
-            if (roomCodeText == null) 
+            if (roomCodeText == null)
                 return;
 
             string code = LobbyManager.Instance.CurrentRoomCode;
@@ -283,22 +283,13 @@ namespace PixelChroma.UI
 
         private void OnTimeStateChanged(TimeState state, int remainingSeconds)
         {
-            if (state == TimeState.Countdown)
-            {
-                if (timerText != null)
-                    timerText.gameObject.SetActive(true);
+            bool isCountdown = state == TimeState.Countdown;
 
-                if (readyButton != null)
-                    readyButton.interactable = false;
-            }
-            else
-            {
-                if (timerText != null)
-                    timerText.gameObject.SetActive(false);
+            if (timerPanel != null)
+                timerPanel.SetActive(isCountdown);
 
-                if (readyButton != null)
-                    readyButton.interactable = true;
-            }
+            if (readyButton != null)
+                readyButton.interactable = !isCountdown;
         }
 
         private void OnTimerTick(int remainingSeconds)
@@ -306,7 +297,7 @@ namespace PixelChroma.UI
             if (GameRoundManager.Instance.CurrentTimeState != TimeState.Countdown) return;
 
             if (timerText != null)
-                timerText.text = $"게임 시작까지... {remainingSeconds}";
+                timerText.SetText(Mathf.Max(0, remainingSeconds).ToString());
         }
 
         // ── 클릭 이벤트 ──────────────────────────────────────
