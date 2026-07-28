@@ -239,24 +239,16 @@ namespace PixelChroma
         }
 
 
-        //[ClientRpc]
-        //private void RpcKnockback(Vector2 dir) // 넉백
-        //{
-        //    if (isOwned && Rb != null)
-        //    {
-        //        Rb.linearVelocity = Vector2.zero;
-        //        Rb.linearDamping = knockbackDrag;
-        //        Rb.angularDamping = knockbackDrag;
-        //        Rb.sharedMaterial = bouncyMaterial;
-        //        Rb.constraints = RigidbodyConstraints2D.None;
-        //        Rb.angularVelocity = knockbackRotSpeed * (dir.x >= 0 ? -1f : 1f);
-        //        Rb.AddForce(dir * knockbackImpulse, ForceMode2D.Impulse);
-        //    }
-        //}
+
         //-----------------------------------테스트-----------------
         [ClientRpc]
         private void RpcKnockback(Vector2 dir, float impulse, float drag, float rotSpeed)
         {
+            // 모든 클라이언트에서 페인트 페이드
+            if (paintCanvas != null)
+                paintCanvas.FadeAllPaint(knockbackDuration);
+
+            // 물리는 소유 클라이언트에서만
             if (isOwned && Rb != null)
             {
                 _isKnockedBack = true;
@@ -501,7 +493,10 @@ namespace PixelChroma
         {
             RaiseNicknameVisibilityChanged();
 
-            _isVisuallyDead = true;
+            bool isCheckTime = GameRoundManager.Instance != null
+                    && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
+
+            _isVisuallyDead = !isCheckTime;
             if (paintCanvas != null) paintCanvas.DisableActiveCollider();
             RefreshVisualVisibilityForLocalViewer();
 

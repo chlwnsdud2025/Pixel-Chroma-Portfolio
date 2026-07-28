@@ -513,6 +513,21 @@ namespace PixelChroma
             form.fading[idx] = new Fade { startAlpha = a, startTime = Time.time };
         }
 
+        public void FadeAllPaint(float duration)
+        {
+            eraseFadeDuration = duration;
+            var form = _activeForm;
+            if (form?.maskPixels == null) return;
+
+            float now = Time.time;
+            for (int i = 0; i < form.maskPixels.Length; i++)
+            {
+                byte a = form.maskPixels[i].a;
+                if (a == 0) continue;
+                form.fading[i] = new Fade { startAlpha = a, startTime = now };
+            }
+        }
+
         // ── 판정 ────────────────────────────────────────────────────────────────
 
         public float GetPaintRatio()
