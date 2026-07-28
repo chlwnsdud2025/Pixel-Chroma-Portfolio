@@ -252,7 +252,7 @@ namespace PixelChroma
                 seekerBase.playerName = runner.playerName;
             }
 
-            NetworkServer.ReplacePlayerForConnection(conn, seekerInstance, ReplacePlayerOptions.Destroy);
+            NetworkServer.ReplacePlayerForConnection(conn, seekerInstance, ReplacePlayerOptions.KeepActive);
         }
 
         public bool IsInGameScene(string sceneName)

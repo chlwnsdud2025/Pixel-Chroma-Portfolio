@@ -156,8 +156,7 @@ namespace PixelChroma
             if (aliveRunners == 0)
             {
                 SetWinner(PlayerRole.Seeker);
-                SetTimeState(TimeState.GameEnd, 0f);
-                StartReturnToLobbyTimer(LobbyReturnDelayOnWipe).Forget();
+                SetTimeState(TimeState.CheckTime, OptionCheckTime);
             }
         }
 

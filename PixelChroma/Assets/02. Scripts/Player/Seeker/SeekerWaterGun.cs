@@ -7,6 +7,7 @@ using UnityEditor;
 #endif
 using System.Collections;
 using Unity.Cinemachine;
+using static UnityEngine.LowLevelPhysics2D.PhysicsLayers;
 
 namespace PixelChroma
 {
@@ -55,8 +56,12 @@ namespace PixelChroma
         [Tooltip("밀린 총이 원위치로 복귀하는 시간(초). 짧을수록 탄력적")]
         [SerializeField] private float recoilReturnTime = 0.12f;
 
+        [Header("Knockback Settings")]
+        [SerializeField] private float knockbackImpulse = 15f;
+        [SerializeField] private float knockbackDrag = 5f;
+        [SerializeField] private float knockbackRotSpeed = 720f;
 
-
+        private SeekerPlayer _seeker;
 
         // 마지막 발사의 착탄 지점과 시각. 기즈모를 발사 직후 잠깐만 그리기 위한 값입니다.
         private Vector2 _lastImpactPos;
@@ -94,6 +99,7 @@ namespace PixelChroma
         {
             _effects = GetComponent<WaterGunEffects>();
             _impulseSource = GetComponent<CinemachineImpulseSource>();
+            _seeker = GetComponent<SeekerPlayer>();
             if (weaponRenderer != null)
             {
                 _weaponRestLocalPos = weaponRenderer.transform.localPosition;
@@ -284,8 +290,12 @@ namespace PixelChroma
                     var runner = col.GetComponentInParent<RunnerPlayer>();
                     if (runner != null)
                     {
-                        runner.ServerTakeEraseDamage(laserEndPos, aoeRadius);
-                        runner.ApplyWetState(wetDuration);
+                        //runner.ServerTakeEraseDamage(laserEndPos, aoeRadius);
+                        //runner.ApplyWetState(wetDuration);
+
+                        string catcherName = _seeker.playerName;
+                        Vector2 knockbackDir = ((Vector2)runner.transform.position - laserEndPos).normalized;
+                        runner.ServerNotifyCaught(catcherName, knockbackDir, knockbackImpulse, knockbackDrag, knockbackRotSpeed);
                     }
                 }
             }

@@ -65,7 +65,6 @@ namespace PixelChroma.UI
             if (leaveButton != null) leaveButton.onClick.AddListener(OnClickLeave);
             if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
             if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
-            if (inviteFriendButton != null) inviteFriendButton.onClick.AddListener(OnClickInviteFriend);
             if (roomSettingsButton != null) roomSettingsButton.onClick.AddListener(OnClickRoomSettings);
             if (showCodeButton != null) showCodeButton.onClick.AddListener(OnClickToggleCode);
 
@@ -340,20 +339,6 @@ namespace PixelChroma.UI
             RefreshRoomCode();
         }
 
-        private void OnClickInviteFriend()
-        {
-#if UNITY_EDITOR
-            Debug.LogWarning("[UILobby] 에디터에서는 스팀 오버레이 초대가 작동하지 않습니다.");
-#else
-            if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
-            {
-                SteamFriends.ActivateGameOverlayInviteDialog(LobbyManager.Instance.CurrentLobbyId);
-            }
-            else
-            {
-                Debug.LogWarning("[UILobby] 유효한 스팀 로비 ID가 없어 초대 창을 띄울 수 없습니다.");
-            }
-#endif
-        }
+        
     }
 }

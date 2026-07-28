@@ -20,6 +20,7 @@ namespace PixelChroma.UI
 
         [Header("Game Mode UI")]
         [SerializeField] private TMP_Text modeText;
+        [SerializeField] private GameModeRegistrySO gameModeRegistry;
 
         [Header("Player Count UI")]
         [SerializeField] private UIPlayerCountIcons runnerCountIcons;
@@ -130,7 +131,11 @@ namespace PixelChroma.UI
             UpdateStateUI(round.CurrentTimeState, round.CurrentTimer);
 
             if (modeText != null)
-                modeText.text = round.CurrentRule?.DisplayName ?? "";
+            {
+                var mode = round.CurrentRule?.Mode ?? GameMode.Basic;
+                var data = gameModeRegistry != null ? gameModeRegistry.Find(mode) : null;
+                modeText.text = data != null ? data.displayName.GetLocalizedString() : "";
+            }
 
             var inGame = InGameManager.Instance;
             if (inGame != null)
