@@ -187,6 +187,7 @@ namespace PixelChroma
         public void ServerBecomeSpectator() // Basic모드
         {
             _isDead = true;
+            GameRoundManager.Instance?.NotifyRunnerDead();
 
             // 넉백-------------------------------------
             if (_lastKnockbackDir.sqrMagnitude > 0.001f)
@@ -197,8 +198,7 @@ namespace PixelChroma
             else
             {
                 RpcBecomeSpectator();
-                if (GameRoundManager.Instance != null)
-                    GameRoundManager.Instance.NotifyRunnerDead();
+               
             }
             //------------------------------------------
             
@@ -212,11 +212,13 @@ namespace PixelChroma
         }
 
         [Server]
-        public void ServerConvertToSeeker()// Infaction모드
+        public void ServerConvertToSeeker()
         {
+            _isDead = true;
+            GameRoundManager.Instance?.NotifyRunnerDead();
+
             if (_lastKnockbackDir.sqrMagnitude > 0.001f)
             {
-                _isDead = true;
                 RpcKnockback(_lastKnockbackDir, _lastKnockbackImpulse, _lastKnockbackDrag, _lastKnockbackRotSpeed);
                 StartCoroutine(DelayedConvertToSeeker());
             }
@@ -224,10 +226,7 @@ namespace PixelChroma
             {
                 var netManager = NetworkManager.singleton as ChromaNetworkManager;
                 netManager?.ServerConvertRunnerToSeeker(this);
-                GameRoundManager.Instance?.NotifyRunnerDead();
-
             }
-
         }
 
         [Server]
@@ -289,9 +288,6 @@ namespace PixelChroma
 
                     break;
             }
-
-            if (GameRoundManager.Instance != null)
-                GameRoundManager.Instance.NotifyRunnerDead();
         }
 
         [ClientRpc]

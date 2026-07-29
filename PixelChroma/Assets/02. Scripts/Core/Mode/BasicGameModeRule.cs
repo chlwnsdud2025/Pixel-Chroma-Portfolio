@@ -10,8 +10,6 @@ namespace PixelChroma
 
         public override bool CanSeeRunnerNickname(TimeState currentState) => true;//Runner끼리 닉네임 항상 보임
         public override bool CanSeeRunnerBody(TimeState currentState) => true;//Runner끼리 몸 항상 보임
-        public override bool CanRunnersCollide(TimeState currentState) => true;//Runner끼리 충돌 항상 됨
-
         public override IReadOnlyList<RunnerPlayer> GetSpectatableRunners(RunnerPlayer viewer)//Runner전원 관전 가능
         {
             return InGameManager.Instance != null ? 

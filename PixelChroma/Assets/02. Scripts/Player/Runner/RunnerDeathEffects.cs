@@ -10,20 +10,15 @@ namespace PixelChroma
         [Header("피격 카메라 쉐이크")]
         [SerializeField] private float hitImpulseStrength = 1f;
 
-        [Header("히트스톱")]
-        [SerializeField] private float hitstopDuration = 0.05f;
-        [SerializeField, Range(0f, 1f)] private float hitstopSlowRatio = 0.1f;
-
         [Header("넉백")]
         [SerializeField] private float knockbackDuration = 0.4f;
-        [SerializeField] private PhysicsMaterial2D bouncyMaterial;
 
         [Header("사망 깜빡임")]
         [SerializeField] private float deathBlinkDuration = 1.5f;
         [SerializeField] private int deathBlinkCount = 3;
 
         [Header("피격 점멸")]
-        [SerializeField] private int hitstopFlashCount = 1;
+        [SerializeField] private float flashDuration = 0.1f;
 
         private static readonly int FlashAmountID = Shader.PropertyToID("_FlashAmount");
 
@@ -51,12 +46,12 @@ namespace PixelChroma
             if (paintCanvas != null)
                 paintCanvas.FadeAllPaint(knockbackDuration);
 
-            StartCoroutine(HitstopFlash());
+            StartCoroutine(HitFlash());
         }
 
         public void PlayKnockbackPhysics(Vector2 dir, float impulse, float drag, float rotSpeed)
         {
-            StartCoroutine(HitstopThenKnockback(dir, impulse, drag, rotSpeed));
+            StartCoroutine(Knockback(dir, impulse, drag, rotSpeed));
         }
 
         public void PlayDeathSequence(GameMode mode, bool isOwned)
@@ -64,20 +59,20 @@ namespace PixelChroma
             StartCoroutine(DeathSequenceRoutine(mode, isOwned));
         }
 
-        private IEnumerator HitstopThenKnockback(Vector2 dir, float impulse, float drag, float rotSpeed)
+        private IEnumerator Knockback(Vector2 dir, float impulse, float drag, float rotSpeed)
         {
             _isKnockedBack = true;
 
-            _rb.linearVelocity = Vector2.zero;
-            _rb.linearDamping = 50f;
-            _rb.sharedMaterial = bouncyMaterial;
             _rb.constraints = RigidbodyConstraints2D.None;
-            _rb.AddForce(dir * impulse * hitstopSlowRatio, ForceMode2D.Impulse);
+            _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+
+            // 넉백 중 벽 레이어 충돌 무시
+            int runnerLayer = gameObject.layer;
+            int wallLayer = LayerMask.NameToLayer("Wall");
+            Physics2D.IgnoreLayerCollision(runnerLayer, wallLayer, true);
 
             if (_impulseSource != null)
                 _impulseSource.GenerateImpulse(new Vector3(dir.x, dir.y, 0f) * hitImpulseStrength);
-
-            yield return new WaitForSeconds(hitstopDuration);
 
             _rb.linearVelocity = Vector2.zero;
             _rb.linearDamping = drag;
@@ -87,26 +82,21 @@ namespace PixelChroma
 
             yield return new WaitForSeconds(knockbackDuration);
 
+            // 충돌 복원
+            Physics2D.IgnoreLayerCollision(runnerLayer, wallLayer, false);
+
             _isKnockedBack = false;
             _rb.linearVelocity = Vector2.zero;
             _rb.angularVelocity = 0f;
             _rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         }
 
-        private IEnumerator HitstopFlash()
+        private IEnumerator HitFlash()
         {
             if (_visualRenderer == null) yield break;
 
-            float blinkInterval = hitstopDuration;
-
-            for (int i = 0; i < hitstopFlashCount; i++)
-            {
-                _visualRenderer.material.SetFloat(FlashAmountID, 1f);
-                yield return new WaitForSeconds(blinkInterval);
-                _visualRenderer.material.SetFloat(FlashAmountID, 0f);
-                yield return new WaitForSeconds(blinkInterval);
-            }
-
+            _visualRenderer.material.SetFloat(FlashAmountID, 1f);
+            yield return new WaitForSeconds(flashDuration);
             _visualRenderer.material.SetFloat(FlashAmountID, 0f);
         }
 

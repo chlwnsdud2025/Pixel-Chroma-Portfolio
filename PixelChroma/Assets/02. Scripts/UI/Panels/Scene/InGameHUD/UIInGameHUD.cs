@@ -1,5 +1,6 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
+using System;
 using TMPro;
 using UnityEngine;
 
@@ -203,9 +204,22 @@ namespace PixelChroma.UI
 
         private void HandleWinnerDecided(PlayerRole winner)
         {
+            ShowTransitionSequenceAsync(winner).Forget();
+        }
+
+        private async UniTaskVoid ShowTransitionSequenceAsync(PlayerRole winner)
+        {
+            if (gameResultOverlayText == null) return;
+
+            gameResultOverlayText.gameObject.SetActive(true);
+            gameResultOverlayText.text = winner == PlayerRole.Seeker
+                ? textData.transitionAllCaught.GetLocalizedString()
+                : textData.transitionTimeUp.GetLocalizedString();
+
+            await UniTask.Delay(TimeSpan.FromSeconds(2.5f));
+
             ShowWinnerOverlay(winner);
         }
 
-       
     }
 }

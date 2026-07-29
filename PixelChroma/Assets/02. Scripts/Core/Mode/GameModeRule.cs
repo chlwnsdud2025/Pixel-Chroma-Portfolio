@@ -16,9 +16,6 @@ namespace PixelChroma
         // Runner가 다른 Runner의 몸(스프라이트)을 볼 수 있는지
         public abstract bool CanSeeRunnerBody(TimeState currentState);
 
-        //Runner끼리의 충돌여부
-        public abstract bool CanRunnersCollide(TimeState currentState);
-
         //Runner관전자 List
         public abstract IReadOnlyList<RunnerPlayer> GetSpectatableRunners(RunnerPlayer viewer);
 
