@@ -37,6 +37,9 @@ namespace PixelChroma.UI
 
             if (_popupStack.Count > 0)                         // 1순위: 최상단 팝업 닫기
             {
+                if (CurrentPopup != null && !CurrentPopup.CloseOnEscape)
+                    return;
+
                 HidePopup().Forget();
                 return;
             }
