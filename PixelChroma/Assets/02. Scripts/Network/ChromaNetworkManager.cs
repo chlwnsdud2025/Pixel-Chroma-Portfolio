@@ -111,10 +111,11 @@ namespace PixelChroma
         {
             base.OnClientDisconnect();
 
-            if (LobbyManager.Instance != null)
-                LobbyManager.Instance.NotifyClientDisconnected();
+            // 접속 시도 자체가 실패한 경우는 엔트리 팝업(빠른참가/코드참가 등)이 재시도 UI로 처리한다.
+            bool handledAsAttemptFailure =
+                LobbyManager.Instance != null && LobbyManager.Instance.NotifyClientDisconnected();
 
-            if (GameManager.Instance != null)
+            if (!handledAsAttemptFailure && GameManager.Instance != null)
                 GameManager.Instance.HandleDisconnect();
         }
 
@@ -177,6 +178,18 @@ namespace PixelChroma
             }
         }
 
+        // 씬 로드가 시작되기 직전에 호출된다.
+        public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
+        {
+            base.OnClientChangeScene(newSceneName, sceneOperation, customHandling);
+
+            if (GameManager.Instance == null) return;
+
+            string scene = GetSceneName(newSceneName);
+            if (IsInGameScene(scene) || scene == GetSceneName(onlineScene))
+                GameManager.Instance.ShowLoading().Forget();
+        }
+
         public override void OnClientSceneChanged()
         {
             string currentScene = SceneManager.GetActiveScene().name;
@@ -193,7 +206,6 @@ namespace PixelChroma
                 GameManager.Instance.EnterLobby().Forget();
             }
         }
-
 
         public override void OnServerSceneChanged(string sceneName)
         {
@@ -260,6 +272,34 @@ namespace PixelChroma
             return sceneName == GetSceneName(inGameScene);
         }
 
+        public string GetSceneName(string scenePath)
+        {
+            if (string.IsNullOrEmpty(scenePath)) return string.Empty;
+            return System.IO.Path.GetFileNameWithoutExtension(scenePath);
+        }
+
+        public int GetLikeCount(int connId)
+        {
+            return _playerLikes.TryGetValue(connId, out int count) ? count : 0;
+        }
+
+        [Server]
+        public bool AddLike(int senderConnId, int targetConnId)
+        {
+            if (!_likeRecords.Add((senderConnId, targetConnId)))
+                return false;
+
+            _playerLikes.TryGetValue(targetConnId, out int current);
+            _playerLikes[targetConnId] = current + 1;
+            return true;
+        }
+
+        [Server]
+        public void ClearLikeRecords()
+        {
+            _likeRecords.Clear();
+        }
+
         private void LoadSelectedMap()
         {
             if (MapLoader.Instance == null)
@@ -277,36 +317,5 @@ namespace PixelChroma
             else
                 Debug.LogWarning($"[ChromaNetworkManager] 맵을 찾을 수 없습니다: {roomOption.mapName}");
         }
-
-        private string GetSceneName(string scenePath)
-        {
-            if (string.IsNullOrEmpty(scenePath)) return string.Empty;
-            return System.IO.Path.GetFileNameWithoutExtension(scenePath);
-        }
-
-
-        [Server]
-        public bool AddLike(int senderConnId, int targetConnId)
-        {
-            if (!_likeRecords.Add((senderConnId, targetConnId)))
-                return false;
-
-            _playerLikes.TryGetValue(targetConnId, out int current);
-            _playerLikes[targetConnId] = current + 1;
-            return true;
-        }
-
-        public int GetLikeCount(int connId)
-        {
-            return _playerLikes.TryGetValue(connId, out int count) ? count : 0;
-        }
-
-        [Server]
-        public void ClearLikeRecords()
-        {
-            _likeRecords.Clear();
-        }
-
     }
-        
 }

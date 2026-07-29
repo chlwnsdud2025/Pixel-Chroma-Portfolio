@@ -101,14 +101,18 @@ namespace PixelChroma
             OnLobbySuccess();
         }
 
-        public void NotifyClientDisconnected()
+        // 접속 시도 실패(연결 대기 중 끊김)를 처리했으면 true를 반환한다.
+        public bool NotifyClientDisconnected()
         {
             if (_waitingForConnection)
             {
                 _waitingForConnection = false;
                 Debug.LogWarning("[LobbyManager] 클라이언트 연결 실패");
                 OnLobbyFailed?.Invoke();
+                return true;
             }
+
+            return false;
         }
 
         // ── 1. 방 만들기 ─────────────────────────
@@ -125,6 +129,7 @@ namespace PixelChroma
                 CurrentRoomCode = GenerateCode();
                 Debug.Log($"[LobbyManager] 로컬 방 생성 완료 (localhost) | 코드: {CurrentRoomCode} | 모드: {option.gameMode} | 공개: {option.isPublic}");
 
+                GameManager.Instance?.ShowLoading().Forget();
                 NetworkManager.singleton.StartHost();
                 return;
             }
@@ -290,6 +295,7 @@ namespace PixelChroma
             ApplyLobbyMetadata();
 
             Debug.Log($"[LobbyManager] 스팀 방 생성 완료 | 코드: {CurrentRoomCode}");
+            GameManager.Instance?.ShowLoading().Forget();
             NetworkManager.singleton.StartHost();
         }
 

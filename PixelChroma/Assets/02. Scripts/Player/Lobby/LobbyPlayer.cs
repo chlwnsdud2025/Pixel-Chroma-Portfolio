@@ -1,7 +1,5 @@
-using Mirror;
 using PixelChroma.UI;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace PixelChroma
 {
@@ -37,21 +35,13 @@ namespace PixelChroma
 
         protected override void OnLocalPlayerStarted()
         {
-            var lobby = UIManager.Instance.CurrentScene as UILobby;
+            var lobby = UIManager.Instance.GetPanel<UILobby>();
             PaintController.BindHUD(lobby);
         }
 
         protected override void OnLocalPlayerStopped()
         {
             PaintController.UnbindHUD();
-        }
-
-        protected override void Update()
-        {
-            base.Update();
-            if (!isLocalPlayer) return;
-
-            
         }
 
         private void UpdateReadyImage()

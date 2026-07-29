@@ -1,16 +1,22 @@
 using Cysharp.Threading.Tasks;
+using Mirror;
 using PixelChroma.UI;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.Localization.Settings;
+using UnityEngine.SceneManagement;
 
 namespace PixelChroma
 {
     public class GameManager : MonoSingleton<GameManager>
     {
-        public GameState CurrentState { get; private set; } = GameState.Boot;
+        // 네트워크 씬 로드+로컬 플레이어 스폰 대기 상한(초). 초과 시 복구 불가로 보고 메인 메뉴로 복귀시킨다.
+        private const float NetworkLoadTimeout = 30f;
+
+        // 로딩창 최소 표시 시간(초). 실제 로드가 더 빨리 끝나도 이 시간만큼은 로딩을 유지한다.
+        private const float MinLoadingTime = 1.5f;
 
         [Header("Localization")]
         [SerializeField] private FontTableSO fontTable;
@@ -19,6 +25,9 @@ namespace PixelChroma
         [SerializeField] private GameObject mainCameraPrefab;
         [SerializeField] private GameObject cinemachineCameraPrefab;
 
+        private float _loadingShownTime;
+
+        public GameState CurrentState { get; private set; } = GameState.Boot;
         public static bool SteamInitialized { get; private set; }
 
         private async void Start()
@@ -87,6 +96,8 @@ namespace PixelChroma
         {
             Debug.LogWarning("[GameManager] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
 
+            ShowLoading().Forget();
+
             if (InGameManager.Instance != null)
                 InGameManager.Instance.ResetState();
 
@@ -105,6 +116,15 @@ namespace PixelChroma
                 CursorManager.Instance.SetCursorType(CursorType.Default);
 
             await UIManager.Instance.ShowScene<UITitle>();
+
+            if (UIManager.Instance.CurrentPopup is UILoading)
+            {
+                var netManager = NetworkManager.singleton as ChromaNetworkManager;
+                string titleScene = netManager != null ? netManager.GetSceneName(netManager.offlineScene) : null;
+
+                await WaitForActiveScene(titleScene);
+                await HideLoading();
+            }
         }
 
         public async UniTask EnterLobby()
@@ -115,7 +135,13 @@ namespace PixelChroma
             if (CursorManager.Instance != null)
                 CursorManager.Instance.SetCursorType(CursorType.Default);
 
-            await UIManager.Instance.HideAllPopups();
+            if (!await WaitForLocalPlayer())
+            {
+                FailToMainMenu("로비 플레이어 스폰 대기 시간 초과");
+                return;
+            }
+
+            await HideLoading();
             await UIManager.Instance.ShowScene<UILobby>();
         }
 
@@ -123,7 +149,67 @@ namespace PixelChroma
         {
             CurrentState = GameState.InGame;
             EnsureSceneEssentials();
+
+            if (!await WaitForLocalPlayer())
+            {
+                FailToMainMenu("로컬 플레이어 스폰 대기 시간 초과");
+                return;
+            }
+
+            await HideLoading();
+        }
+
+        public async UniTask ShowLoading()
+        {
+            if (UIManager.Instance.CurrentPopup is UILoading) return;
+
+            _loadingShownTime = Time.unscaledTime;
+            await UIManager.Instance.ShowPopup<UILoading>();
+        }
+
+        private async UniTask HideLoading()
+        {
+            if (UIManager.Instance.CurrentPopup is UILoading)
+            {
+                float remaining = MinLoadingTime - (Time.unscaledTime - _loadingShownTime);
+                if (remaining > 0f)
+                    await UniTask.Delay((int)(remaining * 1000), ignoreTimeScale: true);
+            }
+
             await UIManager.Instance.HideAllPopups();
+        }
+
+        // 씬+맵 로드와 로컬 플레이어 스폰이 끝났는지 대기한다. 시간 초과 시 false.
+        private async UniTask<bool> WaitForLocalPlayer()
+        {
+            float elapsed = 0f;
+            while (NetworkClient.localPlayer == null && elapsed < NetworkLoadTimeout)
+            {
+                await UniTask.Yield();
+                elapsed += Time.unscaledDeltaTime;
+            }
+
+            return NetworkClient.localPlayer != null;
+        }
+
+        // 지정한 씬이 활성화될 때까지 대기한다(teardown 시 offlineScene 로드 완료 확인). 시간 초과 시 그냥 반환.
+        private async UniTask WaitForActiveScene(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName)) return;
+
+            float elapsed = 0f;
+            while (SceneManager.GetActiveScene().name != sceneName && elapsed < NetworkLoadTimeout)
+            {
+                await UniTask.Yield();
+                elapsed += Time.unscaledDeltaTime;
+            }
+        }
+
+        // 복구 불가 상황: 연결을 끊어 메인 메뉴로 복귀시킨다.
+        private void FailToMainMenu(string reason)
+        {
+            Debug.LogWarning($"[GameManager] {reason} — 메인 메뉴로 복귀합니다.");
+            HandleDisconnect();
         }
 
         // 씬 전환 시 필수 오브젝트를 보장한다. 없으면 프리팹으로 생성한다.
@@ -138,7 +224,7 @@ namespace PixelChroma
                 EnsureCinemachineCamera();
         }
 
-        private static void EnsureEventSystem()
+        private void EnsureEventSystem()
         {
             if (EventSystem.current != null) 
                 return;
