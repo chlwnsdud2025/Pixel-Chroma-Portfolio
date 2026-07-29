@@ -3105,6 +3105,7 @@ GameObject:
   - component: {fileID: 945340038763671423}
   - component: {fileID: 5497750204497614221}
   - component: {fileID: 4260669801274043664}
+  - component: {fileID: 7153318128613819501}
   m_Layer: 5
   m_Name: PlayerNameText
   m_TagString: Untagged
@@ -3153,7 +3154,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3231,6 +3232,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &7153318128613819501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8224008651658571428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.DynamicFontText
+  _style: {fileID: 11400000, guid: 643eac29db67afc4cb5eec30c26c68c5, type: 2}
 --- !u!1 &8998730444641806027
 GameObject:
   m_ObjectHideFlags: 0
