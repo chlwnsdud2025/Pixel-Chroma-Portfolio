@@ -261,8 +261,8 @@ namespace PixelChroma
 
             if (_impulseSource != null)
             {
-                Vector2 rand = UnityEngine.Random.insideUnitCircle.normalized * impulseStrength;
-                _impulseSource.GenerateImpulse(new Vector3(rand.x, rand.y, 0f));
+                Vector2 recoilDir = -_aimDirection.normalized * impulseStrength;
+                _impulseSource.GenerateImpulse(new Vector3(recoilDir.x, recoilDir.y, 0f));
             }
         }
 

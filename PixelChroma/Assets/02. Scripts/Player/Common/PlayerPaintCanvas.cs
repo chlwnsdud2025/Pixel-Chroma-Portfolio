@@ -69,6 +69,7 @@ namespace PixelChroma
 
         [SerializeField] private SpriteRenderer targetRenderer;
         [SerializeField] private Animator targetAnimator;
+        public Animator TargetAnimator => targetAnimator;
         [SerializeField] private PaintForm[] forms = new PaintForm[]
         {
             new PaintForm { formType = PaintFormType.Default }
