@@ -333,7 +333,6 @@ namespace PixelChroma.UI
         private void OnClickLeave()
         {
             LobbyManager.Instance.LeaveLobby();
-            GameManager.Instance.EnterMainMenu().Forget();
         }
 
         private void OnClickToggleCode()
