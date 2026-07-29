@@ -75,6 +75,10 @@ namespace PixelChroma
                 CursorManager.Instance.overrideScreenPosition = null;
         }
 
+        // Seeker의 관전은 체크타임 잠금 전용 → ESC로 종료하지 않는다.
+        // (해제는 OnCheckTimeSpectatorExit에서만 일어남)
+        protected override bool TryExitSpectateByEscape() => false;
+
         protected override void HandleSpectateInput()
         {
             if (Spectator == null || !IsCheckTimeSpectatorLocked) return;

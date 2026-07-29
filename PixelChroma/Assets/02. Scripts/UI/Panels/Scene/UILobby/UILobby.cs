@@ -137,6 +137,12 @@ namespace PixelChroma.UI
             return UniTask.CompletedTask;
         }
 
+        public override void OnCancel()
+        {
+            // TODO OnClickSetting
+            Debug.Log("OnClickSetting");
+        }
+
         // ── Public ───────────────────────────────────────────
 
         public void SetPaintMode(bool active)
@@ -338,7 +344,5 @@ namespace PixelChroma.UI
             ApplyCodeVisibility();
             RefreshRoomCode();
         }
-
-        
     }
 }

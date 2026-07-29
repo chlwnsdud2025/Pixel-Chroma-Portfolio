@@ -10,13 +10,15 @@ using UnityEngine.SceneManagement;
 
 namespace PixelChroma.UI
 {
-    public class UIChat : UIPanel
+    public class UIChat : UIPanel, IEscapeHandler
     {
+        private const string ActionMapName = "PlayerControll";
+        private const string ActionChatToggle = "ChatToggle";
+
         [Header("Chat Settings")]
         [SerializeField] private int maxMessages = 50;
 
         private InputAction _chatToggleAction;
-        private InputAction _cancelAction;
 
         // 각 메시지가 표시된 뒤 사라지기 시작하는 시간(초)
         [SerializeField] private float messageDisplayDuration = 5f;
@@ -53,9 +55,6 @@ namespace PixelChroma.UI
         // ActivateInputField 후 실제 포커스가 잡힐 때까지 대기 중인지
         private bool _waitingForFocus;
 
-        // 채팅창에 보이는 메시지가 하나라도 있는지 (투명도 제어용)
-        private bool _hasVisibleMessages;
-
         // ── 메시지 항목: TMP_Text + 타이머 정보를 묶어서 관리 ──
         private struct ChatEntry
         {
@@ -78,12 +77,14 @@ namespace PixelChroma.UI
 
             if (inputActions != null)
             {
-                var map = inputActions.FindActionMap("PlayerControll");
-                _chatToggleAction = map?.FindAction("ChatToggle");
-                _cancelAction = map?.FindAction("Cancel");
+                var map = inputActions.FindActionMap(ActionMapName);
+                _chatToggleAction = map?.FindAction(ActionChatToggle);
                 _chatToggleAction?.Enable();
-                _cancelAction?.Enable();
             }
+
+            // ESC는 UIManager가 유일 리더로서 최우선 처리하도록 위임한다.
+            if (UIManager.Instance != null)
+                UIManager.Instance.ChatEscapeHandler = this;
         }
 
         private void OnDisable()
@@ -95,7 +96,9 @@ namespace PixelChroma.UI
                 openChatButton.onClick.RemoveAllListeners();
 
             _chatToggleAction?.Disable();
-            _cancelAction?.Disable();
+
+            if (UIManager.Instance != null && ReferenceEquals(UIManager.Instance.ChatEscapeHandler, this))
+                UIManager.Instance.ChatEscapeHandler = null;
 
             SceneManager.sceneLoaded -= OnSceneLoaded;
         }
@@ -119,7 +122,7 @@ namespace PixelChroma.UI
             UpdateChatVisibility();
         }
 
-        // ── T키 / ESC 처리: InputField 포커스만 제어 ──
+        // ── T키 처리: InputField 포커스만 제어
         private void HandleInputToggle()
         {
             if (_chatToggleAction != null && _chatToggleAction.WasPressedThisFrame())
@@ -127,12 +130,15 @@ namespace PixelChroma.UI
                 if (chatInputField.isFocused) return;
                 ToggleInput(!_isInputActive);
             }
+        }
 
-            if (_cancelAction != null && _cancelAction.WasPressedThisFrame())
-            {
-                if (_isInputActive)
-                    ToggleInput(false);
-            }
+        // ── ESC 처리: 입력창이 열려 있으면 닫고 소비.
+        public bool HandleEscape()
+        {
+            if (!_isInputActive) return false;
+
+            ToggleInput(false);
+            return true;
         }
 
         // ── 마우스 클릭 등으로 InputField 포커스를 잃었을 때 비활성화 ──

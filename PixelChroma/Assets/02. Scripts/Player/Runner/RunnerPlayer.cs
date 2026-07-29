@@ -424,6 +424,18 @@ namespace PixelChroma
         }
         //----------------------------------------------------------------------------------------------------
 
+        protected override bool TryExitSpectateByEscape()
+        {
+            if (Spectator == null || !Spectator.IsSpectating) return false;
+
+            // 사망 관전 / 체크타임 관전 중에는 ESC로 풀리지 않도록 유지
+            if (_isDeathSpectatorLocked || IsCheckTimeSpectatorLocked) return false;
+
+            Spectator.ExitSpectate();
+            _runnerHUD?.SetSpectatorMode(false);
+            return true;
+        }
+
         protected override void HandleSpectateInput()
         {
             if (Spectator == null) return;

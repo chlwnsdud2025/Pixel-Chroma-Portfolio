@@ -34,6 +34,8 @@ namespace PixelChroma.UI
             if (exitGameButton != null) exitGameButton.onClick.AddListener(OnClickExitGame);
         }
 
+        public override void OnCancel() => OnClickSetting();
+
         private void OnClickQuickJoin()
         {
             UIManager.Instance.ShowPopup<UIQuickMatch>().Forget();

@@ -11,7 +11,7 @@ using DG.Tweening;
 
 namespace PixelChroma
 {
-    public abstract class PlayerBase : NetworkBehaviour
+    public abstract class PlayerBase : NetworkBehaviour, IEscapeHandler
     {
         protected static readonly int MoveX = Animator.StringToHash("MoveX");
         protected static readonly int MoveY = Animator.StringToHash("MoveY");
@@ -195,6 +195,9 @@ namespace PixelChroma
             _input = new PlayerInputActions(Instantiate(inputActions));
             _input.EnableAll();
 
+            if (UIManager.Instance != null)
+                UIManager.Instance.GameplayEscapeHandler = this;
+
             _paintController = new PlayerPaintController(this, paintCanvas, _input);
             _paintController.OnPaintModeChanged += HandlePaintModeChangedForZoom;
             _paintController.OnPaintModeChanged += _nicknameDisplay.HandlePaintModeChanged;
@@ -220,6 +223,9 @@ namespace PixelChroma
         {
             _input?.DisableAll();
             UIChat.OnChatToggled -= HandleChatToggled;
+
+            if (UIManager.Instance != null && ReferenceEquals(UIManager.Instance.GameplayEscapeHandler, this))
+                UIManager.Instance.GameplayEscapeHandler = null;
 
             if (_paintController != null)
             {
@@ -283,6 +289,24 @@ namespace PixelChroma
         public virtual CursorType GetDefaultCursorType()
         {
             return CursorType.Default;
+        }
+
+        // ── ESC 처리 ──────────────────────────────────────────────────
+        protected virtual bool TryExitSpectateByEscape() => false;
+        public bool HandleEscape()
+        {
+            // 채팅 입력 중엔 게임플레이 취소를 소비만 하고 무시(설정 팝업 오작동 방지)
+            if (IsChatActive) return true;
+
+            if (TryExitSpectateByEscape()) return true;   // 1순위: 관전 종료(롤별 잠금 반영)
+
+            if (_paintController != null && _paintController.IsPaintMode)  // 2순위: 페인트 종료
+            {
+                _paintController.TogglePaintMode();
+                return true;
+            }
+
+            return false;
         }
 
         // ── 관전 공용 ──────────────────────────────────────────────────
