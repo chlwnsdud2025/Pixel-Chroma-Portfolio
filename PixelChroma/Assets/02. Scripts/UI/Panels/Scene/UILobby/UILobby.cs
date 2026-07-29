@@ -195,10 +195,8 @@ namespace PixelChroma.UI
         {
             if (playerCountText == null || LobbyManager.Instance == null)
                 return;
-
-            int current = LobbyManager.Instance.GetMemberCount();
-            if (current == 0)
-                current = LobbyPlayerState.AllPlayers.Count;
+            
+            int current = LobbyPlayerState.AllPlayers.Count;
 
             int max = LobbyManager.Instance.CurrentRoomOption != null
                 ? LobbyManager.Instance.CurrentRoomOption.maxPlayers
