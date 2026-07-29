@@ -10,10 +10,10 @@ namespace PixelChroma.UI
     public class UIRoomListItem : MonoBehaviour
     {
         [SerializeField] private TMP_Text roomNameText;
-        [SerializeField] private TMP_Text playerCountText;
-        [SerializeField] private TMP_Text gameModeText;
-        [SerializeField] private TMP_Text mapText;
         [SerializeField] private TMP_Text statusText;
+        [SerializeField] private TMP_Text mapText;
+        [SerializeField] private TMP_Text gameModeText;
+        [SerializeField] private TMP_Text playerCountText;
         [SerializeField] private Button joinButton;
 
         [Header("Localization")]
