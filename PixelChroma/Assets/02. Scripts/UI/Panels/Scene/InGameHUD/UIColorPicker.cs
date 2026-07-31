@@ -42,7 +42,6 @@ namespace PixelChroma.UI
         [Header("Brush Size")]
         [SerializeField] private Slider brushSizeSlider;
         [SerializeField] private TMP_Text brushSizeLabel;
-        [SerializeField] private int maxBrushSize = 5;
 
         private Texture2D _svTexture;
         private float _hue;
@@ -52,7 +51,7 @@ namespace PixelChroma.UI
 
         public Color SelectedColor => Color.HSVToRGB(_hue, _saturation, _value);
         public int BrushSize => brushSizeSlider != null ? (int)brushSizeSlider.value : 1;
-        public int MaxBrushSize => maxBrushSize > 0 ? maxBrushSize : DefaultMaxBrushSize;
+        public int MaxBrushSize => DefaultMaxBrushSize;
 
         public event Action<Color> OnColorChanged;
         public event Action<int> OnBrushSizeChanged;
@@ -188,7 +187,7 @@ namespace PixelChroma.UI
             if (brushSizeSlider == null) return;
             brushSizeSlider.wholeNumbers = true;
             brushSizeSlider.minValue = 1;
-            brushSizeSlider.maxValue = maxBrushSize;
+            brushSizeSlider.maxValue = DefaultMaxBrushSize;
             brushSizeSlider.value = DefaultBrushSize;
             brushSizeSlider.onValueChanged.AddListener(OnBrushSizeSliderChanged);
             UpdateBrushSizeLabel();
@@ -203,7 +202,7 @@ namespace PixelChroma.UI
         public void SetBrushSize(int size)
         {
             if (brushSizeSlider == null) return;
-            brushSizeSlider.value = Mathf.Clamp(size, 1, maxBrushSize);
+            brushSizeSlider.value = Mathf.Clamp(size, 1, DefaultMaxBrushSize);
         }
 
         private void UpdateBrushSizeLabel()
