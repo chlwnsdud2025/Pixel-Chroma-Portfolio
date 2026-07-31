@@ -146,12 +146,6 @@ namespace PixelChroma
             HandleMovement();
         }
 
-        private void LateUpdate()
-        {
-            if (_spectator != null && _spectator.IsSpectating)
-                _spectator.ProcessLateUpdate();
-        }
-
         public override void OnStartServer()
         {
             base.OnStartServer();

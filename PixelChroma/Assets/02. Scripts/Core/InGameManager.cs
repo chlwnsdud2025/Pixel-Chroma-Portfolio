@@ -7,6 +7,12 @@ namespace PixelChroma
 {
     public class InGameManager : MonoSingleton<InGameManager>
     {
+        [Header("Spectator Camera")]
+        [Tooltip("관전 대상 전환 시 카메라 도달 목표 시간(초). 거리와 무관하게 균일")]
+        [SerializeField] private float spectateTransitionTime = 0.4f;
+
+        public float SpectateTransitionTime => Mathf.Max(0.01f, spectateTransitionTime);
+
         private Transform _spawnPoint;
 
         private readonly List<RunnerPlayer> _runners = new();
