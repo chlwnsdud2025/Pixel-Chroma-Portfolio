@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.InputSystem;
 
 namespace PixelChroma.UI
 {
@@ -23,6 +24,31 @@ namespace PixelChroma.UI
 
         public UIScene CurrentScene => _currentScene;
         public UIPopup CurrentPopup => _popupStack.Count > 0 ? _popupStack.Peek() : null;
+        public IEscapeHandler GameplayEscapeHandler { get; set; }
+        public IEscapeHandler ChatEscapeHandler { get; set; }
+
+        private void Update()
+        {
+            if (Keyboard.current == null || !Keyboard.current.escapeKey.wasPressedThisFrame)
+                return;
+
+            if (ChatEscapeHandler?.HandleEscape() == true)     // 0순위: 채팅 입력창 닫기
+                return;
+
+            if (_popupStack.Count > 0)                         // 1순위: 최상단 팝업 닫기
+            {
+                if (CurrentPopup != null && !CurrentPopup.CloseOnEscape)
+                    return;
+
+                HidePopup().Forget();
+                return;
+            }
+
+            if (GameplayEscapeHandler?.HandleEscape() == true) // 2순위: 관전/페인트 종료
+                return;
+
+            _currentScene?.OnCancel();                         // 3순위: 씬 설정/나가기
+        }
 
         public async UniTask InitializeAsync()
         {

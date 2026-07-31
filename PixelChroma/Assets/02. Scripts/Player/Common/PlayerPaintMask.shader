@@ -18,6 +18,7 @@ Shader "PixelChroma/PlayerPaintMask"
         _EdgeShadow ("Edge Shadow", Range(0,1)) = 0.05
         _LightAngle ("Light Angle", Range(0,360)) = 135
 
+        _FlashAmount ("Flash Amount", Range(0,1)) = 0
         [MaterialToggle] PixelSnap ("Pixel snap", Float) = 0
         [HideInInspector] _RendererColor ("RendererColor", Color) = (1,1,1,1)
         [HideInInspector] _Color ("Tint", Color) = (1,1,1,1)
@@ -69,6 +70,7 @@ Shader "PixelChroma/PlayerPaintMask"
             float _EdgeHighlight;
             float _EdgeShadow;
             float _LightAngle;
+            float _FlashAmount;
             fixed4 _Color;
             fixed4 _RendererColor;
 
@@ -110,7 +112,8 @@ Shader "PixelChroma/PlayerPaintMask"
                 float3 rgb = lerp(sprite.rgb, paint, mask.a);
 
                 fixed4 col = fixed4(rgb, sprite.a) * IN.color;
-                col.rgb *= col.a; // premultiplied alpha (Blend One OneMinusSrcAlpha)
+                col.rgb = lerp(col.rgb, float3(1,1,1), _FlashAmount);
+                col.rgb *= col.a;
                 return col;
             }
         ENDCG

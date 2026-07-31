@@ -137,8 +137,6 @@ namespace PixelChroma
                     // 둘 다 빈자리 있으면 인원 많은 순
                     return b.currentPlayers.CompareTo(a.currentPlayers);
                 });
-
-                OnSearchCompleted?.Invoke(_entries);
             }
 
             OnSearchCompleted?.Invoke(_entries);
@@ -164,7 +162,7 @@ namespace PixelChroma
         private void HandleLanRoomFound(RoomListEntry entry)
         {
             if (!PassesFilter(entry, _currentFilter)) return;
-
+             
             _entries.RemoveAll(e => e.connectAddress == entry.connectAddress);
             _entries.Add(entry);
             OnSearchCompleted?.Invoke(_entries);

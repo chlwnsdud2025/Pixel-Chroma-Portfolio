@@ -23,10 +23,6 @@ namespace PixelChroma
         private bool _isLobbyReturningStarted = false;
         private CancellationTokenSource _timerCts;
 
-        [Header("Physics")]
-        [Tooltip("러너 캐릭터가 속한 물리 레이어. Infection 모드에서 서로 몸이 안 보일 때 이 레이어끼리 충돌을 꺼줍니다.")]
-        [SerializeField] private LayerMask runnerPhysicsLayer;
-
         [Header("forced Expose")]
         [SerializeField] private float forcedExposeDuration;
 
@@ -152,11 +148,13 @@ namespace PixelChroma
         private void CheckRunnerWipeout()
         {
             if (InGameManager.Instance == null) return;
+            if (CurrentWinner != PlayerRole.None) return;
             int aliveRunners = InGameManager.Instance.GetAliveRunnerCount();
             if (aliveRunners == 0)
             {
                 SetWinner(PlayerRole.Seeker);
-                SetTimeState(TimeState.CheckTime, OptionCheckTime);
+                CancelTimer();
+                DelayedCheckTimeTransition().Forget();
             }
         }
 
@@ -206,6 +204,13 @@ namespace PixelChroma
         private void OnSeekTimeExpired()
         {
             SetWinner(PlayerRole.Runner);
+            DelayedCheckTimeTransition().Forget();
+        }
+
+        [Server]
+        private async UniTaskVoid DelayedCheckTimeTransition()
+        {
+            await UniTask.Delay(TimeSpan.FromSeconds(5f));
             SetTimeState(TimeState.CheckTime, OptionCheckTime);
         }
 
@@ -325,8 +330,6 @@ namespace PixelChroma
             if (CurrentTimer > 0)
                 RunTimerAsync().Forget();
 
-            UpdateRunnerCollision();
-
             OnTimeStateChanged?.Invoke(msg.state, CurrentTimer);
         }
 
@@ -366,23 +369,6 @@ namespace PixelChroma
         private void OnClientRoomOptionChanged(RoomOptionSyncMessage msg)
         {
             CurrentRoomOption = RoomOption.FromData(msg.option);
-        }
-
-        //-----------------------InfectionMode에서 HideTime에 Runner끼리 충돌 방지----------------
-        private void UpdateRunnerCollision()
-        {
-            int layer = LayerMaskToLayer(runnerPhysicsLayer);
-            if (layer < 0) return;
-
-            bool canCollide = CurrentRule == null || CurrentRule.CanRunnersCollide(CurrentTimeState);
-            Physics2D.IgnoreLayerCollision(layer, layer, !canCollide);
-        }
-
-        // LayerMask(비트마스크)를 Physics2D.IgnoreLayerCollision이 요구하는 단일 레이어 번호로 변환
-        private static int LayerMaskToLayer(LayerMask mask)
-        {
-            int value = mask.value;
-            return value == 0 ? -1 : (int)Mathf.Log(value, 2);
         }
     }
 }

@@ -10,6 +10,11 @@ namespace PixelChroma.UI
         [SerializeField] private Button dimmed;
         [SerializeField] private bool closeOnDimmedClick = true;
 
+        [Header("Escape")]
+        [SerializeField] private bool closeOnEscape = true;
+
+        public virtual bool CloseOnEscape => closeOnEscape;
+
         public override void Initialize()
         {
             base.Initialize();

@@ -17,4 +17,8 @@ public class HUDTextDataSO : ScriptableObject
 
     [Header("Spectate")]
     public LocalizedString spectateFreeView;
+
+    [Header("Transition")]
+    public LocalizedString transitionAllCaught;   // "전원 사망!"
+    public LocalizedString transitionTimeUp;      // " 시간 종료!"
 }

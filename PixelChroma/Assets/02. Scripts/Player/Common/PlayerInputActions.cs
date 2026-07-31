@@ -22,7 +22,6 @@ namespace PixelChroma
         private const string ActionUndo = "Undo";
         private const string ActionRedo = "Redo";
         private const string ActionChatToggle = "ChatToggle";
-        private const string ActionCancel = "Cancel";
         private const string ActionLike = "Like";
         private const string ActionFormWheel = "FormWheel";
         private readonly InputActionMap _map;
@@ -44,7 +43,6 @@ namespace PixelChroma
         public InputAction Undo { get; }
         public InputAction Redo { get; }
         public InputAction ChatToggle { get; }
-        public InputAction Cancel { get; }
         public InputAction Like { get; }
         public InputAction FormWheel { get; }
 
@@ -68,7 +66,6 @@ namespace PixelChroma
             Undo = _map.FindAction(ActionUndo);
             Redo = _map.FindAction(ActionRedo);
             ChatToggle = _map.FindAction(ActionChatToggle);
-            Cancel = _map.FindAction(ActionCancel);
             Like = _map.FindAction(ActionLike);
             FormWheel = _map.FindAction(ActionFormWheel);
         }

@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using Mirror;
 using PixelChroma.UI;
 using System;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -34,18 +35,12 @@ namespace PixelChroma
         [Tooltip("사망 또는 서로 안보이게 할 때 껏다 켯다 할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
 
-
-        [Header("사망 시 넉백 테스트")]
+        [Header("사망 시 넉백")]
         private Vector2 _lastKnockbackDir;
-        [SerializeField] private float knockbackDuration = 0.4f;
-        [SerializeField] private PhysicsMaterial2D bouncyMaterial;
-
-        [Header("사망 연출")]
-        [SerializeField] private float deathBlinkDuration = 1.5f;
-        [SerializeField] private int deathBlinkCount = 3;
         private float _lastKnockbackImpulse;
         private float _lastKnockbackDrag;
         private float _lastKnockbackRotSpeed;
+
 
         [SyncVar(hook = nameof(OnDeadStateChanged))] private bool _isDead;
         private bool _isVisuallyDead;
@@ -63,15 +58,15 @@ namespace PixelChroma
         private bool _isDeathSpectatorLocked;
         private DeathSnapshot _deathSnapshot = new();
         private UIInGameHUD_Runner _runnerHUD;
+        private RunnerDeathEffects _deathEffects;
 
-
-        private bool _isKnockedBack;// 테스트용
-        public bool IsKnockedBack => _isKnockedBack;
         protected override UIInGameHUD InGameHUD => _runnerHUD;
 
         public bool IsDead => _isDead;
         public bool IsWet => _isWet;
         public bool IsCamouflaged => _paintRatio >= camouflagedThreshold;
+        public bool IsKnockedBack => _deathEffects != null && _deathEffects.IsKnockedBack;
+
 
         public static event Action<string, string> OnPlayerCaught;
 
@@ -79,6 +74,10 @@ namespace PixelChroma
         {
             base.Awake();
             _baseMoveSpeed = moveSpeed;
+
+            _deathEffects = GetComponent<RunnerDeathEffects>();
+            _deathEffects.Init(Rb, visualRenderer, animator);
+            _deathEffects.OnDeathSequenceFinished += CmdDeathSequenceFinished;
         }
 
         public override void OnStartClient()
@@ -188,6 +187,7 @@ namespace PixelChroma
         public void ServerBecomeSpectator() // Basic모드
         {
             _isDead = true;
+            GameRoundManager.Instance?.NotifyRunnerDead();
 
             // 넉백-------------------------------------
             if (_lastKnockbackDir.sqrMagnitude > 0.001f)
@@ -198,8 +198,7 @@ namespace PixelChroma
             else
             {
                 RpcBecomeSpectator();
-                if (GameRoundManager.Instance != null)
-                    GameRoundManager.Instance.NotifyRunnerDead();
+               
             }
             //------------------------------------------
             
@@ -208,16 +207,18 @@ namespace PixelChroma
         [Server]
         private System.Collections.IEnumerator DelayedBecomeSpectator()
         {
-            yield return new WaitForSeconds(knockbackDuration);
+            yield return new WaitForSeconds(_deathEffects.KnockbackDuration);
             RpcDeathSequence(GameMode.Basic);
         }
 
         [Server]
-        public void ServerConvertToSeeker()// Infaction모드
+        public void ServerConvertToSeeker()
         {
+            _isDead = true;
+            GameRoundManager.Instance?.NotifyRunnerDead();
+
             if (_lastKnockbackDir.sqrMagnitude > 0.001f)
             {
-                _isDead = true;
                 RpcKnockback(_lastKnockbackDir, _lastKnockbackImpulse, _lastKnockbackDrag, _lastKnockbackRotSpeed);
                 StartCoroutine(DelayedConvertToSeeker());
             }
@@ -225,90 +226,34 @@ namespace PixelChroma
             {
                 var netManager = NetworkManager.singleton as ChromaNetworkManager;
                 netManager?.ServerConvertRunnerToSeeker(this);
-                GameRoundManager.Instance?.NotifyRunnerDead();
-
             }
-
         }
 
         [Server]
         private System.Collections.IEnumerator DelayedConvertToSeeker()
         {
-            yield return new WaitForSeconds(knockbackDuration);
+            yield return new WaitForSeconds(_deathEffects.KnockbackDuration);
             RpcDeathSequence(GameMode.Infection);
         }
 
 
 
-        //-----------------------------------테스트-----------------
+        //-----------------------------------테스트-----------------------------------------
         [ClientRpc]
         private void RpcKnockback(Vector2 dir, float impulse, float drag, float rotSpeed)
         {
-            // 모든 클라이언트에서 페인트 페이드
-            if (paintCanvas != null)
-                paintCanvas.FadeAllPaint(knockbackDuration);
+            _deathEffects.PlayKnockbackVisuals(paintCanvas);
 
-            // 물리는 소유 클라이언트에서만
             if (isOwned && Rb != null)
             {
-                _isKnockedBack = true;
-                Rb.linearVelocity = Vector2.zero;
-                Rb.linearDamping = drag;
-                Rb.angularDamping = drag;
-                Rb.sharedMaterial = bouncyMaterial;
-                Rb.constraints = RigidbodyConstraints2D.None;
-                Rb.angularVelocity = rotSpeed * (dir.x >= 0 ? -1f : 1f);
-                Rb.AddForce(dir * impulse, ForceMode2D.Impulse);
-                StartCoroutine(ResetKnockback());
+                _deathEffects.PlayKnockbackPhysics(dir, impulse, drag, rotSpeed);
             }
         }
-
-        private System.Collections.IEnumerator ResetKnockback()
-        {
-            yield return new WaitForSeconds(knockbackDuration);
-            _isKnockedBack = false;
-            Rb.linearVelocity = Vector2.zero;
-            Rb.angularVelocity = 0f;
-            Rb.constraints = RigidbodyConstraints2D.FreezeRotation;
-            transform.rotation = Quaternion.identity;
-        }
-        //------------------------------------------
+        //--------------------------------------------------------------------------------
         [ClientRpc]
         private void RpcDeathSequence(GameMode mode)
         {
-            StartCoroutine(DeathSequenceRoutine(mode));
-        }
-
-        private System.Collections.IEnumerator DeathSequenceRoutine(GameMode mode)
-        {
-            if (isOwned && Rb != null)
-            {
-                Rb.linearVelocity = Vector2.zero;
-                Rb.angularVelocity = 0f;
-            }
-            transform.rotation = Quaternion.identity;
-
-            // 1. 사망 애니메이션 (트리거가 준비되면 여기에 추가)
-            // if (animator != null) animator.SetTrigger("Death");
-            // yield return new WaitForSeconds(사망 애니메이션 길이);
-
-            // 2. 깜빡임
-            if (visualRenderer != null)
-            {
-                float blinkInterval = deathBlinkDuration / (deathBlinkCount * 2);
-                for (int i = 0; i < deathBlinkCount; i++)
-                {
-                    visualRenderer.color = new Color(1f, 1f, 1f, 0.2f);
-                    yield return new WaitForSeconds(blinkInterval);
-                    visualRenderer.color = new Color(1f, 1f, 1f, 1f);
-                    yield return new WaitForSeconds(blinkInterval);
-                }
-                visualRenderer.color = Color.white;
-            }
-
-            // 3. 관전 진입 (서버에서 호출해야 하므로 로컬→Command)
-            if (isOwned)
-                CmdDeathSequenceFinished(mode);
+            _deathEffects.PlayDeathSequence(mode, isOwned);
         }
 
         [Command]
@@ -323,7 +268,7 @@ namespace PixelChroma
                     {
                         RpcRestoreDeathPaint(_deathSnapshot.FormType, _deathSnapshot.MaskPixels);
                     }
-
+                    RpcRestoreDeathAnimator(_deathSnapshot.AnimatorStateHash, _deathSnapshot.AnimatorNormalizedTime);
                     RpcBecomeSpectator();
 
                     break;
@@ -335,7 +280,7 @@ namespace PixelChroma
                     {
                         RpcRestoreDeathPaint(_deathSnapshot.FormType, _deathSnapshot.MaskPixels);
                     }
-
+                    RpcRestoreDeathAnimator(_deathSnapshot.AnimatorStateHash, _deathSnapshot.AnimatorNormalizedTime);
                     RpcBecomeGhost();
 
                     var netManager = NetworkManager.singleton as ChromaNetworkManager;
@@ -343,9 +288,6 @@ namespace PixelChroma
 
                     break;
             }
-
-            if (GameRoundManager.Instance != null)
-                GameRoundManager.Instance.NotifyRunnerDead();
         }
 
         [ClientRpc]
@@ -369,6 +311,15 @@ namespace PixelChroma
         {
             if (paintCanvas != null)
                 paintCanvas.RestoreMaskPixels(formType, pixels);
+        }
+
+        [ClientRpc]
+        private void RpcRestoreDeathAnimator(int stateHash, float normalizedTime)
+        {
+            if (paintCanvas == null) return;
+            var animator = paintCanvas.TargetAnimator;
+            if (animator != null && stateHash != 0)
+                animator.Play(stateHash, 0, normalizedTime);
         }
 
         //----------------------------------------------------------------------------------------------------
@@ -423,6 +374,18 @@ namespace PixelChroma
             RefreshVisualVisibilityForLocalViewer();
         }
         //----------------------------------------------------------------------------------------------------
+
+        protected override bool TryExitSpectateByEscape()
+        {
+            if (Spectator == null || !Spectator.IsSpectating) return false;
+
+            // 사망 관전 / 체크타임 관전 중에는 ESC로 풀리지 않도록 유지
+            if (_isDeathSpectatorLocked || IsCheckTimeSpectatorLocked) return false;
+
+            Spectator.ExitSpectate();
+            _runnerHUD?.SetSpectatorMode(false);
+            return true;
+        }
 
         protected override void HandleSpectateInput()
         {

@@ -137,6 +137,12 @@ namespace PixelChroma.UI
             return UniTask.CompletedTask;
         }
 
+        public override void OnCancel()
+        {
+            // TODO OnClickSetting
+            Debug.Log("OnClickSetting");
+        }
+
         // ── Public ───────────────────────────────────────────
 
         public void SetPaintMode(bool active)
@@ -189,10 +195,8 @@ namespace PixelChroma.UI
         {
             if (playerCountText == null || LobbyManager.Instance == null)
                 return;
-
-            int current = LobbyManager.Instance.GetMemberCount();
-            if (current == 0)
-                current = LobbyPlayerState.AllPlayers.Count;
+            
+            int current = LobbyPlayerState.AllPlayers.Count;
 
             int max = LobbyManager.Instance.CurrentRoomOption != null
                 ? LobbyManager.Instance.CurrentRoomOption.maxPlayers
@@ -329,7 +333,6 @@ namespace PixelChroma.UI
         private void OnClickLeave()
         {
             LobbyManager.Instance.LeaveLobby();
-            GameManager.Instance.EnterMainMenu().Forget();
         }
 
         private void OnClickToggleCode()
@@ -338,7 +341,5 @@ namespace PixelChroma.UI
             ApplyCodeVisibility();
             RefreshRoomCode();
         }
-
-        
     }
 }

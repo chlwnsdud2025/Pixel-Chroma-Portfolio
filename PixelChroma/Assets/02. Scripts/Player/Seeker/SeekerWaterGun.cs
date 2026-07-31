@@ -61,6 +61,10 @@ namespace PixelChroma
         [SerializeField] private float knockbackDrag = 5f;
         [SerializeField] private float knockbackRotSpeed = 720f;
 
+        [Tooltip("넉백 방향에서 총알 진행방향이 차지하는 비중 (0 = 착탄점 방사형만, 1 = 총알 진행방향만)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float knockbackForwardBias = 0.5f;
+
         private SeekerPlayer _seeker;
 
         // 마지막 발사의 착탄 지점과 시각. 기즈모를 발사 직후 잠깐만 그리기 위한 값입니다.
@@ -261,8 +265,8 @@ namespace PixelChroma
 
             if (_impulseSource != null)
             {
-                Vector2 rand = UnityEngine.Random.insideUnitCircle.normalized * impulseStrength;
-                _impulseSource.GenerateImpulse(new Vector3(rand.x, rand.y, 0f));
+                Vector2 recoilDir = -_aimDirection.normalized * impulseStrength;
+                _impulseSource.GenerateImpulse(new Vector3(recoilDir.x, recoilDir.y, 0f));
             }
         }
 
@@ -290,12 +294,15 @@ namespace PixelChroma
                     var runner = col.GetComponentInParent<RunnerPlayer>();
                     if (runner != null)
                     {
-                        //runner.ServerTakeEraseDamage(laserEndPos, aoeRadius);
-                        //runner.ApplyWetState(wetDuration);
+                        // 1, 착탄점 → 러너 (총알과 반대방향으로 밀어냄)
+                        Vector2 radial = (Vector2)runner.transform.position - laserEndPos;
+                        Vector2 radialDir = radial.sqrMagnitude > 0.0001f ? radial.normalized : direction;
 
-                        string catcherName = _seeker.playerName;
-                        Vector2 knockbackDir = ((Vector2)runner.transform.position - laserEndPos).normalized;
-                        runner.ServerNotifyCaught(catcherName, knockbackDir, knockbackImpulse, knockbackDrag, knockbackRotSpeed);
+                        // 2, 1 + 총알 진행방향 혼합
+                        Vector2 knockbackDir = Vector2.Lerp(radialDir, direction, knockbackForwardBias);
+                        knockbackDir = knockbackDir.sqrMagnitude > 0.0001f ? knockbackDir.normalized : direction;
+
+                        runner.ServerNotifyCaught(_seeker.playerName, knockbackDir, knockbackImpulse, knockbackDrag, knockbackRotSpeed);
                     }
                 }
             }
