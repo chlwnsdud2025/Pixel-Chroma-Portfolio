@@ -17,12 +17,17 @@ namespace PixelChroma.UI
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private TMP_Text createButtonText;
-
-        [Header("Localization")]
-        [SerializeField] private RoomSettingTextDataSO textData;
+        [SerializeField] private TMP_Text statusText;
+        [SerializeField] private Color statusNormalColor = Color.white;
+        [SerializeField] private Color statusFailedColor = Color.red;
+        [SerializeField] private float statusFailedHideDelay = 2f;   // 실패 문구 유지 시간(초)
+        [SerializeField] private float statusFadeDuration = 0.4f;    // 사라질 때 페이드아웃 시간(초)
 
         [Header("Close")]
         [SerializeField] private Button closeButton;
+
+        [Header("Localization")]
+        [SerializeField] private RoomSettingTextDataSO textData;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
@@ -30,6 +35,11 @@ namespace PixelChroma.UI
 
         private RoomOption _option;
         private bool _isEditMode = false;
+        private bool _creating = false;
+
+        private Sequence _statusHideSeq;
+
+        public override bool CloseOnEscape => !_creating;
 
         public override void Initialize()
         {
@@ -55,6 +65,18 @@ namespace PixelChroma.UI
             RoomOption startOption = isEdit ? lobby?.CurrentRoomOption : null;
             Setup(startOption, isEdit);
 
+            _creating = false;
+            if (closeButton != null) closeButton.interactable = true;
+
+            CancelStatusHide();
+            SetStatusVisible(false);
+
+            if (lobby != null)
+            {
+                lobby.OnLobbyFailed -= HandleLobbyFailed;
+                lobby.OnLobbyFailed += HandleLobbyFailed;
+            }
+
             if (mapPanel != null)
             {
                 mapPanel.OnMapSelected -= OnMapSelected;
@@ -77,30 +99,17 @@ namespace PixelChroma.UI
                 await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
         }
 
-        protected override UniTask OnShow()
+        public override void OnAfterHide()
         {
-            if (mapPanel != null)
-            {
-                mapPanel.OnMapSelected -= OnMapSelected;
-                mapPanel.OnMapSelected += OnMapSelected;
-            }
+            base.OnAfterHide();
 
-            var lobby = LobbyManager.Instance;
-            if (lobby != null)
-                lobby.OnLobbyFailed += HandleLobbyFailed;
-
-            return UniTask.CompletedTask;
-        }
-
-        protected override UniTask OnHide()
-        {
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;
 
             if (mapPanel != null)
                 mapPanel.OnMapSelected -= OnMapSelected;
 
-            return UniTask.CompletedTask;
+            CancelStatusHide();
         }
 
         public void Setup(RoomOption option, bool isEditMode = false)
@@ -115,14 +124,61 @@ namespace PixelChroma.UI
             RefreshCreateButtonUI();
         }
 
-        private void OnMapSelected(MapDataSO map)
+        private void ShowCreatingStatus()
         {
-            _option.mapName = map.name;
+            CancelStatusHide();
+            SetStatus(textData.creatingStatus.GetLocalizedString(), statusNormalColor);
         }
 
-        private void HandleLobbyFailed()
+        private void ShowFailedStatus()
         {
-            if (createButton != null) createButton.interactable = true;
+            CancelStatusHide();
+            SetStatus(textData.createFailedStatus.GetLocalizedString(), statusFailedColor);
+            if (statusText == null) return;
+
+            // 경고 피드백
+            statusText.transform.DOComplete();
+            statusText.transform.DOShakePosition(0.2f, 5f, 10).SetUpdate(true);
+
+            ScheduleHide();
+        }
+
+        private void SetStatus(string message, Color color)
+        {
+            if (statusText == null) return;
+            statusText.text = message;
+            statusText.color = color;
+            statusText.alpha = 1f;
+            statusText.gameObject.SetActive(true);
+        }
+
+        private void ScheduleHide()
+        {
+            if (statusText == null || statusFailedHideDelay <= 0f) return;
+
+            _statusHideSeq = DOTween.Sequence().SetUpdate(true)
+                .AppendInterval(statusFailedHideDelay)
+                .Append(DOTween.To(() => statusText.alpha, a => statusText.alpha = a, 0f, statusFadeDuration))
+                .OnComplete(() =>
+                {
+                    _statusHideSeq = null;
+                    if (statusText == null) return;
+                    statusText.gameObject.SetActive(false);
+                    statusText.alpha = 1f;
+                });
+        }
+
+        private void CancelStatusHide()
+        {
+            if (_statusHideSeq == null) return;
+            _statusHideSeq.Kill();
+            _statusHideSeq = null;
+            if (statusText != null) statusText.alpha = 1f;   // 페이드 중 취소됐을 수 있으니 복원
+        }
+
+        private void SetStatusVisible(bool visible)
+        {
+            if (statusText != null) statusText.gameObject.SetActive(visible);
         }
 
         private void RefreshCreateButtonUI()
@@ -137,6 +193,25 @@ namespace PixelChroma.UI
                 createButton.interactable = true;
         }
 
+        private void OnMapSelected(MapDataSO map)
+        {
+            _option.mapName = map.name;
+        }
+
+        private void HandleLobbyFailed()
+        {
+            _creating = false;
+            if (createButton != null) createButton.interactable = true;
+            if (closeButton != null) closeButton.interactable = true;
+            ShowFailedStatus();
+        }
+
+        public override void OnClickBack()
+        {
+            if (_creating) return;
+            base.OnClickBack();
+        }
+
         private void OnClickCreate()
         {
             if (roomInfoPanel != null && !roomInfoPanel.TryApply()) return;
@@ -148,7 +223,10 @@ namespace PixelChroma.UI
                 return;
             }
 
+            _creating = true;
             if (createButton != null) createButton.interactable = false;
+            if (closeButton != null) closeButton.interactable = false;
+            ShowCreatingStatus();
             LobbyManager.Instance.CreateLobby(_option);
         }
     }

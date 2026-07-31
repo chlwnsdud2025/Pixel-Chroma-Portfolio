@@ -69,6 +69,12 @@ namespace PixelChroma
 
         // ── Locale ──────────────────────────────────────────────────────
 
+        // 현재 선택된 로케일 코드. 선택된 로케일이 없으면 빈 문자열.
+        public static string CurrentLanguageCode =>
+            LocalizationSettings.SelectedLocale != null
+                ? LocalizationSettings.SelectedLocale.Identifier.Code
+                : "";
+
         public static async UniTask ApplySavedLocaleAsync()
         {
             string savedCode = PlayerPrefs.GetString(PrefsKey, "");

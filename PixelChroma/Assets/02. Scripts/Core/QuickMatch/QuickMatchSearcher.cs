@@ -3,7 +3,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Steamworks;
 using UnityEngine;
-using UnityEngine.Localization.Settings;
 
 namespace PixelChroma
 {
@@ -97,7 +96,7 @@ namespace PixelChroma
                     SteamMatchmaking.AddRequestLobbyListDistanceFilter(
                         ELobbyDistanceFilter.k_ELobbyDistanceFilterClose);
                     SteamMatchmaking.AddRequestLobbyListStringFilter(
-                        LobbyManager.LanguageKey, GetCurrentLanguageCode(),
+                        LobbyManager.LanguageKey, LocalizationManager.CurrentLanguageCode,
                         ELobbyComparison.k_ELobbyComparisonEqual);
                     break;
 
@@ -105,7 +104,7 @@ namespace PixelChroma
                     SteamMatchmaking.AddRequestLobbyListDistanceFilter(
                         ELobbyDistanceFilter.k_ELobbyDistanceFilterDefault);
                     SteamMatchmaking.AddRequestLobbyListStringFilter(
-                        LobbyManager.LanguageKey, GetCurrentLanguageCode(),
+                        LobbyManager.LanguageKey, LocalizationManager.CurrentLanguageCode,
                         ELobbyComparison.k_ELobbyComparisonEqual);
                     break;
 
@@ -202,13 +201,5 @@ namespace PixelChroma
             return bestLobby;
         }
 
-        // ── 유틸 ────────────────────────────────────────────
-
-        private static string GetCurrentLanguageCode()
-        {
-            return LocalizationSettings.SelectedLocale != null
-                ? LocalizationSettings.SelectedLocale.Identifier.Code
-                : "";
-        }
     }
 }

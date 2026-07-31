@@ -12,4 +12,8 @@ public class RoomSettingTextDataSO : ScriptableObject
     public LocalizedString warningMaxLength;
     public LocalizedString warningBanned;
     public LocalizedString defaultRoomName;
+
+    [Header("Status")]
+    public LocalizedString creatingStatus;    // "방 생성 중"
+    public LocalizedString createFailedStatus; // "방 생성 실패"
 }
