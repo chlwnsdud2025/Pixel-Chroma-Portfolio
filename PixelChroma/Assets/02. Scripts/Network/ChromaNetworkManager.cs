@@ -1,9 +1,10 @@
+using Cysharp.Threading.Tasks;
+using Mirror;
+using Mirror.FizzySteam;
+using Steamworks;
 using System.Collections.Generic;
 using UnityEngine;
-using Mirror;
 using UnityEngine.SceneManagement;
-using Mirror.FizzySteam;
-using Cysharp.Threading.Tasks;
 
 namespace PixelChroma
 {
@@ -73,8 +74,15 @@ namespace PixelChroma
             _playerLikes.Clear();
             _likeRecords.Clear();
 
-            if (!GameManager.SteamActive && ChromaNetworkDiscovery.Instance != null)
-                ChromaNetworkDiscovery.Instance.StopDiscovery();
+            if (GameManager.SteamActive)
+            {
+                LobbyManager.Instance?.ForceLeaveIfActive();
+            }
+            else
+            {
+                if (ChromaNetworkDiscovery.Instance != null)
+                    ChromaNetworkDiscovery.Instance.StopDiscovery();
+            }
         }
 
         public override void OnStartClient()

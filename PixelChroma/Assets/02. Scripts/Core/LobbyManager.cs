@@ -115,6 +115,20 @@ namespace PixelChroma
             return false;
         }
 
+        private void OnApplicationQuit()// 앱 종료시 로비 퇴장처리
+        {
+            ForceLeaveIfActive();
+        }
+
+        public void ForceLeaveIfActive()// 로비 퇴장, 방 정리
+        {
+            if (!GameManager.SteamActive) return;
+            if (!CurrentLobbyId.IsValid()) return;
+
+            SteamMatchmaking.LeaveLobby(CurrentLobbyId);
+            CurrentLobbyId = CSteamID.Nil;
+        }
+
         // ── 1. 방 만들기 ─────────────────────────
         public void CreateLobby(RoomOption option)
         {
