@@ -1,11 +1,7 @@
 using System;
-using System.Collections.Generic;
 using Steamworks;
 using UnityEngine;
 using Mirror;
-using UnityEngine.Localization.Settings;
-
-using Cysharp.Threading.Tasks;
 
 namespace PixelChroma
 {
@@ -13,24 +9,26 @@ namespace PixelChroma
     {
         public const int CodeLength = 6;
 
-        private const string CodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
+        // 스팀 로비 식별
         public const string GameKey = "GameID";
         public const string GameName = "PixelChroma_Dev";
+
+        // 방 상태
         public const string IsPublicKey = "IsPublic";
         public const string RoomStatusKey = "RoomStatus";
         public const string StatusLobby = "Lobby";
-
-        private const string HostAddressKey = "HostAddress";
-        private const string CodeKey = "RoomCode";
         public const string StatusInGame = "InGame";
 
+        // 방 메타데이터
         public const string GameModeKey = "GameMode";
         public const string MapIdKey = "MapId";
         public const string LanguageKey = "Language";
         public const string RoomNameKey = "RoomName";
         public const string HostNameKey = "HostName";
 
+        private const string CodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        private const string HostAddressKey = "HostAddress";
+        private const string CodeKey = "RoomCode";
 
         [Header("Map List")]
         [SerializeField] private MapRegistrySO mapRegistry;
@@ -46,27 +44,21 @@ namespace PixelChroma
 
         private bool _waitingForConnection;
 
-        public CSteamID CurrentLobbyId { get; private set; }
-
-        // 방 코드는 RoomOption.roomCode를 단일 원본으로 사용합니다. (별도 저장 없이 통과시키는 프로퍼티)
+        public RoomOption CurrentRoomOption { get; set; } = new();
         public string CurrentRoomCode
         {
             get => CurrentRoomOption?.roomCode;
             set { if (CurrentRoomOption != null) CurrentRoomOption.roomCode = value; }
         }
+        public CSteamID CurrentLobbyId { get; private set; }
 
-        // 호스트 여부는 Mirror 서버 활성 상태를 단일 원본으로 사용합니다. (별도 저장 없이 유도)
         public bool IsHost => NetworkServer.active;
-
-        public RoomOption CurrentRoomOption { get; set; } = new();
         public MapRegistrySO MapRegistry => mapRegistry;
 
         protected override void Awake()
         {
             base.Awake();
 
-            // 부모 싱글톤 검증 결과, 내가 진짜가 아니라 유령이라면
-            // 아래에 있는 스팀 콜백 등록 로직을 실행하지 못하도록 즉시 튕겨냅니다.
             if (Instance != this) return;
 
             // 스팀이 활성인 빌드에서만 스팀 콜백을 등록합니다. (에디터는 localhost 테스트라 스팀 미사용)
@@ -80,8 +72,6 @@ namespace PixelChroma
             }
         }
 
-        // 진짜든 유령이든 씬 전환으로 인해 이 컴포넌트가 파괴될 때,
-        // 스팀 통신망에 엮여있던 C++ 비동기 콜백 링크를 명시적으로 완벽하게 끊어줍니다.
         private void OnDestroy()
         {
             if (GameManager.SteamActive)
@@ -94,14 +84,17 @@ namespace PixelChroma
             }
         }
 
+        private void OnApplicationQuit()
+        {
+            ForceLeaveIfActive();
+        }
+
         public void NotifyClientConnected()
         {
             _waitingForConnection = false;
             Debug.Log($"[LobbyManager] 클라이언트 연결 성공 | 코드: {CurrentRoomCode}");
-            OnLobbySuccess();
         }
 
-        // 접속 시도 실패(연결 대기 중 끊김)를 처리했으면 true를 반환한다.
         public bool NotifyClientDisconnected()
         {
             if (_waitingForConnection)
@@ -115,12 +108,7 @@ namespace PixelChroma
             return false;
         }
 
-        private void OnApplicationQuit()// 앱 종료시 로비 퇴장처리
-        {
-            ForceLeaveIfActive();
-        }
-
-        public void ForceLeaveIfActive()// 로비 퇴장, 방 정리
+        public void ForceLeaveIfActive() // 로비 퇴장, 방 정리
         {
             if (!GameManager.SteamActive) return;
             if (!CurrentLobbyId.IsValid()) return;
@@ -132,25 +120,53 @@ namespace PixelChroma
         // ── 1. 방 만들기 ─────────────────────────
         public void CreateLobby(RoomOption option)
         {
+            if (IsHost || NetworkClient.active)
+            {
+                Debug.LogWarning("[LobbyManager] 이미 연결 중입니다! 방 생성을 거부합니다.");
+                OnLobbyFailed?.Invoke();
+                return;
+            }
+
             CurrentRoomOption = option.Clone();
             CurrentRoomOption.hostName = NicknameService.LoadOrDefault();
 
             NetworkManager.singleton.maxConnections = CurrentRoomOption.maxPlayers;
 
+            // 스팀 미사용(에디터/로컬): 곧바로 localhost 호스트로 시작합니다.
             if (!GameManager.SteamActive)
             {
-                // 스팀 미사용(에디터/로컬): 곧바로 localhost 호스트로 시작합니다.
                 CurrentRoomCode = GenerateCode();
-                Debug.Log($"[LobbyManager] 로컬 방 생성 완료 (localhost) | 코드: {CurrentRoomCode} | 모드: {option.gameMode} | 공개: {option.isPublic}");
-
-                GameManager.Instance?.ShowLoading().Forget();
-                NetworkManager.singleton.StartHost();
+                Debug.Log($"[LobbyManager] 로컬 방 생성 시도 (localhost) | 코드: {CurrentRoomCode} | 모드: {option.gameMode} | 공개: {option.isPublic}");
+                TryStartHost();
                 return;
             }
 
             var lobbyType = option.isPublic ? ELobbyType.k_ELobbyTypePublic : ELobbyType.k_ELobbyTypeFriendsOnly;
             // 스팀 로비 생성 (인원 제한 포함). 결과는 OnLobbyCreated 콜백에서 처리됩니다.
             SteamMatchmaking.CreateLobby(lobbyType, option.maxPlayers);
+        }
+
+        private bool TryStartHost()
+        {
+            try
+            {
+                NetworkManager.singleton.StartHost();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[LobbyManager] 호스트 시작 중 예외: {e.Message}");
+                OnLobbyFailed?.Invoke();
+                return false;
+            }
+
+            if (!NetworkServer.active)
+            {
+                Debug.LogError("[LobbyManager] 호스트 시작 실패 (서버가 활성화되지 않음)");
+                OnLobbyFailed?.Invoke();
+                return false;
+            }
+
+            return true;
         }
 
         // ── 2. 코드로 참가 ─────────────────────────
@@ -268,11 +284,6 @@ namespace PixelChroma
             Debug.Log($"[LobbyManager] 방 설정 갱신 완료! 최대 인원: {CurrentRoomOption.maxPlayers}명, 숨는 시간: {CurrentRoomOption.hideTime}초");
         }
  
-        private void OnLobbySuccess()
-        {
-            GameManager.Instance.EnterLobby().Forget();
-        }
-
         // 스팀 미사용(에디터/로컬) 전용 로컬 클라이언트 접속 (코드 참가 / 빠른 참가 공용)
         private void StartLocalClient(string roomCode = null)
         {
@@ -309,8 +320,10 @@ namespace PixelChroma
             ApplyLobbyMetadata();
 
             Debug.Log($"[LobbyManager] 스팀 방 생성 완료 | 코드: {CurrentRoomCode}");
-            GameManager.Instance?.ShowLoading().Forget();
-            NetworkManager.singleton.StartHost();
+
+            // Mirror 호스트 시작에 실패하면 방금 만든 스팀 로비도 함께 정리한다. (유령 로비 방지)
+            if (!TryStartHost())
+                ForceLeaveIfActive();
         }
 
         private void OnLobbyMatchList(LobbyMatchList_t result, bool ioFailure)
@@ -414,17 +427,7 @@ namespace PixelChroma
             SteamMatchmaking.SetLobbyData(CurrentLobbyId, MapIdKey, option.mapName ?? "");
             SteamMatchmaking.SetLobbyData(CurrentLobbyId, RoomNameKey, option.roomName ?? "");
             SteamMatchmaking.SetLobbyData(CurrentLobbyId, HostNameKey, option.hostName ?? "");
-            SteamMatchmaking.SetLobbyData(CurrentLobbyId, LanguageKey, GetCurrentLanguageCode());
+            SteamMatchmaking.SetLobbyData(CurrentLobbyId, LanguageKey, LocalizationManager.CurrentLanguageCode);
         }
-
-        private static string GetCurrentLanguageCode()
-        {
-            return LocalizationSettings.SelectedLocale != null
-                ? LocalizationSettings.SelectedLocale.Identifier.Code
-                : "";
-        }
-
-       
-       
     }
 }

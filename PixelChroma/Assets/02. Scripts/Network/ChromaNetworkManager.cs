@@ -113,6 +113,11 @@ namespace PixelChroma
 
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.NotifyClientConnected();
+
+            // 호스트는 StartHost 시 OnClientSceneChanged가 호출되지 않으므로 여기서 로비로 진입한다.
+            // 원격 클라이언트는 씬 로드 완료 후 OnClientSceneChanged에서 진입한다. (EnterLobby 중복 호출 방지)
+            if (NetworkServer.active && GameManager.Instance != null)
+                GameManager.Instance.EnterLobby().Forget();
         }
 
         public override void OnClientDisconnect()
@@ -213,6 +218,18 @@ namespace PixelChroma
             {
                 GameManager.Instance.EnterLobby().Forget();
             }
+        }
+
+        // 서버 씬 로드가 시작되기 직전에 호출된다. (호스트 최초 시작 시엔 클라 씬 콜백이 생략되므로 여기서 로딩을 띄운다)
+        public override void OnServerChangeScene(string newSceneName)
+        {
+            base.OnServerChangeScene(newSceneName);
+
+            if (GameManager.Instance == null) return;
+
+            string scene = GetSceneName(newSceneName);
+            if (IsInGameScene(scene) || scene == GetSceneName(onlineScene))
+                GameManager.Instance.ShowLoading().Forget();
         }
 
         public override void OnServerSceneChanged(string sceneName)

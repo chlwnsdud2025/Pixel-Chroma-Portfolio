@@ -23,7 +23,7 @@ namespace PixelChroma.UI
                 dimmed.onClick.AddListener(OnClickBack);
         }
 
-        public void OnClickBack()
+        public virtual void OnClickBack()
         {
             UIManager.Instance.HidePopup().Forget();
         }
