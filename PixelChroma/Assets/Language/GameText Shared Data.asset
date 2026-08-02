@@ -43,10 +43,6 @@ MonoBehaviour:
     m_Key: quickMatch_status_finding
     m_Metadata:
       m_Items: []
-  - m_Id: 13342024937472
-    m_Key: quickMatch_status_notFound
-    m_Metadata:
-      m_Items: []
   - m_Id: 13350614872064
     m_Key: common_btn_close
     m_Metadata:
@@ -65,10 +61,6 @@ MonoBehaviour:
       m_Items: []
   - m_Id: 13367794741248
     m_Key: languageSelect_title_language
-    m_Metadata:
-      m_Items: []
-  - m_Id: 2881793882046464
-    m_Key: roomCodeEntry_status_notFound
     m_Metadata:
       m_Items: []
   - m_Id: 2894879467753472
@@ -101,10 +93,6 @@ MonoBehaviour:
       m_Items: []
   - m_Id: 2961969412321280
     m_Key: roomList_status_joining
-    m_Metadata:
-      m_Items: []
-  - m_Id: 2961970045661184
-    m_Key: roomList_status_joinFailed
     m_Metadata:
       m_Items: []
   - m_Id: 2961970720944128
@@ -483,16 +471,44 @@ MonoBehaviour:
     m_Key: hud_Time_Up
     m_Metadata:
       m_Items: []
-  - m_Id: 8322539967754240
-    m_Key: RoomList_LobbyFaild
-    m_Metadata:
-      m_Items: []
   - m_Id: 900000000000000001
     m_Key: roomSetting_status_creating
     m_Metadata:
       m_Items: []
-  - m_Id: 900000000000000002
-    m_Key: roomSetting_status_createFailed
+  - m_Id: 7000000000000001
+    m_Key: lobbyFailure_error_alreadyConnected
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000002
+    m_Key: lobbyFailure_error_createFailed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000003
+    m_Key: lobbyFailure_error_quickMatchNotFound
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000004
+    m_Key: lobbyFailure_error_codeNotFound
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000005
+    m_Key: lobbyFailure_error_joinFailed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000006
+    m_Key: lobbyFailure_error_connectFailed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000007
+    m_Key: lobbyFailure_error_disconnected
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000008
+    m_Key: lobbyFailure_error_timeout
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7000000000000009
+    m_Key: lobbyFailure_error_generic
     m_Metadata:
       m_Items: []
   m_Metadata:
