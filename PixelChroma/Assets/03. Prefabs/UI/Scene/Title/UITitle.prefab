@@ -65,6 +65,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f84ec45811540474b906d9dffbe5d4ba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UITitle
+  logo: {fileID: 8796581910869664949}
+  logoAnimationDuration: 0.5
   quickJoinButton: {fileID: 8425606420592944504}
   createRoomButton: {fileID: 5541904975492570005}
   findRoomButton: {fileID: 5189443574894926373}
@@ -379,7 +381,7 @@ GameObject:
   - component: {fileID: 7469634868884302785}
   - component: {fileID: 288031829828439163}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: FindRoomButtonText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -835,7 +837,7 @@ GameObject:
   - component: {fileID: 6678494082239061392}
   - component: {fileID: 9105384798073605778}
   m_Layer: 5
-  m_Name: Exit_Button
+  m_Name: ExitButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1101,7 +1103,7 @@ GameObject:
   - component: {fileID: 1672133977241243553}
   - component: {fileID: 4486306044778309580}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: JoinRoomButtonText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1412,7 +1414,7 @@ GameObject:
   - component: {fileID: 4734582637782702013}
   - component: {fileID: 8383262902949861881}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: QuickMatchButtonText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1678,7 +1680,7 @@ GameObject:
   - component: {fileID: 2654066086676184589}
   - component: {fileID: 1729284663673839929}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: CreateRoomButtonText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1856,7 +1858,7 @@ GameObject:
   - component: {fileID: 3304833319614419435}
   - component: {fileID: 3539428319031494172}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: LanguageSettingText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2167,7 +2169,7 @@ GameObject:
   - component: {fileID: 1083362393562317154}
   - component: {fileID: 9083431929533409609}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: NickNameSettingText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2686,7 +2688,7 @@ GameObject:
   - component: {fileID: 4488685622385149257}
   - component: {fileID: 7787024137962160438}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: ExitButtonText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2863,7 +2865,7 @@ GameObject:
   - component: {fileID: 2785903326730159400}
   - component: {fileID: 1027336339879086950}
   m_Layer: 5
-  m_Name: language _Setting_Icon
+  m_Name: LanguageSettingIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2939,7 +2941,7 @@ GameObject:
   - component: {fileID: 3014638944563244917}
   - component: {fileID: 1273665660194977821}
   m_Layer: 5
-  m_Name: language _Setting_Button
+  m_Name: LanguageSettingButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
