@@ -38,10 +38,7 @@ namespace PixelChroma.UI
             if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
 
             if (nicknameInputField != null)
-            {
                 nicknameInputField.characterLimit = maxNicknameLength;
-                nicknameInputField.onValueChanged.AddListener(OnNicknameInputChanged);
-            }
         }
 
         public override void OnBeforeShow()
@@ -77,11 +74,6 @@ namespace PixelChroma.UI
 
             if (!string.IsNullOrEmpty(message) && nicknameInputField != null)
                 nicknameInputField.ActivateInputField();
-        }
-
-        private void OnNicknameInputChanged(string value)
-        {
-            SetwarningTextMessage(string.Empty);
         }
 
         private void OnClickSave()
