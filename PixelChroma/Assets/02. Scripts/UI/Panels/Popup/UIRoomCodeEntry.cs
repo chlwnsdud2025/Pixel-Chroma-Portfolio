@@ -22,7 +22,7 @@ namespace PixelChroma.UI
         [SerializeField] private Button closeButton;
 
         [Header("Status")]
-        [SerializeField] private UIwarningTextText warningText;
+        [SerializeField] private UIWarningText warningText;
 
         [Header("Localization")]
         [SerializeField] private RoomCodeEntryTextDataSO textData;

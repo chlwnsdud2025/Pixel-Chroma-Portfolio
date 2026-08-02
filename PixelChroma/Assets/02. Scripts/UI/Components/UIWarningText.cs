@@ -8,7 +8,7 @@ namespace PixelChroma.UI
     /// 경고/에러 메시지를 표시하고 흔들어 주는 위젯.
     /// </summary>
     [RequireComponent(typeof(TMP_Text))]
-    public class UIwarningTextText : MonoBehaviour
+    public class UIWarningText : MonoBehaviour
     {
         [Header("Text")]
         [SerializeField] private TMP_Text text;
@@ -39,7 +39,7 @@ namespace PixelChroma.UI
                 text = GetComponent<TMP_Text>();
 
             if (text == null)
-                Debug.LogError($"[{nameof(UIwarningTextText)}] TMP_Text를 찾을 수 없습니다.", this);
+                Debug.LogError($"[{nameof(UIWarningText)}] TMP_Text를 찾을 수 없습니다.", this);
         }
 
         private void OnDisable()

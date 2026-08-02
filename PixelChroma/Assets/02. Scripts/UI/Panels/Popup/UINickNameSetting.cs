@@ -21,7 +21,7 @@ namespace PixelChroma.UI
         [SerializeField] private Button closeButton;      
 
         [Header("Feedback Status UI")]
-        [SerializeField] private UIwarningTextText warningText;
+        [SerializeField] private UIWarningText warningText;
 
         [Header("Localization")]
         [SerializeField] private NicknameSettingTextDataSO textData;
