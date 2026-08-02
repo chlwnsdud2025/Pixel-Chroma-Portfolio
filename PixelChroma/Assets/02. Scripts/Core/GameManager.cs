@@ -12,11 +12,7 @@ namespace PixelChroma
 {
     public class GameManager : MonoSingleton<GameManager>
     {
-        // 네트워크 씬 로드+로컬 플레이어 스폰 대기 상한(초). 초과 시 복구 불가로 보고 메인 메뉴로 복귀시킨다.
-        private const float NetworkLoadTimeout = 20f;
-
-        // 로딩창 최소 표시 시간(초). 실제 로드가 더 빨리 끝나도 이 시간만큼은 로딩을 유지한다.
-        private const float MinLoadingTime = 1.5f;
+        private const float NetworkLoadTimeout = 15f;
 
         [Header("Localization")]
         [SerializeField] private FontTableSO fontTable;
@@ -25,8 +21,8 @@ namespace PixelChroma
         [SerializeField] private GameObject mainCameraPrefab;
         [SerializeField] private GameObject cinemachineCameraPrefab;
 
-        private float _loadingShownTime;
         private bool _handlingDisconnect;
+        private LobbyFailureReason _pendingFailure = LobbyFailureReason.None;
 
         public GameState CurrentState { get; private set; } = GameState.Boot;
         public static bool SteamInitialized { get; private set; }
@@ -36,8 +32,23 @@ namespace PixelChroma
             await Boot();
         }
 
+        private void OnEnable()
+        {
+            LoadingManager.OnTimedOut -= HandleLoadingTimedOut;
+            LoadingManager.OnTimedOut += HandleLoadingTimedOut;
+        }
+
+        private void OnDisable()
+        {
+            LoadingManager.OnTimedOut -= HandleLoadingTimedOut;
+        }
+
         private async UniTask Boot()
         {
+            // 안쪽 타임아웃(스폰/씬 대기)이 바깥 워치독보다 먼저 동작해야 graceful 복구가 보장된다.
+            Debug.Assert(NetworkLoadTimeout < LoadingManager.WatchdogTimeout,
+                "[GameManager] NetworkLoadTimeout은 LoadingManager.WatchdogTimeout보다 짧아야 합니다.");
+
             // Localization 시스템을 먼저 초기화합니다.
             var initOp = LocalizationSettings.InitializationOperation;
             await UniTask.WaitUntil(() => initOp.IsDone);
@@ -98,9 +109,14 @@ namespace PixelChroma
             if (_handlingDisconnect) return;
             _handlingDisconnect = true;
 
+            // 사유가 지정되지 않은 진입(세션 도중 자연 연결 끊김)은 '연결 끊김'으로 처리한다.
+            // FailToTitle을 통해 들어온 경우엔 이미 사유가 설정돼 있으므로 유지한다.
+            if (_pendingFailure == LobbyFailureReason.None)
+                _pendingFailure = LobbyFailureReason.Disconnected;
+
             Debug.LogWarning("[GameManager] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
 
-            ShowLoading().Forget();
+            LoadingManager.Show().Forget();
 
             if (InGameManager.Instance != null)
                 InGameManager.Instance.ResetState();
@@ -123,13 +139,22 @@ namespace PixelChroma
 
                 await UIManager.Instance.ShowScene<UITitle>();
 
-                if (UIManager.Instance.CurrentPopup is UILoading)
+                if (LoadingManager.IsShowing)
                 {
                     var netManager = NetworkManager.singleton as ChromaNetworkManager;
                     string titleScene = netManager != null ? netManager.GetSceneName(netManager.offlineScene) : null;
 
                     await WaitForActiveScene(titleScene);
-                    await HideLoading();
+                    await LoadingManager.Hide();
+                }
+
+                // 로딩 이후 실패로 복귀한 경우: 로딩을 완전히 내린 뒤 공통 경고 팝업으로 사유를 명확히 알린다.
+                if (_pendingFailure != LobbyFailureReason.None)
+                {
+                    var reason = _pendingFailure;
+                    _pendingFailure = LobbyFailureReason.None;
+
+                    UIManager.Instance.ShowPopup<UIwarningTextPopup>(p => p.SetReason(reason)).Forget();
                 }
             }
             finally
@@ -149,11 +174,11 @@ namespace PixelChroma
             if (!await WaitForLocalPlayer())
             {
                 if (NetworkClient.active)
-                    FailToMainMenu("로비 플레이어 스폰 대기 시간 초과");
+                    FailToTitle(LobbyFailureReason.Timeout, "로비 플레이어 스폰 대기 시간 초과");
                 return;
             }
 
-            await HideLoading();
+            await LoadingManager.Hide();
 
             if (!NetworkClient.active)
                 return;
@@ -169,31 +194,11 @@ namespace PixelChroma
             if (!await WaitForLocalPlayer())
             {
                 if (NetworkClient.active)
-                    FailToMainMenu("로컬 플레이어 스폰 대기 시간 초과");
+                    FailToTitle(LobbyFailureReason.Timeout, "로컬 플레이어 스폰 대기 시간 초과");
                 return;
             }
 
-            await HideLoading();
-        }
-
-        public async UniTask ShowLoading()
-        {
-            if (UIManager.Instance.CurrentPopup is UILoading) return;
-
-            _loadingShownTime = Time.unscaledTime;
-            await UIManager.Instance.ShowPopup<UILoading>();
-        }
-
-        private async UniTask HideLoading()
-        {
-            if (UIManager.Instance.CurrentPopup is UILoading)
-            {
-                float remaining = MinLoadingTime - (Time.unscaledTime - _loadingShownTime);
-                if (remaining > 0f)
-                    await UniTask.Delay((int)(remaining * 1000), ignoreTimeScale: true);
-            }
-
-            await UIManager.Instance.HideAllPopups();
+            await LoadingManager.Hide();
         }
 
         // 씬+맵 로드와 로컬 플레이어 스폰이 끝났는지 대기한다. 시간 초과 또는 연결 끊김 시 false.
@@ -223,11 +228,21 @@ namespace PixelChroma
             }
         }
 
-        // 복구 불가 상황: 연결을 끊어 메인 메뉴로 복귀시킨다.
-        private void FailToMainMenu(string reason)
+        // 로딩 이후(씬 전환/스폰) 단계의 복구 불가 상황: 사유를 실어 타이틀로 강제 복귀시킨다.
+        // 사유는 EnterMainMenu에서 로딩을 내린 뒤 토스트로 표시된다.
+        private void FailToTitle(LobbyFailureReason reason, string debugDetail)
         {
-            Debug.LogWarning($"[GameManager] {reason} — 메인 메뉴로 복귀합니다.");
+            Debug.LogWarning($"[GameManager] {debugDetail} — 메인 메뉴로 복귀합니다. (사유: {reason})");
+
+            if (_pendingFailure == LobbyFailureReason.None)
+                _pendingFailure = reason;
+
             HandleDisconnect();
+        }
+
+        private void HandleLoadingTimedOut()
+        {
+            FailToTitle(LobbyFailureReason.Timeout, "로딩 화면 워치독 타임아웃");
         }
 
         // 씬 전환 시 필수 오브젝트를 보장한다. 없으면 프리팹으로 생성한다.

@@ -33,7 +33,7 @@ namespace PixelChroma
         [Header("Map List")]
         [SerializeField] private MapRegistrySO mapRegistry;
 
-        public event Action OnLobbyFailed;
+        public event Action<LobbyFailureReason> OnLobbyFailed;
         public event Action OnMembersChanged;
 
         private Callback<LobbyCreated_t> _lobbyCreated;             // CreateLobby() 호출 후 Steam 서버가 로비 생성 결과를 돌려줄 때
@@ -101,7 +101,7 @@ namespace PixelChroma
             {
                 _waitingForConnection = false;
                 Debug.LogWarning("[LobbyManager] 클라이언트 연결 실패");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.ConnectFailed);
                 return true;
             }
 
@@ -123,7 +123,7 @@ namespace PixelChroma
             if (IsHost || NetworkClient.active)
             {
                 Debug.LogWarning("[LobbyManager] 이미 연결 중입니다! 방 생성을 거부합니다.");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.AlreadyConnected);
                 return;
             }
 
@@ -155,14 +155,14 @@ namespace PixelChroma
             catch (Exception e)
             {
                 Debug.LogError($"[LobbyManager] 호스트 시작 중 예외: {e.Message}");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.CreateFailed);
                 return false;
             }
 
             if (!NetworkServer.active)
             {
                 Debug.LogError("[LobbyManager] 호스트 시작 실패 (서버가 활성화되지 않음)");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.CreateFailed);
                 return false;
             }
 
@@ -215,7 +215,7 @@ namespace PixelChroma
         private void HandleQuickMatchFailed()
         {
             UnsubscribeQuickMatch();
-            OnLobbyFailed?.Invoke();
+            OnLobbyFailed?.Invoke(LobbyFailureReason.QuickMatchNotFound);
         }
 
         public void CancelQuickMatch()
@@ -238,7 +238,7 @@ namespace PixelChroma
             if (IsHost || NetworkClient.active)
             {
                 Debug.LogWarning("[LobbyManager] 이미 연결 중입니다! 중복 입장을 거부합니다.");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.AlreadyConnected);
                 return;
             }
 
@@ -290,7 +290,7 @@ namespace PixelChroma
             if (IsHost)
             {
                 Debug.LogWarning("[LobbyManager] 이미 서버가 실행 중입니다! 중복 입장을 거부합니다.");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.AlreadyConnected);
                 return;
             }
 
@@ -310,7 +310,7 @@ namespace PixelChroma
         {
             if (result.m_eResult != EResult.k_EResultOK)
             {
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.CreateFailed);
                 return;
             }
 
@@ -331,7 +331,7 @@ namespace PixelChroma
             if (ioFailure || result.m_nLobbiesMatching == 0)
             {
                 Debug.LogWarning("[LobbyManager] 조건에 맞는 방을 찾지 못했습니다.");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.CodeRoomNotFound);
                 return;
             }
 
@@ -347,7 +347,7 @@ namespace PixelChroma
             if (!success)
             {
                 Debug.LogError($"[LobbyManager] 방 입장 실패 코드: {result.m_EChatRoomEnterResponse}");
-                OnLobbyFailed?.Invoke();
+                OnLobbyFailed?.Invoke(LobbyFailureReason.JoinFailed);
                 return;
             }
 
@@ -379,7 +379,6 @@ namespace PixelChroma
             if (GameManager.SteamActive && NetworkServer.active)
                 SteamMatchmaking.SetLobbyData(CurrentLobbyId, RoomStatusKey, StatusLobby);
         }
-
 
         public void LeaveLobby()
         {

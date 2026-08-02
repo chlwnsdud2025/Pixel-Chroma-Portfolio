@@ -2,7 +2,6 @@ using Cysharp.Threading.Tasks;
 using Mirror;
 using Mirror.FizzySteam;
 using Steamworks;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -17,10 +16,6 @@ namespace PixelChroma
         public GameObject lobbyPlayerPrefab;
         public GameObject runnerPrefab;
         public GameObject seekerPrefab;
-
-        private readonly Dictionary<int, string> _playerNicknames = new();
-        private readonly Dictionary<int, int> _playerLikes = new();
-        private readonly HashSet<(int sender, int target)> _likeRecords = new();
 
         private MapRegistrySO MapRegistry => LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
 
@@ -39,8 +34,6 @@ namespace PixelChroma
         }
 
         // Steam 사용 여부에 따라 활성 Transport를 런타임에 확정한다.
-        // Inspector의 transport 필드가 잘못 지정돼 있어도 여기서 교정하므로,
-        // "에디터에선 되는데 빌드에선 Steam 연결이 깨지는" 실수를 방지한다.
         private void ConfigureTransport()
         {
             var fizzy = GetComponent<FizzySteamworks>();
@@ -59,6 +52,9 @@ namespace PixelChroma
                 if (kcp != null) { kcp.enabled = true; Transport.active = kcp; }
             }
         }
+
+        // ───────────────────────── 서버 Lifecycle ─────────────────────────
+
         public override void OnStartServer()
         {
             base.OnStartServer();
@@ -71,8 +67,8 @@ namespace PixelChroma
         {
             base.OnStopServer();
 
-            _playerLikes.Clear();
-            _likeRecords.Clear();
+            LikeManager.Clear();
+            NicknameRegistry.Clear();
 
             if (GameManager.SteamActive)
             {
@@ -84,6 +80,8 @@ namespace PixelChroma
                     ChromaNetworkDiscovery.Instance.StopDiscovery();
             }
         }
+
+        // ──────────────────────── 클라이언트 Lifecycle ────────────────────────
 
         public override void OnStartClient()
         {
@@ -101,10 +99,22 @@ namespace PixelChroma
                 GameRoundManager.Instance.Cleanup();
         }
 
+        // ─────────────────────────── 연결 (Connect) ───────────────────────────
+
         public override void OnServerConnect(NetworkConnectionToClient conn)
         {
             base.OnServerConnect(conn);
-            _playerLikes[conn.connectionId] = 0;
+            LikeManager.Register(conn.connectionId);
+        }
+
+        public override void OnServerDisconnect(NetworkConnectionToClient conn)
+        {
+            base.OnServerDisconnect(conn);
+            NicknameRegistry.Unregister(conn.connectionId);
+            LikeManager.Unregister(conn.connectionId);
+
+            if (GameRoundManager.Instance != null)
+                GameRoundManager.Instance.RemovePlayer(conn.connectionId);
         }
 
         public override void OnClientConnect()
@@ -132,104 +142,13 @@ namespace PixelChroma
                 GameManager.Instance.HandleDisconnect();
         }
 
-        public override void OnServerAddPlayer(NetworkConnectionToClient conn)
-        {
-            string currentScene = SceneManager.GetActiveScene().name;
-            GameObject playerInstance = null;
-
-            if (currentScene == GetSceneName(onlineScene))
-            {
-                playerInstance = Instantiate(lobbyPlayerPrefab);
-            }
-            else if (IsInGameScene(currentScene))
-            {
-                var round = GameRoundManager.Instance;
-                PlayerRole assignedRole = (round != null && round.TryGetRole(conn.connectionId, out var r))
-                    ? r
-                    : PlayerRole.Runner;
-
-                GameObject prefab = assignedRole == PlayerRole.Seeker ? seekerPrefab : runnerPrefab;
-
-                Vector3 spawnPos = Vector3.zero;
-                Quaternion spawnRot = Quaternion.identity;
-
-                if (InGameManager.Instance != null)
-                {
-                    spawnPos = (assignedRole == PlayerRole.Seeker)
-                        ? InGameManager.Instance.GetWaitingPosition()
-                        : InGameManager.Instance.GetSpawnPosition();
-                }
-                else
-                {
-                    Transform startPos = GetStartPosition();
-                    if (startPos != null)
-                    {
-                        spawnPos = startPos.position;
-                        spawnRot = startPos.rotation;
-                    }
-                }
-
-                playerInstance = Instantiate(prefab, spawnPos, spawnRot);
-
-                var inGamePlayerBase = playerInstance.GetComponent<PlayerBase>();
-                if (inGamePlayerBase != null)
-                    inGamePlayerBase.role = assignedRole;
-
-                round?.RemovePlayer(conn.connectionId);
-            }
-
-            if (playerInstance != null)
-            {
-                var playerBase = playerInstance.GetComponent<PlayerBase>();
-                if (playerBase != null)
-                {
-                    if (_playerNicknames.TryGetValue(conn.connectionId, out var savedName))
-                        playerBase.playerName = savedName;
-                }
-
-                NetworkServer.AddPlayerForConnection(conn, playerInstance);
-            }
-        }
-
-        // 씬 로드가 시작되기 직전에 호출된다.
-        public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
-        {
-            base.OnClientChangeScene(newSceneName, sceneOperation, customHandling);
-
-            if (GameManager.Instance == null) return;
-
-            string scene = GetSceneName(newSceneName);
-            if (IsInGameScene(scene) || scene == GetSceneName(onlineScene))
-                GameManager.Instance.ShowLoading().Forget();
-        }
-
-        public override void OnClientSceneChanged()
-        {
-            string currentScene = SceneManager.GetActiveScene().name;
-
-            if (IsInGameScene(currentScene) && !NetworkServer.active)
-                LoadSelectedMap();
-
-            base.OnClientSceneChanged();
-
-            if (IsInGameScene(currentScene) && GameManager.Instance != null)
-                GameManager.Instance.EnterInGame().Forget();
-            else if (currentScene == GetSceneName(onlineScene) && GameManager.Instance != null)
-            {
-                GameManager.Instance.EnterLobby().Forget();
-            }
-        }
+        // ─────────────────────────── 씬 전환 (Scene) ───────────────────────────
 
         // 서버 씬 로드가 시작되기 직전에 호출된다. (호스트 최초 시작 시엔 클라 씬 콜백이 생략되므로 여기서 로딩을 띄운다)
         public override void OnServerChangeScene(string newSceneName)
         {
             base.OnServerChangeScene(newSceneName);
-
-            if (GameManager.Instance == null) return;
-
-            string scene = GetSceneName(newSceneName);
-            if (IsInGameScene(scene) || scene == GetSceneName(onlineScene))
-                GameManager.Instance.ShowLoading().Forget();
+            ShowLoadingIfManagedScene(newSceneName);
         }
 
         public override void OnServerSceneChanged(string sceneName)
@@ -243,30 +162,102 @@ namespace PixelChroma
 
             if (IsInGameScene(scene) && GameRoundManager.Instance != null)
                 GameRoundManager.Instance.BeginRound();
-            else if (scene == GetSceneName(onlineScene))
+            else if (IsLobbyScene(scene))
             {
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
-                ClearLikeRecords();
+                LikeManager.ClearRecords();
             }
         }
 
-        public override void OnServerDisconnect(NetworkConnectionToClient conn)
+        // 씬 로드가 시작되기 직전에 호출된다.
+        public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
         {
-            base.OnServerDisconnect(conn);
-            _playerNicknames.Remove(conn.connectionId);
-
-            _playerLikes.Remove(conn.connectionId);
-            _likeRecords.RemoveWhere(r => r.sender == conn.connectionId || r.target == conn.connectionId);
-
-            if (GameRoundManager.Instance != null)
-                GameRoundManager.Instance.RemovePlayer(conn.connectionId);
+            base.OnClientChangeScene(newSceneName, sceneOperation, customHandling);
+            ShowLoadingIfManagedScene(newSceneName);
         }
 
-        public void RegisterNickname(int connId, string nickname)
+        public override void OnClientSceneChanged()
         {
-            _playerNicknames[connId] = nickname;
-            Debug.Log($"[NetworkManager] 명부에 닉네임 등록 완료 - ConnID: {connId}, Name: {nickname}");
+            string currentScene = SceneManager.GetActiveScene().name;
+
+            if (IsInGameScene(currentScene) && !NetworkServer.active)
+                LoadSelectedMap();
+
+            base.OnClientSceneChanged();
+
+            if (IsInGameScene(currentScene) && GameManager.Instance != null)
+                GameManager.Instance.EnterInGame().Forget();
+            else if (IsLobbyScene(currentScene) && GameManager.Instance != null)
+            {
+                GameManager.Instance.EnterLobby().Forget();
+            }
         }
+
+        // ─────────────────────────── 플레이어 스폰 ───────────────────────────
+
+        public override void OnServerAddPlayer(NetworkConnectionToClient conn)
+        {
+            string currentScene = SceneManager.GetActiveScene().name;
+
+            GameObject playerInstance = null;
+            if (IsLobbyScene(currentScene))
+                playerInstance = Instantiate(lobbyPlayerPrefab);
+            else if (IsInGameScene(currentScene))
+                playerInstance = CreateInGamePlayer(conn);
+
+            if (playerInstance == null) return;
+
+            // 명부에 저장된 닉네임이 있으면 스폰된 오브젝트에 입힌다.
+            if (NicknameRegistry.TryGet(conn.connectionId, out var savedName))
+            {
+                var playerBase = playerInstance.GetComponent<PlayerBase>();
+                if (playerBase != null)
+                    playerBase.playerName = savedName;
+            }
+
+            NetworkServer.AddPlayerForConnection(conn, playerInstance);
+        }
+
+        // 인게임 씬: 라운드에서 역할을 결정하고, 역할에 맞는 프리팹·위치로 스폰한다.
+        private GameObject CreateInGamePlayer(NetworkConnectionToClient conn)
+        {
+            var round = GameRoundManager.Instance;
+            PlayerRole assignedRole = (round != null && round.TryGetRole(conn.connectionId, out var r))
+                ? r
+                : PlayerRole.Runner;
+
+            GameObject prefab = assignedRole == PlayerRole.Seeker ? seekerPrefab : runnerPrefab;
+
+            Vector3 spawnPos = Vector3.zero;
+            Quaternion spawnRot = Quaternion.identity;
+
+            if (InGameManager.Instance != null)
+            {
+                spawnPos = (assignedRole == PlayerRole.Seeker)
+                    ? InGameManager.Instance.GetWaitingPosition()
+                    : InGameManager.Instance.GetSpawnPosition();
+            }
+            else
+            {
+                Transform startPos = GetStartPosition();
+                if (startPos != null)
+                {
+                    spawnPos = startPos.position;
+                    spawnRot = startPos.rotation;
+                }
+            }
+
+            GameObject instance = Instantiate(prefab, spawnPos, spawnRot);
+
+            var playerBase = instance.GetComponent<PlayerBase>();
+            if (playerBase != null)
+                playerBase.role = assignedRole;
+
+            round?.RemovePlayer(conn.connectionId);
+            return instance;
+        }
+
+        // ─────────────────────────── 커스텀 로직 / 유틸 ───────────────────────────
 
         [Server]
         public void ServerConvertRunnerToSeeker(RunnerPlayer runner)
@@ -297,32 +288,23 @@ namespace PixelChroma
             return sceneName == GetSceneName(inGameScene);
         }
 
+        public bool IsLobbyScene(string sceneName)
+        {
+            return sceneName == GetSceneName(onlineScene);
+        }
+
         public string GetSceneName(string scenePath)
         {
             if (string.IsNullOrEmpty(scenePath)) return string.Empty;
             return System.IO.Path.GetFileNameWithoutExtension(scenePath);
         }
 
-        public int GetLikeCount(int connId)
+        // 로비/인게임 등 네트워크가 관리하는 씬으로의 전환이면 로딩 화면을 띄운다. (서버/클라 씬 전환 공통)
+        private void ShowLoadingIfManagedScene(string newSceneName)
         {
-            return _playerLikes.TryGetValue(connId, out int count) ? count : 0;
-        }
-
-        [Server]
-        public bool AddLike(int senderConnId, int targetConnId)
-        {
-            if (!_likeRecords.Add((senderConnId, targetConnId)))
-                return false;
-
-            _playerLikes.TryGetValue(targetConnId, out int current);
-            _playerLikes[targetConnId] = current + 1;
-            return true;
-        }
-
-        [Server]
-        public void ClearLikeRecords()
-        {
-            _likeRecords.Clear();
+            string scene = GetSceneName(newSceneName);
+            if (IsInGameScene(scene) || IsLobbyScene(scene))
+                LoadingManager.Show().Forget();
         }
 
         private void LoadSelectedMap()
