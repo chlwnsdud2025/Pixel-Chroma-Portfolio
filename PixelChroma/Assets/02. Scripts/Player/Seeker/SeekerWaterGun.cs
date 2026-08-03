@@ -260,8 +260,12 @@ namespace PixelChroma
             if (!CanFireLocally) return;
 
             _lastFireTime = Time.time;
-            CmdFireWaterGun(_aimDirection);
-            PlayRecoil();//반동
+
+            Vector2 mouseScreen = Mouse.current.position.ReadValue();
+            Vector2 mouseWorld = _mainCam.ScreenToWorldPoint(mouseScreen);   // 조준 시 이미 사거리로 클램프된 위치
+            CmdFireWaterGun(mouseWorld);   // 방향이 아니라 '목표점'을 전달
+
+            PlayRecoil();
 
             if (_impulseSource != null)
             {
@@ -271,15 +275,16 @@ namespace PixelChroma
         }
 
         [Command]
-        private void CmdFireWaterGun(Vector2 direction)
+        private void CmdFireWaterGun(Vector2 targetPoint)
         {
             if (Time.time - _lastServerFireTime < fireCooldown - ServerCooldownGrace) return;
             _lastServerFireTime = Time.time;
 
+            Vector2 origin = FireOrigin;                    // 서버 기준 총구 위치
+            Vector2 direction = targetPoint - origin;       // 총구 → 마우스 지점
             if (direction.sqrMagnitude < 0.0001f) direction = Vector2.right;
             direction.Normalize();
 
-            Vector2 origin = FireOrigin;
             RaycastHit2D hit = Physics2D.Raycast(origin, direction, fireRange, obstacleLayer | runnerLayer);
             bool didHit = hit.collider != null;
 
@@ -325,6 +330,10 @@ namespace PixelChroma
                 _effects.PlayFireEffect(firePoint, targetPos, didHit, direction, hitNormal);
         }
 
+        private void OnTriggerEnter2D(Collider2D collision)
+        {
+            
+        }
 
 
 #if UNITY_EDITOR
