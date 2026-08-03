@@ -4,14 +4,17 @@ using UnityEngine;
 namespace PixelChroma.UI
 {
     /// <summary>
-    /// PaintModeUI(UIColorPickerGroup) 등장 연출.
-    /// 그룹 전체를 좌측에서 우측으로 slide + fade 시킨다.
+    /// 패널(그룹)을 통째로 slide + fade 시키는 범용 등장 연출.
     /// </summary>
     [DisallowMultipleComponent]
-    public class UIPaintPanelIntro : MonoBehaviour
+    public class UIPanelSlideIntro : MonoBehaviour
     {
+        public enum SlideFrom { Left, Right, Bottom, Top }
+
         [Header("Slide")]
-        [Tooltip("좌측에서 시작할 거리(px)")]
+        [Tooltip("어느 방향에서 들어올지")]
+        [SerializeField] private SlideFrom slideFrom = SlideFrom.Left;
+        [Tooltip("시작 오프셋 거리(px)")]
         [SerializeField] private float slideDistance = 60f;
         [Tooltip("이동 시간(초)")]
         [SerializeField] private float duration = 0.35f;
@@ -25,6 +28,15 @@ namespace PixelChroma.UI
         private Vector2 _restPos;
         private bool _captured;
         private Sequence _seq;
+
+        private Vector2 StartOffset => slideFrom switch
+        {
+            SlideFrom.Left => new Vector2(-slideDistance, 0f),
+            SlideFrom.Right => new Vector2(slideDistance, 0f),
+            SlideFrom.Bottom => new Vector2(0f, -slideDistance),
+            SlideFrom.Top => new Vector2(0f, slideDistance),
+            _ => new Vector2(-slideDistance, 0f),
+        };
 
         private void Awake()
         {
@@ -57,8 +69,8 @@ namespace PixelChroma.UI
         {
             _seq?.Kill();
 
-            // 초기 상태: 좌측으로 밀고 투명하게
-            _rect.anchoredPosition = _restPos + new Vector2(-slideDistance, 0f);
+            // 초기 상태: 지정 방향으로 밀고 투명하게
+            _rect.anchoredPosition = _restPos + StartOffset;
             _cg.alpha = 0f;
 
             _seq = DOTween.Sequence().SetLink(gameObject);
