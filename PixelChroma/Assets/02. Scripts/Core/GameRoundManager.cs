@@ -46,11 +46,13 @@ namespace PixelChroma
         private float OptionCheckTime => CurrentRoomOption?.checkTime ?? RoomOption.DefaultCheckTime;
         private int OptionSeekerCount => CurrentRoomOption?.seekerCount ?? RoomOption.DefaultSeekerCount;
         private float OptionForcedExposeInterval => CurrentRoomOption?.forcedExposeInterval ?? RoomOption.DefaultForcedExposeInterval;
+        private bool OptionForcedExposeEnabled => CurrentRoomOption?.forcedExposeEnabled ?? true;
 
         public int SecondsUntilNextForcedExpose
         {
             get
             {
+                if (!OptionForcedExposeEnabled) return 0;
                 if (CurrentTimeState != TimeState.SeekTime || OptionForcedExposeInterval <= 0f) return 0;
 
                 int elapsed = Mathf.CeilToInt(OptionSeekTime) - CurrentTimer;
@@ -353,6 +355,7 @@ namespace PixelChroma
         [Server]
         private void CheckForcedExpose()
         {
+            if (!OptionForcedExposeEnabled) return;
             if (CurrentTimeState != TimeState.SeekTime) return;
             if (OptionForcedExposeInterval <= 0f) return;
 
