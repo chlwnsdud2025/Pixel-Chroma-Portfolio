@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Localization;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
@@ -23,6 +24,7 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text seekTimeText;
         [SerializeField] private TMP_Text checkTimeText;
         [SerializeField] private TMP_Text forcedExposeIntervalText;
+        [SerializeField] private LocalizedString offLabel;
 
         public void Refresh(RoomOption option)
         {
@@ -75,7 +77,10 @@ namespace PixelChroma.UI
             if (hideTimeText != null) hideTimeText.text = option.hideTime.ToString("0");
             if (seekTimeText != null) seekTimeText.text = option.seekTime.ToString("0");
             if (checkTimeText != null) checkTimeText.text = option.checkTime.ToString("0");
-            if (forcedExposeIntervalText != null) forcedExposeIntervalText.text = option.forcedExposeInterval.ToString("0");
+            if (forcedExposeIntervalText != null)
+                forcedExposeIntervalText.text = option.forcedExposeEnabled
+                    ? option.forcedExposeInterval.ToString("0")
+                    : offLabel.GetLocalizedString();
         }
     }
 }
