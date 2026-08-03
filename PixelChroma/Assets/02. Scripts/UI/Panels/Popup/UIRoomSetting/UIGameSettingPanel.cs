@@ -31,7 +31,8 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_InputField checkTimeInput;
 
         [Header("Forced Expose")]
-        [SerializeField] private Toggle forcedExposeToggle;             // on/off 토글
+        [SerializeField] private Button forcedExposeButton;            // on/off 토글
+        [SerializeField] private Image forcedExposeCheckImage;         // on일 때만 표시되는 체크 이미지
         [SerializeField] private GameObject forcedExposeActivePanel;    // 실제 작동(슬라이더/입력) 패널
         [SerializeField] private GameObject forcedExposeDisabledPanel;  // 회색 비활성 표시용 패널
         [SerializeField] private Slider forcedExposeIntervalSlider;
@@ -53,7 +54,7 @@ namespace PixelChroma.UI
             if (seekTimeInput != null) seekTimeInput.onEndEdit.AddListener(OnSeekTimeInput);
             if (checkTimeInput != null) checkTimeInput.onEndEdit.AddListener(OnCheckTimeInput);
             if (forcedExposeIntervalInput != null) forcedExposeIntervalInput.onEndEdit.AddListener(OnForcedExposeIntervalInput);
-            if (forcedExposeToggle != null) forcedExposeToggle.onValueChanged.AddListener(OnForcedExposeToggle);
+            if (forcedExposeButton != null) forcedExposeButton.onClick.AddListener(OnForcedExposeClicked);
 
             SetupSlider(hideTimeSlider, RoomOption.MinHideTime, RoomOption.MaxHideTime, OnHideTimeChanged);
             SetupSlider(seekTimeSlider, RoomOption.MinSeekTime, RoomOption.MaxSeekTime, OnSeekTimeChanged);
@@ -205,11 +206,11 @@ namespace PixelChroma.UI
             else RefreshTimeUI();
         }
 
-        private void OnForcedExposeToggle(bool on)
+        private void OnForcedExposeClicked()
         {
             if (_option == null) return;
-            _option.forcedExposeEnabled = on;   // 설정값 반영
-            RefreshForcedExposeUI();            // 패널 스왑
+            _option.forcedExposeEnabled = !_option.forcedExposeEnabled;  // 설정값 토글
+            RefreshForcedExposeUI();                                     // 패널 스왑
         }
 
         private void RefreshForcedExposeUI()
@@ -217,7 +218,7 @@ namespace PixelChroma.UI
             if (_option == null) return;
             bool on = _option.forcedExposeEnabled;
 
-            if (forcedExposeToggle != null) forcedExposeToggle.SetIsOnWithoutNotify(on);
+            if (forcedExposeCheckImage != null) forcedExposeCheckImage.gameObject.SetActive(on);
 
             // on: 실제 패널 / off: 회색 비활성 패널
             if (forcedExposeActivePanel != null) forcedExposeActivePanel.SetActive(on);
