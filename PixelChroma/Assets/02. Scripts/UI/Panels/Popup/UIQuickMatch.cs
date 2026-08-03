@@ -10,7 +10,7 @@ namespace PixelChroma.UI
     {
         [Header("Status")]
         [SerializeField] private TMP_Text statusText;
-        [SerializeField] private TMP_Text warningText;
+        [SerializeField] private UIWarningText warningText;
         [SerializeField] private Animator loadingIcon;
         [SerializeField] private GameObject warningIcon;
 
@@ -88,7 +88,7 @@ namespace PixelChroma.UI
             if (warningIcon != null) warningIcon.SetActive(false);
 
             if (statusText != null) statusText.gameObject.SetActive(true);
-            if (warningText != null) warningText.gameObject.SetActive(false);
+            if (warningText != null) warningText.Clear();
 
             if (cancelButton != null) cancelButton.gameObject.SetActive(true);
             if (retryButton != null) retryButton.gameObject.SetActive(false);
@@ -100,12 +100,8 @@ namespace PixelChroma.UI
             if (warningIcon != null) warningIcon.SetActive(true);
 
             if (statusText != null) statusText.gameObject.SetActive(false);
-            if (warningText != null)
-            {
-                warningText.gameObject.SetActive(true);
-                if (failureTextData != null)
-                    warningText.text = failureTextData.GetLocalized(reason);
-            }
+            if (warningText != null && failureTextData != null)
+                warningText.Show(failureTextData.GetLocalized(reason));
 
             if (cancelButton != null) cancelButton.gameObject.SetActive(false);
             if (retryButton != null) retryButton.gameObject.SetActive(true);
@@ -122,10 +118,7 @@ namespace PixelChroma.UI
 
             if (statusText != null) statusText.gameObject.SetActive(false);
             if (warningText != null)
-            {
-                warningText.gameObject.SetActive(true);
-                warningText.text = textData.searchCancelledStatus.GetLocalizedString();
-            }
+                warningText.Show(textData.searchCancelledStatus.GetLocalizedString());
 
             if (cancelButton != null) cancelButton.gameObject.SetActive(false);
             if (retryButton != null) retryButton.gameObject.SetActive(true);
