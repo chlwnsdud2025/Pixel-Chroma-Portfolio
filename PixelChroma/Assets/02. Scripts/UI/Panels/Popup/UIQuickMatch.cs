@@ -10,13 +10,16 @@ namespace PixelChroma.UI
     {
         [Header("Status")]
         [SerializeField] private TMP_Text statusText;
-        [SerializeField] private GameObject loadingIndicator;
+        [SerializeField] private TMP_Text warningText;
+        [SerializeField] private Animator loadingIcon;
+        [SerializeField] private GameObject warningIcon;
 
         [Header("Localization")]
         [SerializeField] private QuickMatchTextDataSO textData;
         [SerializeField] private LobbyFailureTextDataSO failureTextData;
 
         [Header("Buttons")]
+        [SerializeField] private Button cancelButton;
         [SerializeField] private Button retryButton;
         [SerializeField] private Button closeButton;
 
@@ -28,6 +31,7 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
+            if (cancelButton != null) cancelButton.onClick.AddListener(OnClickCancel);
             if (retryButton != null) retryButton.onClick.AddListener(OnClickRetry);
             if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
         }
@@ -75,23 +79,78 @@ namespace PixelChroma.UI
 
         private void SetLoading()
         {
-            if (statusText != null) statusText.text = textData.findingRoomStatus.GetLocalizedString();
-            if (loadingIndicator != null) loadingIndicator.SetActive(true);
+            if (loadingIcon != null)
+            {
+                loadingIcon.gameObject.SetActive(true);
+                loadingIcon.speed = 1f;
+                loadingIcon.Play(0, 0, 0f);
+            }
+            if (warningIcon != null) warningIcon.SetActive(false);
+
+            if (statusText != null) statusText.gameObject.SetActive(true);
+            if (warningText != null) warningText.gameObject.SetActive(false);
+
+            if (cancelButton != null) cancelButton.gameObject.SetActive(true);
             if (retryButton != null) retryButton.gameObject.SetActive(false);
         }
 
         private void SetFailed(LobbyFailureReason reason)
         {
-            if (statusText != null && failureTextData != null)
-                statusText.text = failureTextData.GetLocalized(reason);
-            if (loadingIndicator != null) loadingIndicator.SetActive(false);
+            if (loadingIcon != null) loadingIcon.gameObject.SetActive(false);
+            if (warningIcon != null) warningIcon.SetActive(true);
+
+            if (statusText != null) statusText.gameObject.SetActive(false);
+            if (warningText != null)
+            {
+                warningText.gameObject.SetActive(true);
+                if (failureTextData != null)
+                    warningText.text = failureTextData.GetLocalized(reason);
+            }
+
+            if (cancelButton != null) cancelButton.gameObject.SetActive(false);
             if (retryButton != null) retryButton.gameObject.SetActive(true);
+        }
+
+        private void SetCancelled()
+        {
+            if (loadingIcon != null)
+            {
+                loadingIcon.Play(0, 0, 0f);
+                loadingIcon.speed = 0f;
+            }
+            if (warningIcon != null) warningIcon.SetActive(false);
+
+            if (statusText != null) statusText.gameObject.SetActive(false);
+            if (warningText != null)
+            {
+                warningText.gameObject.SetActive(true);
+                warningText.text = textData.searchCancelledStatus.GetLocalizedString();
+            }
+
+            if (cancelButton != null) cancelButton.gameObject.SetActive(false);
+            if (retryButton != null) retryButton.gameObject.SetActive(true);
+        }
+
+        private void OnClickCancel()
+        {
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.CancelQuickMatch();
+
+            SetCancelled();
         }
 
         private void OnClickRetry()
         {
             SetLoading();
             LobbyManager.Instance.JoinQuickMatch();
+        }
+
+        public override void OnClickBack()
+        {
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.CancelQuickMatch();
+
+            base.OnClickBack();
         }
     }
 }
