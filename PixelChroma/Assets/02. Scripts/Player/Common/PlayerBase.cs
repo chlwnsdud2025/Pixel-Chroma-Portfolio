@@ -245,7 +245,6 @@ namespace PixelChroma
         protected virtual void HandleMovement()
         {
             if (Rb == null) return;
-            if (this is RunnerPlayer runner && (runner.IsDead || runner.IsKnockedBack)) return;
             if (_spectator != null && _spectator.IsSpectating)
             {
                 Rb.linearVelocity = Vector2.zero;
@@ -253,6 +252,8 @@ namespace PixelChroma
                     _spectator.HandleFreeCamMovement(_input.Move.ReadValue<Vector2>());
                 return;
             }
+
+            if (this is RunnerPlayer runner && (runner.IsDead || runner.IsKnockedBack)) return;
 
             Vector2 input = GetMoveInput();
             Rb.linearVelocity = input.sqrMagnitude > 0.01f
