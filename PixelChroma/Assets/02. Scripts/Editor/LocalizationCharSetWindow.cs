@@ -4,10 +4,12 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using TMPro;
 using UnityEditor;
 using UnityEditor.Localization;
 using UnityEngine;
 using UnityEngine.Localization.Tables;
+using UnityEngine.TextCore.LowLevel;
 
 namespace PixelChroma.EditorTools
 {
@@ -50,6 +52,21 @@ namespace PixelChroma.EditorTools
         private Font _validationFont;
         private string _outputName = "MPLUSRounded1c";
         private Vector2 _scroll;
+
+        // ── 굽기(Bake) 세팅 ─────────────────────────────────────────────────
+        private static readonly int[] AtlasSizes = { 256, 512, 1024, 2048, 4096, 8192 };
+        private const string BakePathPrefKeyPrefix = "PixelChroma.CharSetBaker.path.";
+
+        private bool _showBakeSettings;
+        private bool _autoSize = true;
+        private int _pointSize = 90;
+        private int _padding = 5;
+        private int _atlasWidth = 1024;
+        private int _atlasHeight = 1024;
+        private GlyphRenderMode _renderMode = GlyphRenderMode.SDFAA;
+        private AtlasPopulationMode _populationMode = AtlasPopulationMode.Static;
+        private bool _multiAtlas = true;
+        private string _bakePath = string.Empty;
 
         [MenuItem("PixelChroma/Localization/Character Set Builder")]
         private static void Open()
@@ -134,6 +151,7 @@ namespace PixelChroma.EditorTools
                         "중국어 간체" => "ChineseSC",
                         _ => "ChineseTC",
                     };
+                    _bakePath = EditorPrefs.GetString(BakePathPrefKeyPrefix + _outputName, string.Empty);
                     GUI.FocusControl(null);
                 }
             }
@@ -169,9 +187,9 @@ namespace PixelChroma.EditorTools
                 new GUIContent("추가 범위", "쉼표 구분. 예: 0400-04FF, 2010-2027, 20AC"), _extraRanges);
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("검증", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("검증 · 굽기 대상 폰트", EditorStyles.boldLabel);
             _validationFont = (Font)EditorGUILayout.ObjectField(
-                new GUIContent("원본 폰트", "구울 대상 .ttf/.otf. cmap을 읽어 없는 글리프를 미리 잡아냅니다."),
+                new GUIContent("원본 폰트", "구울 대상 .ttf/.otf. cmap을 읽어 없는 글리프를 미리 잡아내고, 아틀라스도 이 폰트로 굽습니다."),
                 _validationFont, typeof(Font), false);
 
             EditorGUILayout.Space();
@@ -189,13 +207,136 @@ namespace PixelChroma.EditorTools
             EditorGUILayout.Space();
             using (new EditorGUI.DisabledScope(codePoints.Count == 0 || string.IsNullOrWhiteSpace(_outputName)))
             {
-                if (GUILayout.Button("Export", GUILayout.Height(30f)))
+                if (GUILayout.Button("Export (txt만)", GUILayout.Height(26f)))
                     Export(codePoints);
             }
 
+            DrawBakeSection(codePoints);
+
+            EditorGUILayout.Space();
             if (GUILayout.Button("String Table 다시 스캔", EditorStyles.miniButton)) Scan();
 
             EditorGUILayout.EndScrollView();
+        }
+
+        // ── 굽기(Bake) UI ──────────────────────────────────────────────────
+
+        private void DrawBakeSection(List<int> codePoints)
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("폰트 에셋 굽기 (Font Asset)", EditorStyles.boldLabel);
+
+            _showBakeSettings = EditorGUILayout.Foldout(_showBakeSettings, "굽기 세팅", true);
+            if (_showBakeSettings)
+            {
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    _autoSize = EditorGUILayout.ToggleLeft(
+                        new GUIContent("Auto Sizing", "아틀라스 한 장에 최대 크기로 들어가는 point size를 자동으로 찾습니다."),
+                        _autoSize);
+
+                    using (new EditorGUI.DisabledScope(_autoSize))
+                        _pointSize = Mathf.Max(8, EditorGUILayout.IntField(
+                            new GUIContent("Sampling Point Size", "Auto Sizing이 꺼졌을 때 사용할 고정 크기."), _pointSize));
+
+                    _padding = Mathf.Max(0, EditorGUILayout.IntField("Padding", _padding));
+                    _atlasWidth = SizePopup("Atlas Width", _atlasWidth);
+                    _atlasHeight = SizePopup("Atlas Height", _atlasHeight);
+                    _renderMode = (GlyphRenderMode)EditorGUILayout.EnumPopup(
+                        new GUIContent("Character Render Mode", "기본 SDFAA. SDF 계열은 Distance Field 셰이더로 저장됩니다."), _renderMode);
+                    _populationMode = (AtlasPopulationMode)EditorGUILayout.EnumPopup(
+                        new GUIContent("Atlas Population Mode", "Static: 지금 구운 글자로 고정. Dynamic: 런타임에 추가 가능."), _populationMode);
+                    _multiAtlas = EditorGUILayout.ToggleLeft(
+                        new GUIContent("Multi Atlas", "한 장에 다 못 들어가면 아틀라스를 여러 장으로 나눕니다."), _multiAtlas);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(_bakePath))
+                EditorGUILayout.LabelField("최근 저장 위치", _bakePath, EditorStyles.miniLabel);
+
+            using (new EditorGUI.DisabledScope(_validationFont == null || codePoints.Count == 0))
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("아틀라스 굽기…", GUILayout.Height(30f)))
+                        PromptAndBake(codePoints, alsoExport: false);
+                    if (GUILayout.Button("Export + 굽기…", GUILayout.Height(30f)))
+                        PromptAndBake(codePoints, alsoExport: true);
+                }
+            }
+
+            if (_validationFont == null)
+                EditorGUILayout.HelpBox("굽기를 하려면 위에서 '원본 폰트'를 지정하세요.", MessageType.None);
+            else
+                EditorGUILayout.LabelField(
+                    "버튼을 누르면 저장 위치를 고릅니다. 기존 파일을 고르면 참조를 유지한 채 덮어씁니다.",
+                    EditorStyles.miniLabel);
+        }
+
+        private static int SizePopup(string label, int current)
+        {
+            int index = System.Array.IndexOf(AtlasSizes, current);
+            if (index < 0) index = System.Array.IndexOf(AtlasSizes, 1024);
+            var labels = AtlasSizes.Select(s => new GUIContent(s.ToString())).ToArray();
+            index = EditorGUILayout.Popup(new GUIContent(label), index, labels);
+            return AtlasSizes[index];
+        }
+
+        /// <summary>저장 위치를 대화상자로 고른 뒤 굽는다. 취소하면 아무 것도 하지 않는다.</summary>
+        private void PromptAndBake(List<int> codePoints, bool alsoExport)
+        {
+            if (_validationFont == null || codePoints.Count == 0) return;
+
+            string startDir = "Assets";
+            string defName = _outputName + "_Static";
+            if (!string.IsNullOrEmpty(_bakePath))
+            {
+                startDir = Path.GetDirectoryName(_bakePath)?.Replace('\\', '/') ?? "Assets";
+                defName = Path.GetFileNameWithoutExtension(_bakePath);
+            }
+
+            string chosen = EditorUtility.SaveFilePanelInProject(
+                "폰트 에셋 저장 위치", defName, "asset",
+                "구울 TMP 폰트 에셋 경로를 지정하세요. 기존 파일을 고르면 참조를 유지한 채 덮어씁니다.", startDir);
+            if (string.IsNullOrEmpty(chosen)) return; // 취소
+
+            _bakePath = chosen;
+            EditorPrefs.SetString(BakePathPrefKeyPrefix + _outputName, _bakePath);
+
+            if (alsoExport) Export(codePoints);
+            BakeAtlas(codePoints);
+        }
+
+        private void BakeAtlas(List<int> codePoints)
+        {
+            if (_validationFont == null || string.IsNullOrWhiteSpace(_bakePath) || codePoints.Count == 0)
+                return;
+
+            var settings = new FontAtlasBaker.Settings
+            {
+                AutoSize = _autoSize,
+                PointSize = _pointSize,
+                Padding = _padding,
+                AtlasWidth = _atlasWidth,
+                AtlasHeight = _atlasHeight,
+                RenderMode = _renderMode,
+                PopulationMode = _populationMode,
+                MultiAtlas = _multiAtlas,
+            };
+
+            FontAtlasBaker.Result r = FontAtlasBaker.Bake(_validationFont, codePoints, settings, _bakePath);
+            if (r.Ok)
+            {
+                EditorPrefs.SetString(BakePathPrefKeyPrefix + _outputName, _bakePath);
+                Debug.Log($"[CharSet] 아틀라스 {r.Message}\n  → {_bakePath}", r.Asset);
+                EditorGUIUtility.PingObject(r.Asset);
+                Selection.activeObject = r.Asset;
+            }
+            else
+            {
+                Debug.LogError($"[CharSet] 아틀라스 굽기 실패: {r.Message}");
+                EditorUtility.DisplayDialog("굽기 실패", r.Message, "확인");
+            }
         }
 
         private void DrawValidation(List<int> codePoints)
