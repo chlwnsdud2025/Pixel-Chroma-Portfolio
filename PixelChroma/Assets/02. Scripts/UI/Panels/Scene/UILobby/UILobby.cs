@@ -110,6 +110,9 @@ namespace PixelChroma.UI
             if (timerPanel != null)
                 timerPanel.SetActive(false);
 
+            if (readyButton != null)
+                readyButton.interactable = true;
+
             bool isHost = LobbyManager.Instance.IsHost;
 
             if (startButtonPanel != null) startButtonPanel.SetActive(isHost);

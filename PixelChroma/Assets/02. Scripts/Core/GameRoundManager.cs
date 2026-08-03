@@ -71,6 +71,8 @@ namespace PixelChroma
 
         public void Initialize()
         {
+            ResetRoundState();
+
             NetworkClient.RegisterHandler<TimeStateMessage>(OnClientTimeStateChanged);
             NetworkClient.RegisterHandler<WinnerDecidedMessage>(OnClientWinnerDecided);
             NetworkClient.RegisterHandler<RoomOptionSyncMessage>(OnClientRoomOptionChanged);
@@ -79,6 +81,8 @@ namespace PixelChroma
         public void Cleanup()
         {
             CancelTimer();
+            ResetRoundState();
+
             NetworkClient.UnregisterHandler<TimeStateMessage>();
             NetworkClient.UnregisterHandler<WinnerDecidedMessage>();
             NetworkClient.UnregisterHandler<RoomOptionSyncMessage>();
@@ -268,6 +272,13 @@ namespace PixelChroma
             {
                 netManager.ServerChangeScene(netManager.onlineScene);
             }
+        }
+
+        private void ResetRoundState()
+        {
+            CurrentTimeState = TimeState.Waiting;
+            CurrentWinner = PlayerRole.None;
+            CurrentTimer = 0;
         }
 
 
