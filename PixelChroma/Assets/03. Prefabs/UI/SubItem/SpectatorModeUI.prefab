@@ -2304,6 +2304,7 @@ GameObject:
   - component: {fileID: 8807488178733333551}
   - component: {fileID: 8527062948765499698}
   - component: {fileID: 1010631147133482001}
+  - component: {fileID: 5828305431433011414}
   m_Layer: 5
   m_Name: SpectateModeGroup
   m_TagString: Untagged
@@ -2373,6 +2374,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
   m_HorizontalFit: 2
   m_VerticalFit: 2
+--- !u!114 &5828305431433011414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6052435297012580380}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78cc2278551c7a24e9b81fe52094d851, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIPanelSlideIntro
+  slideFrom: 2
+  slideDistance: 60
+  duration: 0.35
+  startDelay: 0
+  ease: 9
 --- !u!1 &6864325980699446604
 GameObject:
   m_ObjectHideFlags: 0
