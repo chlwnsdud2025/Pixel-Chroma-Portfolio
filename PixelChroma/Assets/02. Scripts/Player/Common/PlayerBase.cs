@@ -117,8 +117,8 @@ namespace PixelChroma
                     int selected = formWheel.Close();
                     if (selected >= 0)
                     {
-                        if (_paintController.IsPaintMode)
-                            _paintController.TogglePaintMode();
+                        //if (_paintController.IsPaintMode)
+                        //    _paintController.TogglePaintMode();
 
                         paintCanvas.SwitchForm((PlayerPaintCanvas.PaintFormType)selected);
                     }
