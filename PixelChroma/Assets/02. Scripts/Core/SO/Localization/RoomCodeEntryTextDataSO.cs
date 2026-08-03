@@ -6,7 +6,6 @@ namespace PixelChroma
     [CreateAssetMenu(fileName = "RoomCodeEntryTextData", menuName = "PixelChroma/Localization/RoomCodeEntryTextData")]
     public class RoomCodeEntryTextDataSO : ScriptableObject
     {
-        public LocalizedString invalidCharWarning;
-        public LocalizedString joinFailedWarning;
+        public LocalizedString invalidCharwarningText;
     }
 }

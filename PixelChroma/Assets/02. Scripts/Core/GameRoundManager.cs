@@ -46,11 +46,13 @@ namespace PixelChroma
         private float OptionCheckTime => CurrentRoomOption?.checkTime ?? RoomOption.DefaultCheckTime;
         private int OptionSeekerCount => CurrentRoomOption?.seekerCount ?? RoomOption.DefaultSeekerCount;
         private float OptionForcedExposeInterval => CurrentRoomOption?.forcedExposeInterval ?? RoomOption.DefaultForcedExposeInterval;
+        private bool OptionForcedExposeEnabled => CurrentRoomOption?.forcedExposeEnabled ?? true;
 
         public int SecondsUntilNextForcedExpose
         {
             get
             {
+                if (!OptionForcedExposeEnabled) return 0;
                 if (CurrentTimeState != TimeState.SeekTime || OptionForcedExposeInterval <= 0f) return 0;
 
                 int elapsed = Mathf.CeilToInt(OptionSeekTime) - CurrentTimer;
@@ -71,6 +73,8 @@ namespace PixelChroma
 
         public void Initialize()
         {
+            ResetRoundState();
+
             NetworkClient.RegisterHandler<TimeStateMessage>(OnClientTimeStateChanged);
             NetworkClient.RegisterHandler<WinnerDecidedMessage>(OnClientWinnerDecided);
             NetworkClient.RegisterHandler<RoomOptionSyncMessage>(OnClientRoomOptionChanged);
@@ -79,6 +83,8 @@ namespace PixelChroma
         public void Cleanup()
         {
             CancelTimer();
+            ResetRoundState();
+
             NetworkClient.UnregisterHandler<TimeStateMessage>();
             NetworkClient.UnregisterHandler<WinnerDecidedMessage>();
             NetworkClient.UnregisterHandler<RoomOptionSyncMessage>();
@@ -270,6 +276,13 @@ namespace PixelChroma
             }
         }
 
+        private void ResetRoundState()
+        {
+            CurrentTimeState = TimeState.Waiting;
+            CurrentWinner = PlayerRole.None;
+            CurrentTimer = 0;
+        }
+
 
         //--------------------------------역할정하기!-----------------------------------
         [Server]
@@ -342,6 +355,7 @@ namespace PixelChroma
         [Server]
         private void CheckForcedExpose()
         {
+            if (!OptionForcedExposeEnabled) return;
             if (CurrentTimeState != TimeState.SeekTime) return;
             if (OptionForcedExposeInterval <= 0f) return;
 

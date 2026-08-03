@@ -10,7 +10,6 @@ public class RoomListTextDataSO : ScriptableObject
     [Header("Status")]
     public LocalizedString searchingStatus;
     public LocalizedString joiningStatus;
-    public LocalizedString joinFailedStatus;
 
     [Header("Room Item")]
     public LocalizedString lobbyStatusLabel;

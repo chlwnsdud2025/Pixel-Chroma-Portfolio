@@ -42,10 +42,6 @@ namespace PixelChroma.UI
         [Header("Registry")]
         [SerializeField] private GameModeRegistrySO gameModeRegistry;
 
-        [Header("Dead Room Warning")]
-        [SerializeField] private GameObject deadRoomWarningRoot;      // 경고 모달 루트
-        [SerializeField] private Button deadRoomWarningConfirmButton; // 확인 버튼
-   
         private readonly List<UIRoomListItem> _items = new();
 
         // 드롭다운 인덱스 → 실제 값 매핑 (인덱스 0 = "전체" = null/빈값)
@@ -62,9 +58,6 @@ namespace PixelChroma.UI
             if (searchButton != null) searchButton.onClick.AddListener(RequestSearch);
             if (refreshButton != null) refreshButton.onClick.AddListener(RequestSearch);
             if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
-
-            if (deadRoomWarningConfirmButton != null)
-                deadRoomWarningConfirmButton.onClick.AddListener(HideDeadRoomWarning);
         }
 
         private void PopulateGameModeDropdown()
@@ -160,7 +153,6 @@ namespace PixelChroma.UI
             if (mapDropdown != null) mapDropdown.SetValueWithoutNotify(0);
             if (languageDropdown != null) languageDropdown.SetValueWithoutNotify(0);
             if (roomNameInput != null) roomNameInput.SetTextWithoutNotify("");
-            if (deadRoomWarningRoot != null) deadRoomWarningRoot.SetActive(false);
 
             ClearList();
             SetEmpty(false);
@@ -285,22 +277,11 @@ namespace PixelChroma.UI
             LobbyManager.Instance?.JoinRoom(entry);
         }
 
-        private void HandleJoinFailed()
+        private void HandleJoinFailed(LobbyFailureReason reason)
         {
-            ShowDeadRoomWarning();
+            UIManager.Instance.ShowPopup<UIwarningTextPopup>(p => p.SetReason(reason)).Forget();
+
             RequestSearch();
-        }
-
-        private void ShowDeadRoomWarning()
-        {
-            if (deadRoomWarningRoot != null)
-                deadRoomWarningRoot.SetActive(true);
-        }
-
-        private void HideDeadRoomWarning()
-        {
-            if (deadRoomWarningRoot != null)
-                deadRoomWarningRoot.SetActive(false);
         }
 
         // ── 유틸 ─────────────────────────────────────────────

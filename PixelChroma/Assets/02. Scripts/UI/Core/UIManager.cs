@@ -82,11 +82,17 @@ namespace PixelChroma.UI
             return target;
         }
 
-        public async UniTask<T> ShowPopup<T>() where T : UIPopup
+        public UniTask<T> ShowPopup<T>() where T : UIPopup => ShowPopup<T>(null);
+
+        // configure는 표시 직전(OnBeforeShow/애니메이션 시작 전)에 호출되어,
+        // 팝업이 그려지기 전에 필요한 값을 주입할 수 있게 한다.
+        public async UniTask<T> ShowPopup<T>(Action<T> configure) where T : UIPopup
         {
             if (!TryGetPanel<T>(out var target)) return null;
 
             if (_popupStack.Contains(target)) return target;
+
+            configure?.Invoke(target);
 
             target.OnBeforeShow();
             await target.Show();

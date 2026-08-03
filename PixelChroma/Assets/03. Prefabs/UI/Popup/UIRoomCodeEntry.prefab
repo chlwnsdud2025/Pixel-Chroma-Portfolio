@@ -163,7 +163,7 @@ MonoBehaviour:
   m_CaretColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
   m_CustomCaretColor: 0
   m_SelectionColor: {r: 0.65882355, g: 0.80784315, b: 1, a: 0.7529412}
-  m_Text: 
+  m_Text: "\u3134\u3147"
   m_CaretBlinkRate: 0.85
   m_CaretWidth: 1
   m_ReadOnly: 0
@@ -524,8 +524,9 @@ GameObject:
   - component: {fileID: 1314886023110580568}
   - component: {fileID: 6628867274393214951}
   - component: {fileID: 6409670674511679707}
+  - component: {fileID: 4823490743981088052}
   m_Layer: 5
-  m_Name: Status Text
+  m_Name: WarningText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -650,6 +651,26 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &4823490743981088052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1957648812493028478}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c247d667721c0e342878fe26fe9efa06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIWarningText
+  text: {fileID: 6409670674511679707}
+  duration: 0.2
+  strength: 5
+  vibrato: 10
+  ignoreTimeScale: 1
+  autoHide: 1
+  autoHideDelay: 2
+  fadeDuration: 0.5
 --- !u!1 &1977645941233108233
 GameObject:
   m_ObjectHideFlags: 0
@@ -782,7 +803,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3210178748074339245}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
   m_Name: 
@@ -972,7 +993,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u200B"
+  m_text: "\u3134\u3147\u200B"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
   m_sharedMaterial: {fileID: -9582923918095126, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
@@ -1283,6 +1304,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIRoomCodeEntry
   dimmed: {fileID: 3463833734641389942}
   closeOnDimmedClick: 1
+  closeOnEscape: 1
   roomCodeInput: {fileID: 2369082542202772838}
   showCodeButton: {fileID: 559805510757200415}
   showCodeIcon: {fileID: 841698922296300321}
@@ -1290,8 +1312,9 @@ MonoBehaviour:
   hiddenSprite: {fileID: -1053069747884199026, guid: 2453f5fffd014554cbb83339c9ea17d1, type: 3}
   joinButton: {fileID: 7026414951848359136}
   closeButton: {fileID: 3480302002723274741}
-  statusText: {fileID: 6409670674511679707}
+  warningText: {fileID: 4823490743981088052}
   textData: {fileID: 11400000, guid: ffe2c1dcc59a5fd47b0bc0f2b4826469, type: 2}
+  failureTextData: {fileID: 11400000, guid: b28203ae9ff3a3c4e8df8286d6e7256c, type: 2}
   panel: {fileID: 8687309525983846586}
   animationDuration: 0.25
 --- !u!1 &4990146497619179349

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using TMPro;
@@ -23,17 +22,23 @@ namespace PixelChroma.UI
         [SerializeField] private Button closeButton;
 
         [Header("Status")]
-        [SerializeField] private TMP_Text statusText;
+        [SerializeField] private UIWarningText warningText;
 
         [Header("Localization")]
         [SerializeField] private RoomCodeEntryTextDataSO textData;
+        [SerializeField] private LobbyFailureTextDataSO failureTextData;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
         [SerializeField] private float animationDuration = 0.25f;
 
         private bool _isCodeVisible;
-        private bool _isFiltering;
+
+        private void Update()
+        {
+            if (roomCodeInput != null && roomCodeInput.isFocused)
+                Input.imeCompositionMode = IMECompositionMode.Off;
+        }
 
         public override void Initialize()
         {
@@ -46,6 +51,7 @@ namespace PixelChroma.UI
             if (roomCodeInput != null)
             {
                 roomCodeInput.characterLimit = LobbyManager.CodeLength;
+                roomCodeInput.onValidateInput = OnValidateChar;
                 roomCodeInput.onValueChanged.AddListener(OnCodeChanged);
             }
         }
@@ -53,6 +59,9 @@ namespace PixelChroma.UI
         public override void OnBeforeShow()
         {
             base.OnBeforeShow();
+
+            // 한글 등 IME 조합 입력 자체를 차단해 Password 마스킹에 조합 문자열이 그려지는 것을 방지
+            Input.imeCompositionMode = IMECompositionMode.Off;
 
             if (roomCodeInput != null) roomCodeInput.SetTextWithoutNotify(string.Empty);
 
@@ -87,39 +96,19 @@ namespace PixelChroma.UI
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;
 
+            Input.imeCompositionMode = IMECompositionMode.Auto;
+
             return UniTask.CompletedTask;
         }
 
-        private void OnCodeChanged(string value)
+        private void ShowStatus(string message)
         {
-            if (_isFiltering) return;
+            if (warningText != null) warningText.Show(message);
+        }
 
-            string stripped = Regex.Replace(value, @"[^A-Za-z0-9]", "");
-
-            if (stripped.Length != value.Length)
-            {
-                _isFiltering = true;
-                roomCodeInput.DeactivateInputField();
-                roomCodeInput.text = string.Empty;
-                roomCodeInput.ActivateInputField();
-                roomCodeInput.caretPosition = 0;
-                _isFiltering = false;
-                ShowStatus(textData.invalidCharWarning.GetLocalizedString());
-                RefreshJoinButton(0);
-                return;
-            }
-
-            string filtered = value.ToUpper();
-            if (filtered != value)
-            {
-                _isFiltering = true;
-                roomCodeInput.text = filtered;
-                roomCodeInput.caretPosition = filtered.Length;
-                _isFiltering = false;
-            }
-
-            SetStatusVisible(false);
-            RefreshJoinButton(filtered.Length);
+        private void SetStatusVisible(bool visible)
+        {
+            if (!visible && warningText != null) warningText.Clear();
         }
 
         private void RefreshJoinButton(int length)
@@ -151,6 +140,36 @@ namespace PixelChroma.UI
             }
         }
 
+        private void OnCodeChanged(string value)
+        {
+            RefreshJoinButton(value.Length);
+        }
+
+        private void HandleLobbyFailed(LobbyFailureReason reason)
+        {
+            if (failureTextData != null)
+                ShowStatus(failureTextData.GetLocalized(reason));
+
+            if (roomCodeInput != null)
+                RefreshJoinButton(roomCodeInput.text.Trim().Length);
+        }
+
+        // 입력되는 문자를 문자 단위로 검증한다.
+        // 영문/숫자만 허용하고 소문자는 대문자로 변환, 그 외(한글 등)는 '\0'을 반환해 커밋 자체를 막는다.
+        private char OnValidateChar(string text, int charIndex, char addedChar)
+        {
+            if (addedChar >= 'a' && addedChar <= 'z')
+                return char.ToUpper(addedChar);
+
+            if ((addedChar >= 'A' && addedChar <= 'Z') || (addedChar >= '0' && addedChar <= '9'))
+                return addedChar;
+
+            if (textData != null)
+                ShowStatus(textData.invalidCharwarningText.GetLocalizedString());
+
+            return '\0';
+        }
+
         private void OnClickJoin()
         {
             string code = roomCodeInput != null ? roomCodeInput.text.Trim() : string.Empty;
@@ -162,28 +181,6 @@ namespace PixelChroma.UI
 
             SetStatusVisible(false);
             LobbyManager.Instance.JoinLobbyByCode(code);
-        }
-
-        private void HandleLobbyFailed()
-        {
-            ShowStatus(textData.joinFailedWarning.GetLocalizedString());
-
-            if (roomCodeInput != null)
-                RefreshJoinButton(roomCodeInput.text.Trim().Length);
-        }
-
-        private void ShowStatus(string message)
-        {
-            if (statusText != null)
-            {
-                statusText.text = message;
-                statusText.gameObject.SetActive(true);
-            }
-        }
-
-        private void SetStatusVisible(bool visible)
-        {
-            if (statusText != null) statusText.gameObject.SetActive(visible);
         }
     }
 }

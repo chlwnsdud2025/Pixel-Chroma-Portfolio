@@ -17,12 +17,13 @@ namespace PixelChroma.UI
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private TMP_Text createButtonText;
-
-        [Header("Localization")]
-        [SerializeField] private RoomSettingTextDataSO textData;
+        [SerializeField] private TMP_Text statusText;
 
         [Header("Close")]
         [SerializeField] private Button closeButton;
+
+        [Header("Localization")]
+        [SerializeField] private RoomSettingTextDataSO textData;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
@@ -30,6 +31,9 @@ namespace PixelChroma.UI
 
         private RoomOption _option;
         private bool _isEditMode = false;
+        private bool _creating = false;
+
+        public override bool CloseOnEscape => !_creating;
 
         public override void Initialize()
         {
@@ -55,6 +59,17 @@ namespace PixelChroma.UI
             RoomOption startOption = isEdit ? lobby?.CurrentRoomOption : null;
             Setup(startOption, isEdit);
 
+            _creating = false;
+            if (closeButton != null) closeButton.interactable = true;
+
+            SetStatusActive(false);
+
+            if (lobby != null)
+            {
+                lobby.OnLobbyFailed -= HandleLobbyFailed;
+                lobby.OnLobbyFailed += HandleLobbyFailed;
+            }
+
             if (mapPanel != null)
             {
                 mapPanel.OnMapSelected -= OnMapSelected;
@@ -77,30 +92,17 @@ namespace PixelChroma.UI
                 await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
         }
 
-        protected override UniTask OnShow()
+        public override void OnAfterHide()
         {
-            if (mapPanel != null)
-            {
-                mapPanel.OnMapSelected -= OnMapSelected;
-                mapPanel.OnMapSelected += OnMapSelected;
-            }
+            base.OnAfterHide();
 
-            var lobby = LobbyManager.Instance;
-            if (lobby != null)
-                lobby.OnLobbyFailed += HandleLobbyFailed;
-
-            return UniTask.CompletedTask;
-        }
-
-        protected override UniTask OnHide()
-        {
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;
 
             if (mapPanel != null)
                 mapPanel.OnMapSelected -= OnMapSelected;
 
-            return UniTask.CompletedTask;
+            SetStatusActive(false);
         }
 
         public void Setup(RoomOption option, bool isEditMode = false)
@@ -115,14 +117,9 @@ namespace PixelChroma.UI
             RefreshCreateButtonUI();
         }
 
-        private void OnMapSelected(MapDataSO map)
+        private void SetStatusActive(bool active)
         {
-            _option.mapName = map.name;
-        }
-
-        private void HandleLobbyFailed()
-        {
-            if (createButton != null) createButton.interactable = true;
+            if (statusText != null) statusText.gameObject.SetActive(active);
         }
 
         private void RefreshCreateButtonUI()
@@ -137,6 +134,29 @@ namespace PixelChroma.UI
                 createButton.interactable = true;
         }
 
+        private void OnMapSelected(MapDataSO map)
+        {
+            _option.mapName = map.name;
+        }
+
+        private void HandleLobbyFailed(LobbyFailureReason reason)
+        {
+            _creating = false;
+            if (createButton != null) createButton.interactable = true;
+            if (closeButton != null) closeButton.interactable = true;
+
+            // 실패 피드백은 공통 경고 팝업으로 통일한다. ("생성 중" 상태 문구는 정리)
+            SetStatusActive(false);
+
+            UIManager.Instance.ShowPopup<UIwarningTextPopup>(p => p.SetReason(reason)).Forget();
+        }
+
+        public override void OnClickBack()
+        {
+            if (_creating) return;
+            base.OnClickBack();
+        }
+
         private void OnClickCreate()
         {
             if (roomInfoPanel != null && !roomInfoPanel.TryApply()) return;
@@ -148,7 +168,10 @@ namespace PixelChroma.UI
                 return;
             }
 
+            _creating = true;
             if (createButton != null) createButton.interactable = false;
+            if (closeButton != null) closeButton.interactable = false;
+            SetStatusActive(true);
             LobbyManager.Instance.CreateLobby(_option);
         }
     }

@@ -30,7 +30,10 @@ namespace PixelChroma.UI
         [SerializeField] private Slider checkTimeSlider;
         [SerializeField] private TMP_InputField checkTimeInput;
 
-        [Header("Forced Expose Interval")]
+        [Header("Forced Expose")]
+        [SerializeField] private Toggle forcedExposeToggle;             // on/off 토글
+        [SerializeField] private GameObject forcedExposeActivePanel;    // 실제 작동(슬라이더/입력) 패널
+        [SerializeField] private GameObject forcedExposeDisabledPanel;  // 회색 비활성 표시용 패널
         [SerializeField] private Slider forcedExposeIntervalSlider;
         [SerializeField] private TMP_InputField forcedExposeIntervalInput;
 
@@ -50,6 +53,7 @@ namespace PixelChroma.UI
             if (seekTimeInput != null) seekTimeInput.onEndEdit.AddListener(OnSeekTimeInput);
             if (checkTimeInput != null) checkTimeInput.onEndEdit.AddListener(OnCheckTimeInput);
             if (forcedExposeIntervalInput != null) forcedExposeIntervalInput.onEndEdit.AddListener(OnForcedExposeIntervalInput);
+            if (forcedExposeToggle != null) forcedExposeToggle.onValueChanged.AddListener(OnForcedExposeToggle);
 
             SetupSlider(hideTimeSlider, RoomOption.MinHideTime, RoomOption.MaxHideTime, OnHideTimeChanged);
             SetupSlider(seekTimeSlider, RoomOption.MinSeekTime, RoomOption.MaxSeekTime, OnSeekTimeChanged);
@@ -201,6 +205,25 @@ namespace PixelChroma.UI
             else RefreshTimeUI();
         }
 
+        private void OnForcedExposeToggle(bool on)
+        {
+            if (_option == null) return;
+            _option.forcedExposeEnabled = on;   // 설정값 반영
+            RefreshForcedExposeUI();            // 패널 스왑
+        }
+
+        private void RefreshForcedExposeUI()
+        {
+            if (_option == null) return;
+            bool on = _option.forcedExposeEnabled;
+
+            if (forcedExposeToggle != null) forcedExposeToggle.SetIsOnWithoutNotify(on);
+
+            // on: 실제 패널 / off: 회색 비활성 패널
+            if (forcedExposeActivePanel != null) forcedExposeActivePanel.SetActive(on);
+            if (forcedExposeDisabledPanel != null) forcedExposeDisabledPanel.SetActive(!on);
+        }
+
         private void RefreshAll()
         {
             if (_option == null) return;
@@ -212,6 +235,7 @@ namespace PixelChroma.UI
             if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
             if (checkTimeSlider != null) checkTimeSlider.SetValueWithoutNotify(_option.checkTime);
             if (forcedExposeIntervalSlider != null) forcedExposeIntervalSlider.SetValueWithoutNotify(_option.forcedExposeInterval);
+            RefreshForcedExposeUI();
         }
 
         private void RefreshPlayerCountUI()

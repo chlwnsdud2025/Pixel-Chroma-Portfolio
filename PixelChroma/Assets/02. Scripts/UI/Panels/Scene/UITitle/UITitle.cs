@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,6 +7,10 @@ namespace PixelChroma.UI
 {
     public class UITitle : UIScene
     {
+        [Header("Logo")]
+        [SerializeField] private Transform logo;
+        [SerializeField] private float logoAnimationDuration = 0.5f;
+
         [Header("Main Menu Buttons")]
         [SerializeField] private Button quickJoinButton;
         [SerializeField] private Button createRoomButton;
@@ -35,6 +40,16 @@ namespace PixelChroma.UI
         }
 
         public override void OnCancel() => OnClickSetting();
+
+        protected override async UniTask OnShowAnimation()
+        {
+            if (logo == null) return;
+
+            logo.localScale = Vector3.zero;
+            await logo.DOScale(Vector3.one, logoAnimationDuration)
+                .SetEase(Ease.OutBack)
+                .ToUniTask();
+        }
 
         private void OnClickQuickJoin()
         {

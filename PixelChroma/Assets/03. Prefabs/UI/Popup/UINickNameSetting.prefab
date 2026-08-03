@@ -445,6 +445,7 @@ GameObject:
   - component: {fileID: 1314886023110580568}
   - component: {fileID: 6628867274393214951}
   - component: {fileID: 6409670674511679707}
+  - component: {fileID: 7728591034964575476}
   m_Layer: 5
   m_Name: WarningText
   m_TagString: Untagged
@@ -571,6 +572,26 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &7728591034964575476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1957648812493028478}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c247d667721c0e342878fe26fe9efa06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIwarningTextText
+  text: {fileID: 6409670674511679707}
+  duration: 0.2
+  strength: 5
+  vibrato: 10
+  ignoreTimeScale: 1
+  autoHide: 1
+  autoHideDelay: 2
+  fadeDuration: 0.5
 --- !u!1 &3210178748074339245
 GameObject:
   m_ObjectHideFlags: 0
@@ -640,8 +661,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\uB2C9\uB124\uC784 \uC785\uB825"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
-  m_sharedMaterial: {fileID: -3906527179811501268, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
+  m_sharedMaterial: {fileID: -9582923918095126, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -831,8 +852,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u200B"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
-  m_sharedMaterial: {fileID: -3906527179811501268, guid: a7627fb50ed8b30408f9a3e74e59f768, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
+  m_sharedMaterial: {fileID: -9582923918095126, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -975,12 +996,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIMainMenuNickname
   dimmed: {fileID: 3463833734641389942}
   closeOnDimmedClick: 1
+  closeOnEscape: 1
   maxNicknameLength: 10
   bannedWords: {fileID: 11400000, guid: 8b5c6e9e1e476014eb69afeb917cbf2b, type: 2}
   nicknameInputField: {fileID: 2369082542202772838}
   saveButton: {fileID: 8073032520562406388}
   closeButton: {fileID: 7785042854349210985}
-  warningText: {fileID: 6409670674511679707}
+  warningText: {fileID: 7728591034964575476}
   textData: {fileID: 11400000, guid: 4cc4c0e2416dc194c8e173f60ef4bd12, type: 2}
   panel: {fileID: 8687309525983846586}
   animationDuration: 0.25

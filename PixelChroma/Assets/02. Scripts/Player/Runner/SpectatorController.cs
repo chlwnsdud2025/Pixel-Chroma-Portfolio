@@ -1,8 +1,6 @@
 using System;
 using UnityEngine;
 using Unity.Cinemachine;
-using System.Collections;
-
 namespace PixelChroma
 {
     public enum SpectateMode
@@ -24,8 +22,9 @@ namespace PixelChroma
         private int _targetIndex = -1;
         private PlayerBase _currentTarget;
 
-        private bool _pendingForcePosition;
-        private Transform _pendingFollowTarget;
+        private readonly CinemachinePositionComposer _composer;   // vcam의 Body(Position Composer)
+        private Vector3 _defaultDamping;
+        private const float ArriveThreshold = 0.05f;
 
         // 관전 대상이 바뀔 때 발생합니다. null이면 자유 시점이거나 관전을 끝낸 상태입니다.
         public event Action<PlayerBase> OnTargetChanged;
@@ -39,6 +38,9 @@ namespace PixelChroma
             _owner = owner;
             _camera = camera;
             _freeCamSpeed = freeCamSpeed;
+
+            _composer = camera != null ? camera.GetComponent<CinemachinePositionComposer>() : null;
+            if (_composer != null) _defaultDamping = _composer.Damping;
 
             _freeCamTarget = new GameObject($"FreeCamTarget_{_owner.netId}");
             _freeCamTarget.transform.position = owner.transform.position;
@@ -165,9 +167,12 @@ namespace PixelChroma
         {
             if (_camera != null)
             {
+                if (target != null)
+                    ApplyDistanceBasedDamping(cameraFollow);   // 러너/시커 관전 → 균일 시간 전환
+                else
+                    RestoreDefaultDamping();                    // 자유 시점/관전 종료 → 기본 damping
+
                 _camera.Follow = cameraFollow;
-                _pendingForcePosition = true;
-                _pendingFollowTarget = cameraFollow;
             }
 
             if (_currentTarget == target) return;
@@ -176,14 +181,27 @@ namespace PixelChroma
             OnTargetChanged?.Invoke(target);
         }
 
-        // 새 public 메서드 추가
-        public void ProcessLateUpdate()
+        private void ApplyDistanceBasedDamping(Transform followTarget)
         {
-            if (!_pendingForcePosition) return;
-            _pendingForcePosition = false;
+            if (_composer == null || followTarget == null || _camera == null) return;
 
-            if (_camera != null && _pendingFollowTarget != null)
-                _camera.ForceCameraPosition(_pendingFollowTarget.position, _camera.transform.rotation);
+            float t = InGameManager.Instance != null ? InGameManager.Instance.SpectateTransitionTime : 0.4f;
+
+            float d0 = Vector2.Distance(_camera.transform.position, followTarget.position);
+            float ratio = Mathf.Max(d0 / ArriveThreshold, 1.01f);   // ln > 0 보장
+            float damping = t / Mathf.Log(ratio);                   // τ = T / ln(d0/ε)
+            damping = Mathf.Clamp(damping, 0.02f, 5f);
+
+            var d = _composer.Damping;
+            d.x = damping;
+            d.y = damping;                 // z는 2D라 그대로 유지
+            _composer.Damping = d;
+        }
+
+        private void RestoreDefaultDamping()
+        {
+            if (_composer != null)
+                _composer.Damping = _defaultDamping;
         }
     }
 }

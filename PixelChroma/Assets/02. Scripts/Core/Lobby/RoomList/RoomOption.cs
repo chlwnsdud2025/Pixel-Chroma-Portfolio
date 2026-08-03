@@ -32,6 +32,8 @@ namespace PixelChroma
         public const float MinForcedExposeInterval = 0f;
         public const float MaxForcedExposeInterval = 120f;
 
+
+
         // 방 이름은 비워둘 수 있다. (비면 RoomListEntry가 "{hostName}의 방"으로 대체)
         public const int MaxRoomNameLength = 20;
 
@@ -42,6 +44,7 @@ namespace PixelChroma
         public float hideTime = DefaultHideTime;
         public float seekTime = DefaultSeekTime;
         public float checkTime = DefaultCheckTime;
+        public bool forcedExposeEnabled = true;
         public float forcedExposeInterval = DefaultForcedExposeInterval;
 
         public string roomName = "";
@@ -60,6 +63,7 @@ namespace PixelChroma
                 hideTime = hideTime,
                 seekTime = seekTime,
                 checkTime = checkTime,
+                forcedExposeEnabled = forcedExposeEnabled,
                 forcedExposeInterval = forcedExposeInterval,
                 roomName = roomName,
                 mapName = mapName,
@@ -79,6 +83,7 @@ namespace PixelChroma
                 hideTime = hideTime,
                 seekTime = seekTime,
                 checkTime = checkTime,
+                forcedExposeEnabled = forcedExposeEnabled,
                 forcedExposeInterval = forcedExposeInterval,
                 roomName = roomName,
                 mapName = mapName,
@@ -98,6 +103,7 @@ namespace PixelChroma
                 hideTime = data.hideTime,
                 seekTime = data.seekTime,
                 checkTime = data.checkTime,
+                forcedExposeEnabled = data.forcedExposeEnabled,
                 forcedExposeInterval = data.forcedExposeInterval,
                 roomName = data.roomName,
                 mapName = data.mapName,
@@ -116,6 +122,7 @@ namespace PixelChroma
         public float hideTime;
         public float seekTime;
         public float checkTime;
+        public bool forcedExposeEnabled;
         public float forcedExposeInterval;
         public string roomName;
         public string mapName;

@@ -14,6 +14,7 @@ namespace PixelChroma.UI
 
         [Header("Localization")]
         [SerializeField] private QuickMatchTextDataSO textData;
+        [SerializeField] private LobbyFailureTextDataSO failureTextData;
 
         [Header("Buttons")]
         [SerializeField] private Button retryButton;
@@ -67,9 +68,9 @@ namespace PixelChroma.UI
             return UniTask.CompletedTask;
         }
 
-        private void HandleLobbyFailed()
+        private void HandleLobbyFailed(LobbyFailureReason reason)
         {
-            SetFailed();
+            SetFailed(reason);
         }
 
         private void SetLoading()
@@ -79,9 +80,10 @@ namespace PixelChroma.UI
             if (retryButton != null) retryButton.gameObject.SetActive(false);
         }
 
-        private void SetFailed()
+        private void SetFailed(LobbyFailureReason reason)
         {
-            if (statusText != null) statusText.text = textData.notFoundStatus.GetLocalizedString();
+            if (statusText != null && failureTextData != null)
+                statusText.text = failureTextData.GetLocalized(reason);
             if (loadingIndicator != null) loadingIndicator.SetActive(false);
             if (retryButton != null) retryButton.gameObject.SetActive(true);
         }

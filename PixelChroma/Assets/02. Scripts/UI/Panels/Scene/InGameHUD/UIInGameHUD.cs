@@ -165,7 +165,12 @@ namespace PixelChroma.UI
             }
 
             if (forcedExposeTimerText != null)
-                forcedExposeTimerText.gameObject.SetActive(state == TimeState.SeekTime);
+            {
+                var round = GameRoundManager.Instance;
+                bool exposeOn = round != null && round.CurrentRoomOption != null
+                    && round.CurrentRoomOption.forcedExposeEnabled;
+                forcedExposeTimerText.gameObject.SetActive(state == TimeState.SeekTime && exposeOn);
+            }
 
             UpdateTimerText(remainingSeconds);
         }

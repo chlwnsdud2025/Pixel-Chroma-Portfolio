@@ -21,7 +21,7 @@ namespace PixelChroma.UI
         [SerializeField] private Button closeButton;      
 
         [Header("Feedback Status UI")]
-        [SerializeField] private TMP_Text warningText;
+        [SerializeField] private UIWarningText warningText;
 
         [Header("Localization")]
         [SerializeField] private NicknameSettingTextDataSO textData;
@@ -38,10 +38,7 @@ namespace PixelChroma.UI
             if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
 
             if (nicknameInputField != null)
-            {
                 nicknameInputField.characterLimit = maxNicknameLength;
-                nicknameInputField.onValueChanged.AddListener(OnNicknameInputChanged);
-            }
         }
 
         public override void OnBeforeShow()
@@ -51,7 +48,7 @@ namespace PixelChroma.UI
             if (nicknameInputField != null)
                 nicknameInputField.text = NicknameService.LoadOrDefault();
 
-            SetWarningMessage(string.Empty);
+            SetwarningTextMessage(string.Empty);
 
             if (panel != null) panel.localScale = Vector3.zero;
         }
@@ -71,25 +68,12 @@ namespace PixelChroma.UI
                 await panel.DOScale(Vector3.zero, animationDuration).SetEase(Ease.InBack).ToUniTask();
         }
 
-        private void SetWarningMessage(string message)
+        private void SetwarningTextMessage(string message)
         {
-            if (warningText == null) return;
+            if (warningText != null) warningText.Show(message);
 
-            warningText.text = message;
-
-            if (!string.IsNullOrEmpty(message))
-            {
-                warningText.transform.DOComplete();
-                warningText.transform.DOShakePosition(0.2f, 5f, 10).SetUpdate(true);
-
-                if (nicknameInputField != null)
-                    nicknameInputField.ActivateInputField();
-            }
-        }
-
-        private void OnNicknameInputChanged(string value)
-        {
-            SetWarningMessage(string.Empty);
+            if (!string.IsNullOrEmpty(message) && nicknameInputField != null)
+                nicknameInputField.ActivateInputField();
         }
 
         private void OnClickSave()
@@ -104,14 +88,14 @@ namespace PixelChroma.UI
             switch (NicknameService.Validate(enteredName, bannedWords, maxNicknameLength, font))
             {
                 case NameValidation.TooLong:
-                    SetWarningMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
+                    SetwarningTextMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
                     return;
                 case NameValidation.Banned:
-                    SetWarningMessage(textData.warningBanned.GetLocalizedString());
+                    SetwarningTextMessage(textData.warningBanned.GetLocalizedString());
                     return;
                 case NameValidation.Unsupported:
                     if (!textData.warningUnsupported.IsEmpty)
-                        SetWarningMessage(textData.warningUnsupported.GetLocalizedString());
+                        SetwarningTextMessage(textData.warningUnsupported.GetLocalizedString());
                     return;
             }
 

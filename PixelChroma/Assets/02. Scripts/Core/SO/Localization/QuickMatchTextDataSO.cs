@@ -5,5 +5,4 @@ using UnityEngine.Localization;
 public class QuickMatchTextDataSO : ScriptableObject
 {
     public LocalizedString findingRoomStatus;
-    public LocalizedString notFoundStatus;
 }

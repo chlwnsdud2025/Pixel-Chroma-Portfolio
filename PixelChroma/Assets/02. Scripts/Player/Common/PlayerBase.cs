@@ -146,21 +146,11 @@ namespace PixelChroma
             HandleMovement();
         }
 
-        private void LateUpdate()
-        {
-            if (_spectator != null && _spectator.IsSpectating)
-                _spectator.ProcessLateUpdate();
-        }
-
         public override void OnStartServer()
         {
             base.OnStartServer();
             if (connectionToClient != null)
-            {
-                var netManager = NetworkManager.singleton as ChromaNetworkManager;
-                if (netManager != null)
-                    _likeCount = netManager.GetLikeCount(connectionToClient.connectionId);
-            }
+                _likeCount = LikeManager.GetLikeCount(connectionToClient.connectionId);
         }
 
         public override void OnStartClient()
@@ -255,7 +245,6 @@ namespace PixelChroma
         protected virtual void HandleMovement()
         {
             if (Rb == null) return;
-            if (this is RunnerPlayer runner && (runner.IsDead || runner.IsKnockedBack)) return;
             if (_spectator != null && _spectator.IsSpectating)
             {
                 Rb.linearVelocity = Vector2.zero;
@@ -263,6 +252,8 @@ namespace PixelChroma
                     _spectator.HandleFreeCamMovement(_input.Move.ReadValue<Vector2>());
                 return;
             }
+
+            if (this is RunnerPlayer runner && (runner.IsDead || runner.IsKnockedBack)) return;
 
             Vector2 input = GetMoveInput();
             Rb.linearVelocity = input.sqrMagnitude > 0.01f
@@ -451,12 +442,9 @@ namespace PixelChroma
         {
             if (string.IsNullOrEmpty(nameToRegister)) return;
 
-            if (NetworkManager.singleton is ChromaNetworkManager netManager)
-            {
-                string trimmed = nameToRegister.Trim();
-                netManager.RegisterNickname(connectionToClient.connectionId, trimmed);
-                playerName = trimmed;
-            }
+            string trimmed = nameToRegister.Trim();
+            NicknameRegistry.Register(connectionToClient.connectionId, trimmed);
+            playerName = trimmed;
         }
 
         [Command(requiresAuthority = false)]
@@ -469,15 +457,12 @@ namespace PixelChroma
             var senderPlayer = sender.identity?.GetComponent<PlayerBase>();
             if (senderPlayer == this) return;
 
-            var netManager = NetworkManager.singleton as ChromaNetworkManager;
-            if (netManager == null) return;
-
             // 클라이언트가 자체 판정으로 중복을 걸러주지만, 그건 UI 편의일 뿐이라
-            // 카운트 정확성은 서버 장부(_likeRecords)로만 보장합니다.
-            if (!netManager.AddLike(sender.connectionId, connectionToClient.connectionId))
+            // 카운트 정확성은 서버 장부(LikeManager)로만 보장합니다.
+            if (!LikeManager.AddLike(sender.connectionId, connectionToClient.connectionId))
                 return;
 
-            _likeCount = netManager.GetLikeCount(connectionToClient.connectionId);
+            _likeCount = LikeManager.GetLikeCount(connectionToClient.connectionId);
         }
 
         private void SetupCinemachineFollow()

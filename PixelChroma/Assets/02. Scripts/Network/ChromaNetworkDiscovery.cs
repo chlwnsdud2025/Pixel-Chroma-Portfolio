@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net;
 using Mirror;
 using Mirror.Discovery;
-using UnityEngine.Localization.Settings;
 
 namespace PixelChroma
 {
@@ -65,9 +64,7 @@ namespace PixelChroma
                 maxPlayers = option.maxPlayers,
                 gameMode = option.gameMode,
                 mapId = option.mapName,
-                languageCode = LocalizationSettings.SelectedLocale != null
-                    ? LocalizationSettings.SelectedLocale.Identifier.Code
-                    : string.Empty,
+                languageCode = LocalizationManager.CurrentLanguageCode,
                 roomStatus = GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.InGame
                     ? LobbyManager.StatusInGame
                     : LobbyManager.StatusLobby,
