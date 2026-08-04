@@ -34,8 +34,8 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            if (saveButton != null) saveButton.onClick.AddListener(OnClickSave);
-            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
+            if (saveButton != null) saveButton.AddClickListener(OnClickSave);
+            if (closeButton != null) closeButton.AddClickListener(OnClickBack);
 
             if (nicknameInputField != null)
                 nicknameInputField.characterLimit = maxNicknameLength;

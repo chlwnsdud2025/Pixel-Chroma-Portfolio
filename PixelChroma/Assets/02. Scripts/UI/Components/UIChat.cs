@@ -71,7 +71,7 @@ namespace PixelChroma.UI
             chatInputField.onSubmit.AddListener(OnChatSubmit);
 
             if (openChatButton != null)
-                openChatButton.onClick.AddListener(() => ToggleInput(!_isInputActive));
+                openChatButton.AddClickListener(() => ToggleInput(!_isInputActive));
 
             SceneManager.sceneLoaded += OnSceneLoaded;
 

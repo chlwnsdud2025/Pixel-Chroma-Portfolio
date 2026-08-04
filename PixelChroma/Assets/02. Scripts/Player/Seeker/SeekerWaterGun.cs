@@ -326,6 +326,8 @@ namespace PixelChroma
 
             if (!isLocalPlayer) PlayRecoil();
 
+            SoundManager.Instance?.PlaySfxAt(SfxType.GunShoot, FireOrigin);
+
             if (_effects != null)
                 _effects.PlayFireEffect(firePoint, targetPos, didHit, direction, hitNormal);
         }

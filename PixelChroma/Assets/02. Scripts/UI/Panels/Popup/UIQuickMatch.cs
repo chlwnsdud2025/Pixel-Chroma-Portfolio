@@ -31,9 +31,9 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            if (cancelButton != null) cancelButton.onClick.AddListener(OnClickCancel);
-            if (retryButton != null) retryButton.onClick.AddListener(OnClickRetry);
-            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
+            if (cancelButton != null) cancelButton.AddClickListener(OnClickCancel);
+            if (retryButton != null) retryButton.AddClickListener(OnClickRetry);
+            if (closeButton != null) closeButton.AddClickListener(OnClickBack);
         }
 
         public override void OnBeforeShow()

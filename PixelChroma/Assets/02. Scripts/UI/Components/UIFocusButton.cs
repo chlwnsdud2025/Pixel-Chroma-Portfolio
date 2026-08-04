@@ -22,7 +22,8 @@ namespace PixelChroma.UI
             if (button == null)
                 button = GetComponent<Button>();
 
-            button.onClick.AddListener(() => OnClicked?.Invoke());
+            // 클릭 사운드는 AddClickListener(ButtonExtensions)에서 일괄 처리한다.
+            button.AddClickListener(() => OnClicked?.Invoke());
         }
 
         public void SetSelected(bool selected)
