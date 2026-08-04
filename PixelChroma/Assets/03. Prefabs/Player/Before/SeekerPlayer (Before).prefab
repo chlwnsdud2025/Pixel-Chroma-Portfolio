@@ -201,8 +201,12 @@ MonoBehaviour:
   zoomStepPPU: 5
   manualZoomTweenDuration: 0.15
   forcedZoomOutDuration: 0.4
+  freeCamSpeed: 15
   nicknameRoot: {fileID: 5273378362392598485}
   nicknameText: {fileID: 6469292086262516784}
+  likeCountText: {fileID: 0}
+  likeRiseEffect: {fileID: 0}
+  formWheel: {fileID: 0}
   playerName: Player
   role: 2
   catchRadius: 1.5
@@ -239,6 +243,14 @@ MonoBehaviour:
   wetDuration: 2
   drawAoeGizmo: 1
   gizmoDisplayDuration: 1
+  recoilDistance: 0.15
+  impulseStrength: 1
+  recoilKickAngle: 8
+  recoilReturnTime: 0.12
+  knockbackImpulse: 15
+  knockbackDrag: 5
+  knockbackRotSpeed: 720
+  knockbackForwardBias: 0.5
 --- !u!114 &5070955367709632214
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -254,9 +266,13 @@ MonoBehaviour:
   laserPrefab: {fileID: 8869732654689229243, guid: 0165dbdcee1f1c24582812cf7a55302f, type: 3}
   waterSplashPrefab: {fileID: 3044295998657176925, guid: 05cdf3d523593cc4ea17989642e54978, type: 3}
   laserSpeed: 40
-  laserWidth: 0.15
-  laserSegmentLength: 1.5
   splashFadeDuration: 0.6
+  splashPunchScale: 1.3
+  splashPunchDuration: 0.13
+  muzzleFlashPrefab: {fileID: 0}
+  muzzleFlashDuration: 0.05
+  muzzleFlashScaleRange: {x: 0.85, y: 1.15}
+  muzzleFlashRandomRot: 12
 --- !u!114 &-5294142182456280051
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -422,6 +438,7 @@ MonoBehaviour:
     - {fileID: -139388104607612486, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
     - {fileID: -1718027947735458575, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
     overrideController: {fileID: 22100000, guid: e264435bc204ed74f8ec78ff097a9b7c, type: 2}
+    formCollider: {fileID: 0}
   - formType: 1
     sprites:
     - {fileID: -6598946016331564889, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
@@ -441,6 +458,7 @@ MonoBehaviour:
     - {fileID: -1137364592071911362, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
     - {fileID: -3549988229105279555, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
     overrideController: {fileID: 22100000, guid: b2630cfed3ba927499b80b4577314929, type: 2}
+    formCollider: {fileID: 0}
   brushSize: 1
   paintShader: {fileID: 4800000, guid: f096f447e9424a54284fb6acfed9c89e, type: 3}
   eraseFadeDuration: 0.5
@@ -678,6 +696,10 @@ PrefabInstance:
       propertyPath: m_SortingOrder
       value: 25
       objectReference: {fileID: 0}
+    - target: {fileID: 6574356275971925688, guid: a8db7da285613f846b0275b699b48ce8, type: 3}
+      propertyPath: m_sharedMaterial
+      value: 
+      objectReference: {fileID: -7204157201573268622, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
     - target: {fileID: 6716622868539826155, guid: a8db7da285613f846b0275b699b48ce8, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
