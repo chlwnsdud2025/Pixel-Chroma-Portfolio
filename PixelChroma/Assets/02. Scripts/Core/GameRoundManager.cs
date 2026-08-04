@@ -240,6 +240,7 @@ namespace PixelChroma
                 {
                     await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: token);
                     CurrentTimer--;
+                    SoundManager.Instance?.PlaySfx(SfxType.Clock);
                     OnTimerTick?.Invoke(CurrentTimer);
 
                     if (NetworkServer.active)

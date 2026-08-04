@@ -79,6 +79,11 @@ namespace PixelChroma.UI
             return base.OnShow();
         }
 
+        public override void OnCancel()
+        {
+            UIManager.Instance.ShowPopup<UISetting>().Forget();
+        }
+
         public void SetPaintMode(bool active)
         {
             if (paintModeRoot != null) paintModeRoot.SetActive(active);

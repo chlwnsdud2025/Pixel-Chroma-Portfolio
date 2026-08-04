@@ -31,7 +31,7 @@ namespace PixelChroma.UI
             base.Initialize();
             BuildLanguageButtons();
 
-            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
+            if (closeButton != null) closeButton.AddClickListener(OnClickBack);
         }
 
         public override void OnBeforeShow()
@@ -83,7 +83,7 @@ namespace PixelChroma.UI
                 btn.Setup(name, locale == current);
 
                 Locale captured = locale;
-                btn.Button.onClick.AddListener(() => OnLanguageSelected(captured));
+                btn.Button.AddClickListener(() => OnLanguageSelected(captured));
             }
         }
 

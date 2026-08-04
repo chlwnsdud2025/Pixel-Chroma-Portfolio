@@ -109,8 +109,6 @@ namespace PixelChroma
                 if (_paintCanvas != null)
                     _paintCanvas.BrushSize = _boundPicker.BrushSize;
             }
-
-            RefreshCursor();
         }
 
         public void UnbindHUD()

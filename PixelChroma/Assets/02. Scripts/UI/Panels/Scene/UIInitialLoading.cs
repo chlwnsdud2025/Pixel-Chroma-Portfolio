@@ -22,7 +22,7 @@ namespace PixelChroma.UI
                 canvasGroup = GetComponent<CanvasGroup>();
 
             if (quitButton != null)
-                quitButton.onClick.AddListener(() => Application.Quit());
+                quitButton.AddClickListener(() => Application.Quit());
         }
 
         protected override UniTask OnShowAnimation()

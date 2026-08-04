@@ -197,7 +197,6 @@ namespace PixelChroma
             SetupCinemachineFollow();
             OnLocalPlayerStarted();
 
-            _paintController.RefreshCursor();
             RaiseNicknameVisibilityChanged();
 
             string mySavedName = NicknameService.LoadOrDefault();
@@ -279,6 +278,11 @@ namespace PixelChroma
         public virtual CursorType GetDefaultCursorType()
         {
             return CursorType.Default;
+        }
+
+        public void ApplyDefaultCursor()
+        {
+            _paintController?.RefreshCursor();
         }
 
         // ── ESC 처리 ──────────────────────────────────────────────────

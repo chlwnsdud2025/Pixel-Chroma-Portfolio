@@ -55,9 +55,9 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            if (searchButton != null) searchButton.onClick.AddListener(RequestSearch);
-            if (refreshButton != null) refreshButton.onClick.AddListener(RequestSearch);
-            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
+            if (searchButton != null) searchButton.AddClickListener(RequestSearch);
+            if (refreshButton != null) refreshButton.AddClickListener(RequestSearch);
+            if (closeButton != null) closeButton.AddClickListener(OnClickBack);
         }
 
         private void PopulateGameModeDropdown()

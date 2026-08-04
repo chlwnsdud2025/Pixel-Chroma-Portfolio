@@ -17,7 +17,7 @@ namespace PixelChroma.UI
         private void Awake()
         {
             if (kickButton != null)
-                kickButton.onClick.AddListener(OnClickKick);
+                kickButton.AddClickListener(OnClickKick);
         }
 
         public void Set(LobbyPlayerState player, bool isHost, bool isLocalHost)

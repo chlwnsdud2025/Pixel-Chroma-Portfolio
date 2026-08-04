@@ -61,12 +61,12 @@ namespace PixelChroma.UI
         public override void Initialize()
         {
             base.Initialize();
-            if (copyCodeButton != null) copyCodeButton.onClick.AddListener(OnClickCopyCode);
-            if (leaveButton != null) leaveButton.onClick.AddListener(OnClickLeave);
-            if (startGameButton != null) startGameButton.onClick.AddListener(OnClickStartGame);
-            if (readyButton != null) readyButton.onClick.AddListener(OnClickReady);
-            if (roomSettingsButton != null) roomSettingsButton.onClick.AddListener(OnClickRoomSettings);
-            if (showCodeButton != null) showCodeButton.onClick.AddListener(OnClickToggleCode);
+            if (copyCodeButton != null) copyCodeButton.AddClickListener(OnClickCopyCode);
+            if (leaveButton != null) leaveButton.AddClickListener(OnClickLeave);
+            if (startGameButton != null) startGameButton.AddClickListener(OnClickStartGame);
+            if (readyButton != null) readyButton.AddClickListener(OnClickReady);
+            if (roomSettingsButton != null) roomSettingsButton.AddClickListener(OnClickRoomSettings);
+            if (showCodeButton != null) showCodeButton.AddClickListener(OnClickToggleCode);
 
             if (colorPicker != null) colorPicker.Initialize();
 
@@ -142,8 +142,7 @@ namespace PixelChroma.UI
 
         public override void OnCancel()
         {
-            // TODO OnClickSetting
-            Debug.Log("OnClickSetting");
+            UIManager.Instance.ShowPopup<UISetting>().Forget();
         }
 
         // ── Public ───────────────────────────────────────────
@@ -335,7 +334,7 @@ namespace PixelChroma.UI
 
         private void OnClickLeave()
         {
-            LobbyManager.Instance.LeaveLobby();
+            GameManager.Instance.LeaveSession();
         }
 
         private void OnClickToggleCode()

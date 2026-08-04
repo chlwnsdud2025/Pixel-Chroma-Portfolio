@@ -29,7 +29,7 @@ namespace PixelChroma.UI
         private void Awake()
         {
             if (joinButton != null)
-                joinButton.onClick.AddListener(() => OnJoinClicked?.Invoke(_entry));
+                joinButton.AddClickListener(() => OnJoinClicked?.Invoke(_entry));
         }
 
         public void Setup(RoomListEntry entry)
