@@ -22,6 +22,7 @@ namespace PixelChroma
         [SerializeField] private GameObject cinemachineCameraPrefab;
 
         private bool _handlingDisconnect;
+        private bool _voluntaryLeave;
         private LobbyFailureReason _pendingFailure = LobbyFailureReason.None;
 
         public GameState CurrentState { get; private set; } = GameState.Boot;
@@ -104,14 +105,22 @@ namespace PixelChroma
             return SteamInitialized;
         }
 
+        public void LeaveSession()
+        {
+            _voluntaryLeave = true;
+            if (LobbyManager.Instance != null)
+                LobbyManager.Instance.LeaveLobby();
+        }
+
         public void HandleDisconnect()
         {
             if (_handlingDisconnect) return;
             _handlingDisconnect = true;
 
-            // 사유가 지정되지 않은 진입(세션 도중 자연 연결 끊김)은 '연결 끊김'으로 처리한다.
-            // FailToTitle을 통해 들어온 경우엔 이미 사유가 설정돼 있으므로 유지한다.
-            if (_pendingFailure == LobbyFailureReason.None)
+            bool voluntary = _voluntaryLeave;
+            _voluntaryLeave = false;
+
+            if (!voluntary && _pendingFailure == LobbyFailureReason.None)
                 _pendingFailure = LobbyFailureReason.Disconnected;
 
             Debug.LogWarning("[GameManager] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
@@ -136,6 +145,9 @@ namespace PixelChroma
 
                 if (CursorManager.Instance != null)
                     CursorManager.Instance.SetCursorType(CursorType.Default);
+
+                if (SoundManager.Instance != null)
+                    SoundManager.Instance.PlayBgm(BgmType.Title).Forget();
 
                 await UIManager.Instance.ShowScene<UITitle>();
 
@@ -183,6 +195,9 @@ namespace PixelChroma
             if (!NetworkClient.active)
                 return;
 
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlayBgm(BgmType.Lobby).Forget();
+
             await UIManager.Instance.ShowScene<UILobby>();
         }
 
@@ -199,6 +214,13 @@ namespace PixelChroma
             }
 
             await LoadingManager.Hide();
+
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlayBgm(BgmType.InGame).Forget();
+
+            var localPlayer = NetworkClient.localPlayer?.GetComponent<PlayerBase>();
+            if (localPlayer != null)
+                localPlayer.ApplyDefaultCursor();
         }
 
         // 씬+맵 로드와 로컬 플레이어 스폰이 끝났는지 대기한다. 시간 초과 또는 연결 끊김 시 false.
