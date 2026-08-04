@@ -146,6 +146,9 @@ namespace PixelChroma
                 if (CursorManager.Instance != null)
                     CursorManager.Instance.SetCursorType(CursorType.Default);
 
+                if (SoundManager.Instance != null)
+                    SoundManager.Instance.PlayBgm(BgmType.Title).Forget();
+
                 await UIManager.Instance.ShowScene<UITitle>();
 
                 if (LoadingManager.IsShowing)
@@ -192,6 +195,9 @@ namespace PixelChroma
             if (!NetworkClient.active)
                 return;
 
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlayBgm(BgmType.Lobby).Forget();
+
             await UIManager.Instance.ShowScene<UILobby>();
         }
 
@@ -208,6 +214,9 @@ namespace PixelChroma
             }
 
             await LoadingManager.Hide();
+
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlayBgm(BgmType.InGame).Forget();
 
             var localPlayer = NetworkClient.localPlayer?.GetComponent<PlayerBase>();
             if (localPlayer != null)

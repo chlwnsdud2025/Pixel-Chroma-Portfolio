@@ -26,6 +26,9 @@ namespace PixelChroma
         {
             if (IsShowing) return;
 
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.StopBgm().Forget();
+
             _shownTime = Time.unscaledTime;
             await UIManager.Instance.ShowPopup<UILoading>();
 
