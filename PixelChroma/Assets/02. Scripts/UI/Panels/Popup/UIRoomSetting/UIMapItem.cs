@@ -24,7 +24,7 @@ namespace PixelChroma.UI
             if (label == null)
                 label = GetComponentInChildren<TMP_Text>();
 
-            button.onClick.AddListener(() => OnClicked?.Invoke(_index));
+            button.AddClickListener(() => OnClicked?.Invoke(_index));
         }
 
         public void Setup(int index, string displayName)

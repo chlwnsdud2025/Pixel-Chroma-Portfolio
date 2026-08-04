@@ -43,8 +43,8 @@ namespace PixelChroma.UI
             if (gameSettingPanel != null) gameSettingPanel.Initialize();
             if (mapPanel != null) mapPanel.Initialize(LobbyManager.Instance?.MapRegistry);
 
-            if (createButton != null) createButton.onClick.AddListener(OnClickCreate);
-            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
+            if (createButton != null) createButton.AddClickListener(OnClickCreate);
+            if (closeButton != null) closeButton.AddClickListener(OnClickBack);
         }
 
         public override void OnBeforeShow()

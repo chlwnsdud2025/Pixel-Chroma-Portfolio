@@ -29,14 +29,14 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            if (quickJoinButton != null) quickJoinButton.onClick.AddListener(OnClickQuickJoin);
-            if (createRoomButton != null) createRoomButton.onClick.AddListener(OnClickCreateRoom);
-            if (findRoomButton != null) findRoomButton.onClick.AddListener(OnClickFindRoom);
-            if (joinRoomButton != null) joinRoomButton.onClick.AddListener(OnClickJoinRoom);
-            if (nicknameSettingButton != null) nicknameSettingButton.onClick.AddListener(OnClickNicknameSetting);
-            if (languageSettingButton != null) languageSettingButton.onClick.AddListener(OnClickLanguageButton);
-            if (settingButton != null) settingButton.onClick.AddListener(OnClickSetting);
-            if (exitGameButton != null) exitGameButton.onClick.AddListener(OnClickExitGame);
+            if (quickJoinButton != null) quickJoinButton.AddClickListener(OnClickQuickJoin);
+            if (createRoomButton != null) createRoomButton.AddClickListener(OnClickCreateRoom);
+            if (findRoomButton != null) findRoomButton.AddClickListener(OnClickFindRoom);
+            if (joinRoomButton != null) joinRoomButton.AddClickListener(OnClickJoinRoom);
+            if (nicknameSettingButton != null) nicknameSettingButton.AddClickListener(OnClickNicknameSetting);
+            if (languageSettingButton != null) languageSettingButton.AddClickListener(OnClickLanguageButton);
+            if (settingButton != null) settingButton.AddClickListener(OnClickSetting);
+            if (exitGameButton != null) exitGameButton.AddClickListener(OnClickExitGame);
         }
 
         public override void OnCancel() => OnClickSetting();
