@@ -6,6 +6,14 @@ using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public struct KnockbackInfo
+{
+    public Vector2 dir;
+    public float impulse;
+    public float drag;
+    public float rotSpeed;
+}
+
 namespace PixelChroma
 {
     public class RunnerPlayer : PlayerBase
@@ -35,12 +43,10 @@ namespace PixelChroma
         [Tooltip("사망 또는 서로 안보이게 할 때 껏다 켯다 할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
 
-        [Header("사망 시 넉백")]
-        private Vector2 _lastKnockbackDir;
-        private float _lastKnockbackImpulse;
-        private float _lastKnockbackDrag;
-        private float _lastKnockbackRotSpeed;
+        private KnockbackInfo _pendingKnockback;
 
+        private NetworkTransformBase _netTransform;
+        private Mirror.NetworkAnimator _netAnimator;
 
         [SyncVar(hook = nameof(OnDeadStateChanged))] private bool _isDead;
         private bool _isVisuallyDead;
@@ -77,7 +83,9 @@ namespace PixelChroma
 
             _deathEffects = GetComponent<RunnerDeathEffects>();
             _deathEffects.Init(Rb, visualRenderer, animator);
-            _deathEffects.OnDeathSequenceFinished += CmdDeathSequenceFinished;
+
+            _netTransform = GetComponent<NetworkTransformBase>();
+            _netAnimator = GetComponent<Mirror.NetworkAnimator>();
         }
 
         public override void OnStartClient()
@@ -98,6 +106,11 @@ namespace PixelChroma
             NicknameVisibilityChanged -= RefreshVisualVisibilityForLocalViewer;
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChangedForVisibility;
             base.OnStopClient();
+        }
+        protected override void UpdateAnimation()
+        {
+            if (_isDead) return;   
+            base.UpdateAnimation();
         }
 
         protected override void Update()
@@ -164,15 +177,14 @@ namespace PixelChroma
         //--------------------------------------사망시 로직(모드따라 다름)------------------------------------------
         [Server]
         public void ServerNotifyCaught(string catcherName, Vector2 knockbackDir = default,
-    float impulse = 0f, float drag = 5f, float rotSpeed = 720f)
+            float impulse = 0f, float drag = 5f, float rotSpeed = 720f)
         {
             if (_isDead) return;
-            _lastKnockbackDir = knockbackDir;
-            _lastKnockbackImpulse = impulse;
-            _lastKnockbackDrag = drag;
-            _lastKnockbackRotSpeed = rotSpeed;
+            _isDead = true;                       
+            _pendingKnockback = new KnockbackInfo { dir = knockbackDir, impulse = impulse, drag = drag, rotSpeed = rotSpeed };
             _deathSnapshot.Capture(transform, paintCanvas);
             RpcNotifyCaught(catcherName, playerName);
+            GameRoundManager.Instance?.NotifyRunnerDead();         
             GameRoundManager.Instance?.CurrentRule?.OnRunnerCaught(this);
         }
 
@@ -183,112 +195,50 @@ namespace PixelChroma
             OnPlayerCaught?.Invoke(catcherName, caughtName);
         }
 
-        [Server]
-        public void ServerBecomeSpectator() // Basic모드
-        {
-            _isDead = true;
-            GameRoundManager.Instance?.NotifyRunnerDead();
 
-            // 넉백-------------------------------------
-            if (_lastKnockbackDir.sqrMagnitude > 0.001f)
-            {
-                RpcKnockback(_lastKnockbackDir, _lastKnockbackImpulse, _lastKnockbackDrag, _lastKnockbackRotSpeed);
-                StartCoroutine(DelayedBecomeSpectator());
-            }
-            else
+        [Server]
+        public void ServerBeginDeath(GameMode mode) => StartCoroutine(DeathSequenceServer(mode));
+
+        [Server]
+        private System.Collections.IEnumerator DeathSequenceServer(GameMode mode)
+        {
+            RpcKnockback(_pendingKnockback);
+            yield return new WaitForSeconds(_deathEffects.KnockbackDuration);
+
+            RpcDeathSequence();
+            yield return new WaitForSeconds(_deathEffects.DeathBlinkDuration);
+
+            RpcRestoreDeathPosition(_deathSnapshot.Position);
+            RpcRestoreDeathAnimator(_deathSnapshot.AnimatorStateHash, _deathSnapshot.AnimatorNormalizedTime);
+            if (_deathSnapshot.HasSnapshot && _deathSnapshot.MaskPixels != null)
+                RpcRestoreDeathPaint(_deathSnapshot.FormType, _deathSnapshot.MaskPixels);
+
+            if (mode == GameMode.Basic)
             {
                 RpcBecomeSpectator();
-               
             }
-            //------------------------------------------
-            
-        }
-
-        [Server]
-        private System.Collections.IEnumerator DelayedBecomeSpectator()
-        {
-            yield return new WaitForSeconds(_deathEffects.KnockbackDuration);
-            RpcDeathSequence(GameMode.Basic);
-        }
-
-        [Server]
-        public void ServerConvertToSeeker()
-        {
-            _isDead = true;
-            GameRoundManager.Instance?.NotifyRunnerDead();
-
-            if (_lastKnockbackDir.sqrMagnitude > 0.001f)
+            else if(mode == GameMode.Infection)
             {
-                RpcKnockback(_lastKnockbackDir, _lastKnockbackImpulse, _lastKnockbackDrag, _lastKnockbackRotSpeed);
-                StartCoroutine(DelayedConvertToSeeker());
-            }
-            else
-            {
-                var netManager = NetworkManager.singleton as ChromaNetworkManager;
-                netManager?.ServerConvertRunnerToSeeker(this);
+                RpcBecomeGhost();
+                (NetworkManager.singleton as ChromaNetworkManager)?.ServerConvertRunnerToSeeker(this);
             }
         }
 
-        [Server]
-        private System.Collections.IEnumerator DelayedConvertToSeeker()
-        {
-            yield return new WaitForSeconds(_deathEffects.KnockbackDuration);
-            RpcDeathSequence(GameMode.Infection);
-        }
 
 
-
-        //-----------------------------------테스트-----------------------------------------
         [ClientRpc]
-        private void RpcKnockback(Vector2 dir, float impulse, float drag, float rotSpeed)
+        private void RpcKnockback(KnockbackInfo info)
         {
+            if (_netTransform != null) _netTransform.enabled = false;
+            if (paintCanvas != null) paintCanvas.DisableActiveCollider();
+
             _deathEffects.PlayKnockbackVisuals(paintCanvas);
-
-            if (isOwned && Rb != null)
-            {
-                _deathEffects.PlayKnockbackPhysics(dir, impulse, drag, rotSpeed);
-            }
+            if (Rb != null)
+                _deathEffects.PlayKnockbackPhysics(info);
         }
-        //--------------------------------------------------------------------------------
+
         [ClientRpc]
-        private void RpcDeathSequence(GameMode mode)
-        {
-            _deathEffects.PlayDeathSequence(mode, isOwned);
-        }
-
-        [Command]
-        private void CmdDeathSequenceFinished(GameMode mode)
-        {
-            switch (mode)
-            {
-                case GameMode.Basic:
-                    RpcRestoreDeathPosition(_deathSnapshot.Position);
-
-                    if (_deathSnapshot.HasSnapshot && _deathSnapshot.MaskPixels != null)
-                    {
-                        RpcRestoreDeathPaint(_deathSnapshot.FormType, _deathSnapshot.MaskPixels);
-                    }
-                    RpcRestoreDeathAnimator(_deathSnapshot.AnimatorStateHash, _deathSnapshot.AnimatorNormalizedTime);
-                    RpcBecomeSpectator();
-
-                    break;
-
-                case GameMode.Infection:
-                    RpcRestoreDeathPosition(_deathSnapshot.Position);
-
-                    if (_deathSnapshot.HasSnapshot && _deathSnapshot.MaskPixels != null)
-                    {
-                        RpcRestoreDeathPaint(_deathSnapshot.FormType, _deathSnapshot.MaskPixels);
-                    }
-                    RpcRestoreDeathAnimator(_deathSnapshot.AnimatorStateHash, _deathSnapshot.AnimatorNormalizedTime);
-                    RpcBecomeGhost();
-
-                    var netManager = NetworkManager.singleton as ChromaNetworkManager;
-                    netManager?.ServerConvertRunnerToSeeker(this);
-
-                    break;
-            }
-        }
+        private void RpcDeathSequence() => _deathEffects.PlayDeathSequence();
 
         [ClientRpc]
         private void RpcBecomeGhost()
@@ -304,22 +254,37 @@ namespace PixelChroma
         {
             transform.position = pos;
             transform.rotation = Quaternion.identity;
+            if (_netTransform != null) _netTransform.enabled = true;
         }
 
         [ClientRpc]
         private void RpcRestoreDeathPaint(PlayerPaintCanvas.PaintFormType formType, Color32[] pixels)
         {
             if (paintCanvas != null)
+            {
                 paintCanvas.RestoreMaskPixels(formType, pixels);
+                paintCanvas.ForceReapplyFrame();
+                StartCoroutine(DumpAfterFrame());
+            }
+            
         }
-
+        private System.Collections.IEnumerator DumpAfterFrame()
+        {
+            yield return null;   // 한 프레임 대기 → LateUpdate가 maskRect 적용함
+            paintCanvas.DebugDumpPaintState(isOwned ? "OWNER" : "OTHER");
+        }
         [ClientRpc]
         private void RpcRestoreDeathAnimator(int stateHash, float normalizedTime)
         {
-            if (paintCanvas == null) return;
+            if (_netAnimator != null) _netAnimator.enabled = false;
+
             var animator = paintCanvas.TargetAnimator;
             if (animator != null && stateHash != 0)
+            {
                 animator.Play(stateHash, 0, normalizedTime);
+                animator.Update(0f);
+                animator.speed = 0f;
+            }
         }
 
         //----------------------------------------------------------------------------------------------------

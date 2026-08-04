@@ -37,7 +37,7 @@ public class DeathSnapshot
 
     public void RestorePosition(Transform transform)
     {
-        transform.position = Position;
+        transform.position = Position; 
         transform.rotation = Quaternion.identity;
     }
 

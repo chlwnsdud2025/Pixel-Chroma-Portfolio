@@ -142,8 +142,7 @@ namespace PixelChroma.UI
 
         public override void OnCancel()
         {
-            // TODO OnClickSetting
-            Debug.Log("OnClickSetting");
+            UIManager.Instance.ShowPopup<UISetting>().Forget();
         }
 
         // ── Public ───────────────────────────────────────────

@@ -5,9 +5,6 @@ namespace PixelChroma
     public class InfectionGameModeRule : GameModeRule
     {
         public override GameMode Mode => GameMode.Infection;
-
-        public override void OnRunnerCaught(RunnerPlayer runner) => runner.ServerConvertToSeeker();//잡힐시 술래
-
         public override bool CanSeeRunnerNickname(TimeState currentState)// Runner끼리 CheckTime전까지 닉네임 못봄
             => currentState != TimeState.HideTime && currentState != TimeState.SeekTime;
 

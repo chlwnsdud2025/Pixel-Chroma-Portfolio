@@ -50,6 +50,9 @@ namespace PixelChroma
             Debug.Assert(NetworkLoadTimeout < LoadingManager.WatchdogTimeout,
                 "[GameManager] NetworkLoadTimeout은 LoadingManager.WatchdogTimeout보다 짧아야 합니다.");
 
+            // 저장된 화면/그래픽 옵션(화면 모드·해상도·VSync·화면 흔들림)을 읽어 즉시 적용합니다.
+            GameSettings.Load();
+
             // Localization 시스템을 먼저 초기화합니다.
             var initOp = LocalizationSettings.InitializationOperation;
             await UniTask.WaitUntil(() => initOp.IsDone);

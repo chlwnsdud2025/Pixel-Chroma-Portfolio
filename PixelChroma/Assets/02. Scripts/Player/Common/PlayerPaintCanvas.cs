@@ -248,10 +248,36 @@ namespace PixelChroma
         {
             if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
             if (form.maskPixels == null || pixels == null) return;
-
             System.Array.Copy(pixels, form.maskPixels, Mathf.Min(pixels.Length, form.maskPixels.Length));
+            if (form.fading != null) form.fading.Clear();
             form.paintMask.SetPixels32(form.maskPixels);
             form.paintMask.Apply();
+        }
+
+        public void ForceReapplyFrame()
+        {
+            _currentIndex = -1;   // 다음 LateUpdate에서 현재 스프라이트로 maskRect 강제 갱신
+        }
+
+
+        public void DebugDumpPaintState(string tag)
+        {
+            var form = _activeForm;
+            if (form == null) { Debug.Log($"[PaintDump {tag}] form null"); return; }
+
+            var spr = targetRenderer != null ? targetRenderer.sprite : null;
+            bool hasIdx = spr != null && form.spriteIndex.TryGetValue(spr, out int idx);
+            int index = hasIdx ? form.spriteIndex[spr] : -1;
+
+            Vector4 applied = _material != null ? _material.GetVector(Shader.PropertyToID("_MaskRect")) : Vector4.zero;
+            Vector4 expected = (index >= 0) ? form.maskRects[index] : Vector4.zero;
+
+            long sum = 0;
+            for (int i = 0; i < form.maskPixels.Length; i++) sum += form.maskPixels[i].a;
+
+            Debug.Log($"[PaintDump {tag}] sprite={(spr != null ? spr.name : "null")} idx={index} currIdx={_currentIndex} " +
+                      $"applied={applied} expected={expected} maskMatch={(applied == expected)} " +
+                      $"alphaSum={sum} flipX={targetRenderer.flipX} scale={transform.lossyScale}");
         }
 
         // ── Late-join 동기화 ─────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ namespace PixelChroma
         public abstract GameMode Mode { get; }
 
         // 술래에게 잡혔을 때 해당 러너를 어떻게 처리할지 결정
-        public abstract void OnRunnerCaught(RunnerPlayer runner);
+        public virtual void OnRunnerCaught(RunnerPlayer runner) => runner.ServerBeginDeath(Mode);
 
         // 현재 타임스테이트에서 러너끼리 서로의 닉네임을 볼 수 있는지 결정
         public abstract bool CanSeeRunnerNickname(TimeState currentState);

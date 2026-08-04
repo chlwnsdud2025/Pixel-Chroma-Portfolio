@@ -21,6 +21,7 @@ namespace PixelChroma
         [SerializeField] private float flashDuration = 0.1f;
 
         private static readonly int FlashAmountID = Shader.PropertyToID("_FlashAmount");
+        private static int _wallIgnoreRefCount;
 
         private Rigidbody2D _rb;
         private SpriteRenderer _visualRenderer;
@@ -30,8 +31,7 @@ namespace PixelChroma
         private bool _isKnockedBack;
         public bool IsKnockedBack => _isKnockedBack;
         public float KnockbackDuration => knockbackDuration;
-
-        public event Action<GameMode> OnDeathSequenceFinished;
+        public float DeathBlinkDuration => deathBlinkDuration;
 
         public void Init(Rigidbody2D rb, SpriteRenderer visualRenderer, Animator animator)
         {
@@ -43,47 +43,35 @@ namespace PixelChroma
 
         public void PlayKnockbackVisuals(PlayerPaintCanvas paintCanvas)
         {
-            if (paintCanvas != null)
-                paintCanvas.FadeAllPaint(knockbackDuration);
+            //if (paintCanvas != null)
+            //    paintCanvas.FadeAllPaint(knockbackDuration);
 
             StartCoroutine(HitFlash());
         }
 
-        public void PlayKnockbackPhysics(Vector2 dir, float impulse, float drag, float rotSpeed)
+        public void PlayKnockbackPhysics(KnockbackInfo info)
         {
-            StartCoroutine(Knockback(dir, impulse, drag, rotSpeed));
+            StartCoroutine(Knockback(info));
         }
 
-        public void PlayDeathSequence(GameMode mode, bool isOwned)
-        {
-            StartCoroutine(DeathSequenceRoutine(mode, isOwned));
-        }
+        public void PlayDeathSequence() => StartCoroutine(DeathSequenceRoutine());
 
-        private IEnumerator Knockback(Vector2 dir, float impulse, float drag, float rotSpeed)
+        private IEnumerator Knockback(KnockbackInfo info) // 날아가기
         {
             _isKnockedBack = true;
-
             _rb.constraints = RigidbodyConstraints2D.None;
             _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
-            // 넉백 중 벽 레이어 충돌 무시
-            int runnerLayer = gameObject.layer;
-            int wallLayer = LayerMask.NameToLayer("Wall");
-            Physics2D.IgnoreLayerCollision(runnerLayer, wallLayer, true);
-
             if (_impulseSource != null)
-                _impulseSource.GenerateImpulse(new Vector3(dir.x, dir.y, 0f) * hitImpulseStrength);
+                _impulseSource.GenerateImpulse(new Vector3(info.dir.x, info.dir.y, 0f) * hitImpulseStrength);
 
             _rb.linearVelocity = Vector2.zero;
-            _rb.linearDamping = drag;
-            _rb.angularDamping = drag;
-            _rb.angularVelocity = rotSpeed * (dir.x >= 0 ? -1f : 1f);
-            _rb.AddForce(dir * impulse, ForceMode2D.Impulse);
+            _rb.linearDamping = info.drag;
+            _rb.angularDamping = info.drag;
+            _rb.angularVelocity = info.rotSpeed * (info.dir.x >= 0 ? -1f : 1f);
+            _rb.AddForce(info.dir * info.impulse, ForceMode2D.Impulse);
 
             yield return new WaitForSeconds(knockbackDuration);
-
-            // 충돌 복원
-            Physics2D.IgnoreLayerCollision(runnerLayer, wallLayer, false);
 
             _isKnockedBack = false;
             _rb.linearVelocity = Vector2.zero;
@@ -91,7 +79,7 @@ namespace PixelChroma
             _rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         }
 
-        private IEnumerator HitFlash()
+        private IEnumerator HitFlash() // 번쩍이기
         {
             if (_visualRenderer == null) yield break;
 
@@ -100,15 +88,9 @@ namespace PixelChroma
             _visualRenderer.material.SetFloat(FlashAmountID, 0f);
         }
 
-        private IEnumerator DeathSequenceRoutine(GameMode mode, bool isOwned)
+        private IEnumerator DeathSequenceRoutine() // 깜빡이기
         {
-            if (isOwned && _rb != null)
-            {
-                _rb.linearVelocity = Vector2.zero;
-                _rb.angularVelocity = 0f;
-            }
-
-            //if (_animator != null) _animator.SetTrigger("Death");
+            if (_rb != null) { _rb.linearVelocity = Vector2.zero; _rb.angularVelocity = 0f; }
 
             if (_visualRenderer != null)
             {
@@ -122,9 +104,6 @@ namespace PixelChroma
                 }
                 _visualRenderer.color = Color.white;
             }
-
-            if (isOwned)
-                OnDeathSequenceFinished?.Invoke(mode);
         }
     }
 }

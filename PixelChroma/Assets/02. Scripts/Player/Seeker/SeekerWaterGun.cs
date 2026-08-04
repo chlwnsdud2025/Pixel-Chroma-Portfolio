@@ -267,7 +267,8 @@ namespace PixelChroma
 
             PlayRecoil();
 
-            if (_impulseSource != null)
+            // 카메라 쉐이크는 설정에서 끌 수 있다(모션 감수성 접근성). 총 반동(PlayRecoil)은 별개로 항상 유지.
+            if (_impulseSource != null && GameSettings.ScreenShakeEnabled)
             {
                 Vector2 recoilDir = -_aimDirection.normalized * impulseStrength;
                 _impulseSource.GenerateImpulse(new Vector3(recoilDir.x, recoilDir.y, 0f));
