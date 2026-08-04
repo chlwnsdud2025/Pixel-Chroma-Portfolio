@@ -208,6 +208,10 @@ namespace PixelChroma
             }
 
             await LoadingManager.Hide();
+
+            var localPlayer = NetworkClient.localPlayer?.GetComponent<PlayerBase>();
+            if (localPlayer != null)
+                localPlayer.ApplyDefaultCursor();
         }
 
         // 씬+맵 로드와 로컬 플레이어 스폰이 끝났는지 대기한다. 시간 초과 또는 연결 끊김 시 false.
