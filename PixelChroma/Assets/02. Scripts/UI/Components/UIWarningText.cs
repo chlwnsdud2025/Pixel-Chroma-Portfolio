@@ -52,6 +52,7 @@ namespace PixelChroma.UI
         public void Show(string message)
         {
             KillHideTween();
+            gameObject.SetActive(true);
             SetText(message);
 
             if (string.IsNullOrEmpty(message))
@@ -67,6 +68,7 @@ namespace PixelChroma.UI
         {
             KillHideTween();
             SetText(string.Empty);
+            gameObject.SetActive(false);
         }
 
         public void Shake()
