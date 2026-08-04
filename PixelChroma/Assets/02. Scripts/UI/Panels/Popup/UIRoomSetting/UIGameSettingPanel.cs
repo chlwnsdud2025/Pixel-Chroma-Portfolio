@@ -54,7 +54,7 @@ namespace PixelChroma.UI
             if (seekTimeInput != null) seekTimeInput.onEndEdit.AddListener(OnSeekTimeInput);
             if (checkTimeInput != null) checkTimeInput.onEndEdit.AddListener(OnCheckTimeInput);
             if (forcedExposeIntervalInput != null) forcedExposeIntervalInput.onEndEdit.AddListener(OnForcedExposeIntervalInput);
-            if (forcedExposeButton != null) forcedExposeButton.onClick.AddListener(OnForcedExposeClicked);
+            if (forcedExposeButton != null) forcedExposeButton.AddClickListener(OnForcedExposeClicked);
 
             SetupSlider(hideTimeSlider, RoomOption.MinHideTime, RoomOption.MaxHideTime, OnHideTimeChanged);
             SetupSlider(seekTimeSlider, RoomOption.MinSeekTime, RoomOption.MaxSeekTime, OnSeekTimeChanged);

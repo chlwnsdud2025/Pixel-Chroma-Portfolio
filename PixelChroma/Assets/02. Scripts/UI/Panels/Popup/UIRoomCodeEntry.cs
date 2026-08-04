@@ -44,9 +44,9 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            if (joinButton != null) joinButton.onClick.AddListener(OnClickJoin);
-            if (closeButton != null) closeButton.onClick.AddListener(OnClickBack);
-            if (showCodeButton != null) showCodeButton.onClick.AddListener(ToggleCodeVisibility);
+            if (joinButton != null) joinButton.AddClickListener(OnClickJoin);
+            if (closeButton != null) closeButton.AddClickListener(OnClickBack);
+            if (showCodeButton != null) showCodeButton.AddClickListener(ToggleCodeVisibility);
 
             if (roomCodeInput != null)
             {

@@ -509,6 +509,8 @@ namespace PixelChroma
             {
                 seeker.TargetShowRunnerIndicator(this.netIdentity, duration);
             }
+
+            RpcPlayExposeSound();
         }
 
         [Command]
@@ -523,9 +525,17 @@ namespace PixelChroma
             {
                 seeker.TargetShowRunnerIndicator(this.netIdentity, exposeDuration);
             }
+
+            RpcPlayExposeSound();
         }
 
-        
+        // 도발(능동/강제) 시 러너 위치에서 노출 효과음을 재생합니다.
+        // 모든 클라이언트에서 러너의 월드 위치를 기준으로 3D 재생되어 주변에 위치가 드러납니다.
+        [ClientRpc]
+        private void RpcPlayExposeSound()
+        {
+            SoundManager.Instance?.PlaySfxAt(SfxType.Expose, transform.position);
+        }
 
         private void OnWetStateChanged(bool oldVal, bool newVal)
         {

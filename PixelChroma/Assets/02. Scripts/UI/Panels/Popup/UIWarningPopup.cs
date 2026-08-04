@@ -28,7 +28,7 @@ namespace PixelChroma.UI
         {
             base.Initialize();
 
-            if (confirmButton != null) confirmButton.onClick.AddListener(OnClickBack);
+            if (confirmButton != null) confirmButton.AddClickListener(OnClickBack);
         }
 
         public override void OnBeforeShow()
