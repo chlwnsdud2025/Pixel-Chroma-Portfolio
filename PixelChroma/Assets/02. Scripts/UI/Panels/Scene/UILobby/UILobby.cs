@@ -335,7 +335,7 @@ namespace PixelChroma.UI
 
         private void OnClickLeave()
         {
-            LobbyManager.Instance.LeaveLobby();
+            GameManager.Instance.LeaveSession();
         }
 
         private void OnClickToggleCode()
