@@ -82,9 +82,7 @@ namespace PixelChroma.UI
 
         private void OnClickSetting()
         {
-            // TODO: 설정 팝업(UISetting) 구현 후 아래 호출로 교체
-            // UIManager.Instance.ShowPopup<UISetting>().Forget();
-            Debug.Log("[UITitle] 설정 팝업이 아직 구현되지 않았습니다.");
+            UIManager.Instance.ShowPopup<UISetting>().Forget();
         }
 
         private void OnClickExitGame()

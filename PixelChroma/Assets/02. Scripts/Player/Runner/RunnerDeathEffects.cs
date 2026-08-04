@@ -71,7 +71,8 @@ namespace PixelChroma
             int wallLayer = LayerMask.NameToLayer("Wall");
             Physics2D.IgnoreLayerCollision(runnerLayer, wallLayer, true);
 
-            if (_impulseSource != null)
+            // 카메라 쉐이크는 설정에서 끌 수 있다(모션 감수성 접근성). 넉백 물리 자체는 그대로 유지.
+            if (_impulseSource != null && GameSettings.ScreenShakeEnabled)
                 _impulseSource.GenerateImpulse(new Vector3(dir.x, dir.y, 0f) * hitImpulseStrength);
 
             _rb.linearVelocity = Vector2.zero;
