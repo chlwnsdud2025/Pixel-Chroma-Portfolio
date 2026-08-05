@@ -20,6 +20,7 @@ namespace PixelChroma
         private readonly PlayerInputActions _input;
 
         private UIColorPicker _boundPicker;
+        private IPaintHUD _boundHUD;
         private BrushMode _brushMode = BrushMode.Brush;
         private bool _isPaintMode;
 
@@ -96,6 +97,7 @@ namespace PixelChroma
         {
             if (hud == null) return;
 
+            _boundHUD = hud;
             _boundPicker = hud.ColorPicker;
             OnPaintModeChanged += hud.SetPaintMode;
 
@@ -113,6 +115,8 @@ namespace PixelChroma
 
         public void UnbindHUD()
         {
+            _boundHUD?.SetPaintMode(false);
+
             if (_boundPicker != null)
             {
                 OnBrushSizeScrolled -= _boundPicker.SetBrushSize;
@@ -125,6 +129,7 @@ namespace PixelChroma
             OnPaintModeChanged = null;
             OnBrushSizeScrolled = null;
             _boundPicker = null;
+            _boundHUD = null;
         }
 
         public void SetBrushMode(BrushMode mode)
