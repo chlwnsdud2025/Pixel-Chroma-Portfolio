@@ -22,6 +22,8 @@ Shader "PixelChroma/PlayerPaintMask"
         [MaterialToggle] PixelSnap ("Pixel snap", Float) = 0
         [HideInInspector] _RendererColor ("RendererColor", Color) = (1,1,1,1)
         [HideInInspector] _Color ("Tint", Color) = (1,1,1,1)
+
+        _PaintVisible ("Paint Visible", Float) = 1
     }
 
     SubShader
@@ -71,6 +73,7 @@ Shader "PixelChroma/PlayerPaintMask"
             float _EdgeShadow;
             float _LightAngle;
             float _FlashAmount;
+            float _PaintVisible;
             fixed4 _Color;
             fixed4 _RendererColor;
 
@@ -108,8 +111,8 @@ Shader "PixelChroma/PlayerPaintMask"
                 paint = lerp(paint, float3(1,1,1), hi);
                 paint = lerp(paint, float3(0,0,0), sh);
 
-                // 원본 위에 칠한 양(mask.a)만큼 페인트를 덮는다. 안 칠한 곳은 원본 그대로.
-                float3 rgb = lerp(sprite.rgb, paint, mask.a);
+                // 원본 위에 칠한 양(mask.a)만큼 페인트를 덮는다. _PaintVisible=0이면 페인트 숨김(데이터는 유지).
+                float3 rgb = lerp(sprite.rgb, paint, mask.a * _PaintVisible);
 
                 fixed4 col = fixed4(rgb, sprite.a) * IN.color;
                 col.rgb = lerp(col.rgb, float3(1,1,1), _FlashAmount);

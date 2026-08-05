@@ -208,10 +208,10 @@ namespace PixelChroma
             RpcDeathSequence();
             yield return new WaitForSeconds(_deathEffects.DeathBlinkDuration);
 
+           
+
             RpcRestoreDeathPosition(_deathSnapshot.Position);
-            RpcRestoreDeathAnimator(_deathSnapshot.AnimatorStateHash, _deathSnapshot.AnimatorNormalizedTime);
-            if (_deathSnapshot.HasSnapshot && _deathSnapshot.MaskPixels != null)
-                RpcRestoreDeathPaint(_deathSnapshot.FormType, _deathSnapshot.MaskPixels);
+            RpcFreezeDeathFrame(_deathSnapshot.FormType, _deathSnapshot.FrameIndex, _deathSnapshot.FlipX);
 
             if (mode == GameMode.Basic)
             {
@@ -230,7 +230,12 @@ namespace PixelChroma
         private void RpcKnockback(KnockbackInfo info)
         {
             if (_netTransform != null) _netTransform.enabled = false;
-            if (paintCanvas != null) paintCanvas.DisableActiveCollider();
+            if (_netAnimator != null) _netAnimator.enabled = false;
+            if (paintCanvas != null)
+            {
+                paintCanvas.DisableActiveCollider();
+                paintCanvas.SetPaintVisible(false);
+            }
 
             _deathEffects.PlayKnockbackVisuals(paintCanvas);
             if (Rb != null)
@@ -256,34 +261,15 @@ namespace PixelChroma
             transform.rotation = Quaternion.identity;
             if (_netTransform != null) _netTransform.enabled = true;
         }
-
+        
         [ClientRpc]
-        private void RpcRestoreDeathPaint(PlayerPaintCanvas.PaintFormType formType, Color32[] pixels)
-        {
-            if (paintCanvas != null)
-            {
-                paintCanvas.RestoreMaskPixels(formType, pixels);
-                paintCanvas.ForceReapplyFrame();
-                StartCoroutine(DumpAfterFrame());
-            }
-            
-        }
-        private System.Collections.IEnumerator DumpAfterFrame()
-        {
-            yield return null;   // 한 프레임 대기 → LateUpdate가 maskRect 적용함
-            paintCanvas.DebugDumpPaintState(isOwned ? "OWNER" : "OTHER");
-        }
-        [ClientRpc]
-        private void RpcRestoreDeathAnimator(int stateHash, float normalizedTime)
+        private void RpcFreezeDeathFrame(PlayerPaintCanvas.PaintFormType formType, int index, bool flipX)
         {
             if (_netAnimator != null) _netAnimator.enabled = false;
-
-            var animator = paintCanvas.TargetAnimator;
-            if (animator != null && stateHash != 0)
+            if (paintCanvas != null)
             {
-                animator.Play(stateHash, 0, normalizedTime);
-                animator.Update(0f);
-                animator.speed = 0f;
+                paintCanvas.FreezeFrame(formType, index, flipX);
+                if (paintCanvas != null) paintCanvas.SetPaintVisible(true);
             }
         }
 
@@ -333,6 +319,7 @@ namespace PixelChroma
             if (state == TimeState.CheckTime && _isDead)
             {
                 _isVisuallyDead = false;
+         
             }
 
             RaiseNicknameVisibilityChanged();

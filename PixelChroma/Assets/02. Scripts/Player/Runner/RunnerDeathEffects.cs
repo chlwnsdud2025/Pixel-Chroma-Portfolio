@@ -43,8 +43,6 @@ namespace PixelChroma
 
         public void PlayKnockbackVisuals(PlayerPaintCanvas paintCanvas)
         {
-            //if (paintCanvas != null)
-            //    paintCanvas.FadeAllPaint(knockbackDuration);
 
             StartCoroutine(HitFlash());
         }

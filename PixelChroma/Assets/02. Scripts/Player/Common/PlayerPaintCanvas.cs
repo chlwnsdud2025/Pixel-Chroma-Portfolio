@@ -28,6 +28,9 @@ namespace PixelChroma
         private static readonly int EdgeHighlightID = Shader.PropertyToID("_EdgeHighlight");
         private static readonly int EdgeShadowID = Shader.PropertyToID("_EdgeShadow");
         private static readonly int LightAngleID = Shader.PropertyToID("_LightAngle");
+        private static readonly int PaintVisibleID = Shader.PropertyToID("_PaintVisible");
+        public bool _debugDeathMonitor = false;
+        private int _lastMonitorState = int.MinValue;
 
         [System.Serializable]
         public class PaintForm
@@ -152,6 +155,8 @@ namespace PixelChroma
                 _currentIndex = index;
                 ApplyFrameToMaterial(form, index);
             }
+
+            if (_debugDeathMonitor) DebugMonitorFrame();
         }
 
 #if UNITY_EDITOR
@@ -248,8 +253,10 @@ namespace PixelChroma
         {
             if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
             if (form.maskPixels == null || pixels == null) return;
+
             System.Array.Copy(pixels, form.maskPixels, Mathf.Min(pixels.Length, form.maskPixels.Length));
             if (form.fading != null) form.fading.Clear();
+
             form.paintMask.SetPixels32(form.maskPixels);
             form.paintMask.Apply();
         }
@@ -258,26 +265,85 @@ namespace PixelChroma
         {
             _currentIndex = -1;   // 다음 LateUpdate에서 현재 스프라이트로 maskRect 강제 갱신
         }
-
-
-        public void DebugDumpPaintState(string tag)
+        public int GetCurrentFrameIndex()
         {
             var form = _activeForm;
-            if (form == null) { Debug.Log($"[PaintDump {tag}] form null"); return; }
+            if (form == null || form.spriteIndex == null || targetRenderer == null || targetRenderer.sprite == null)
+                return _currentIndex;
+            return form.spriteIndex.TryGetValue(targetRenderer.sprite, out int idx) ? idx : _currentIndex;
+        }
 
-            var spr = targetRenderer != null ? targetRenderer.sprite : null;
-            bool hasIdx = spr != null && form.spriteIndex.TryGetValue(spr, out int idx);
-            int index = hasIdx ? form.spriteIndex[spr] : -1;
+        public bool CurrentFlipX => targetRenderer != null && targetRenderer.flipX;
 
-            Vector4 applied = _material != null ? _material.GetVector(Shader.PropertyToID("_MaskRect")) : Vector4.zero;
-            Vector4 expected = (index >= 0) ? form.maskRects[index] : Vector4.zero;
+        // 애니메이터 없이 사망 프레임을 직접 고정: sprite + maskRect + emboss + flip을 인덱스로 못박음.
+        // form.sprites/maskRects/embossTextures는 같은 index로 정렬돼 있어 sprite↔maskRect가 정의상 일치.
+        public void FreezeFrame(PaintFormType formType, int index, bool flipX)
+        {
+            if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
+            if (form.sprites == null || index < 0 || index >= form.sprites.Length) return;
 
-            long sum = 0;
-            for (int i = 0; i < form.maskPixels.Length; i++) sum += form.maskPixels[i].a;
+            ActivateForm(formType);              // 활성 폼/마스크텍스처/컨트롤러 정렬(폼 불일치 방지)
 
-            Debug.Log($"[PaintDump {tag}] sprite={(spr != null ? spr.name : "null")} idx={index} currIdx={_currentIndex} " +
-                      $"applied={applied} expected={expected} maskMatch={(applied == expected)} " +
-                      $"alphaSum={sum} flipX={targetRenderer.flipX} scale={transform.lossyScale}");
+            if (targetAnimator != null)
+                targetAnimator.enabled = false;  // 애니메이터가 sprite를 덮어쓰지 못하게 정지
+
+            if (targetRenderer != null)
+            {
+                targetRenderer.sprite = form.sprites[index];
+                targetRenderer.flipX = flipX;
+            }
+
+            _currentIndex = index;
+            ApplyFrameToMaterial(form, index);   // maskRect + emboss = 이 프레임에 정확 일치DebugMonitorFrame
+
+
+            // 진단: 이 프레임에 못박는 값 확인
+            _debugDeathMonitor = true;
+            Debug.Log($"[Freeze] form={formType} index={index} sprite={form.sprites[index].name} " +
+                      $"maskRect={form.maskRects[index]}");
+        }
+
+
+        private long _lastChk = long.MinValue;
+        private string _lastSig = null;
+        private void DebugMonitorFrame()
+        {
+            var form = _activeForm;
+            var spr = targetRenderer.sprite;
+            bool inForm = spr != null && form.spriteIndex.TryGetValue(spr, out _);
+            int spriteIdx = inForm ? form.spriteIndex[spr] : -1;
+
+            Vector4 applied = _material.GetVector(MaskRectID);
+            Vector4 expected = spriteIdx >= 0 ? form.maskRects[spriteIdx] : Vector4.zero;
+
+            long chk = 0;
+            var mp = form.maskPixels;
+            for (int i = 0; i < mp.Length; i++)
+            { var c = mp[i]; chk += (long)(c.r + c.g * 3 + c.b * 7 + c.a * 11) * (i + 1); }
+
+            bool animOn = targetAnimator != null && targetAnimator.enabled;
+            var tr = targetRenderer.transform;
+
+            string sig = $"{form.formType}|{(spr != null ? spr.name : "null")}|{spriteIdx}|{_currentIndex}|" +
+                         $"{applied}|{expected}|{chk}|{targetRenderer.flipX}|{animOn}|" +
+                         $"{tr.rotation.eulerAngles.z:F1}|{tr.lossyScale}|{targetRenderer.color}";
+
+            if (sig == _lastSig) return;   // 무엇이든 바뀔 때만 출력
+            _lastSig = sig;
+
+            Debug.Log($"[Mon t={Time.time:F2}] form={form.formType} sprite={(spr != null ? spr.name : "null")} " +
+                      $"spriteIdx={spriteIdx} currIdx={_currentIndex} maskMatch={(applied == expected)} chk={chk} " +
+                      $"flipX={targetRenderer.flipX} animOn={animOn} rotZ={tr.rotation.eulerAngles.z:F1} " +
+                      $"scale={tr.lossyScale} color={targetRenderer.color}");
+        }
+
+        public void SetPaintVisible(bool visible)
+        {
+            if (targetRenderer == null) return;
+            var block = new MaterialPropertyBlock();
+            targetRenderer.GetPropertyBlock(block);
+            block.SetFloat(PaintVisibleID, visible ? 1f : 0f);
+            targetRenderer.SetPropertyBlock(block);
         }
 
         // ── Late-join 동기화 ─────────────────────────────────────────────────────
@@ -560,7 +626,7 @@ namespace PixelChroma
         public float GetPaintRatio()
         {
             var form = _activeForm;
-            if (form.maskPixels == null || form.totalOpaquePixels == 0) return 0f;
+            if (form == null || form.maskPixels == null || form.totalOpaquePixels == 0) return 0f;
             return (float)form.paintedCells / form.totalOpaquePixels;
         }
 
