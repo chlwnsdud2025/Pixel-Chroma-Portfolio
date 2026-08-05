@@ -319,10 +319,17 @@ namespace PixelChroma
             if (roomOption == null || MapRegistry == null) return;
 
             var mapData = MapRegistry.FindById(roomOption.mapName);
-            if (mapData != null)
-                MapLoader.Instance.LoadBuiltInMap(mapData);
-            else
+            if (mapData == null)
+            {
                 Debug.LogWarning($"[ChromaNetworkManager] 맵을 찾을 수 없습니다: {roomOption.mapName}");
+                return;
+            }
+            if (mapData.mapPrefab == null)
+            {
+                Debug.LogWarning($"[ChromaNetworkManager] 맵 프리팹이 없습니다: {roomOption.mapName}");
+                return;
+            }
+            MapLoader.Instance.LoadBuiltInMap(mapData);
         }
     }
 }
