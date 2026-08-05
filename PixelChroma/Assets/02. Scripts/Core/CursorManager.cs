@@ -50,8 +50,15 @@ namespace PixelChroma.UI
             if (cursorRect != null && _parentCanvas == null)
             {
                 var canvas = cursorRect.GetComponentInParent<Canvas>();
-                // Cursor 자신에게 Nested Canvas가 붙어 있으므로, 좌표 기준은 항상 루트 Canvas를 사용
                 if (canvas != null) _parentCanvas = canvas.rootCanvas;
+
+                // 커서의 Nested Canvas를 TMP_Dropdown(sortingOrder=30000)보다 위에 배치
+                var nestedCanvas = cursorRect.GetComponent<Canvas>();
+                if (nestedCanvas != null)
+                {
+                    nestedCanvas.overrideSorting = true;
+                    nestedCanvas.sortingOrder = 32767;
+                }
             }
         }
 
