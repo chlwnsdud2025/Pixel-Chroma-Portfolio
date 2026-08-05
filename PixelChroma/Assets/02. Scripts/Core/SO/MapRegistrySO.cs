@@ -22,5 +22,12 @@ namespace PixelChroma
 
             return null;
         }
+
+        public MapDataSO GetRandomConcrete()
+        {
+            var pool = maps.FindAll(m => m != null && m.mapType == MapType.Normal && m.mapPrefab != null);
+            if (pool.Count == 0) return null;
+            return pool[UnityEngine.Random.Range(0, pool.Count)];
+        }
     }
 }

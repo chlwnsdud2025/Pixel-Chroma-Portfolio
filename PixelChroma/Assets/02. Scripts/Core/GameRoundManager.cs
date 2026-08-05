@@ -26,8 +26,6 @@ namespace PixelChroma
         [Header("forced Expose")]
         [SerializeField] private float forcedExposeDuration;
 
-
-
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public PlayerRole CurrentWinner { get; private set; } = PlayerRole.None;
@@ -95,12 +93,29 @@ namespace PixelChroma
         {
             if (CurrentTimeState == TimeState.Countdown) return;
 
-            CurrentRoomOption = option;
+            var resolved = option?.Clone() ?? new RoomOption();
+            ResolveRandomMap(resolved);
+
+            CurrentRoomOption = resolved;
             CurrentWinner = PlayerRole.None;
 
-            NetworkServer.SendToAll(new RoomOptionSyncMessage { option = option.ToData() });
+            NetworkServer.SendToAll(new RoomOptionSyncMessage { option = resolved.ToData() });
 
             SetTimeState(TimeState.Countdown, CountdownDuration);
+        }
+
+        [Server]
+        private void ResolveRandomMap(RoomOption option)
+        {
+            var registry = LobbyManager.Instance?.MapRegistry;
+            var selected = registry?.FindById(option.mapName);
+            if (selected == null || selected.mapType != MapType.Random) return;
+
+            var picked = registry.GetRandomConcrete();
+            if (picked != null)
+                option.mapName = picked.name;
+            else
+                Debug.LogWarning("[GameRound] 랜덤 추첨 실패: 유효한 Normal 맵이 없습니다.");
         }
 
         [Server]
