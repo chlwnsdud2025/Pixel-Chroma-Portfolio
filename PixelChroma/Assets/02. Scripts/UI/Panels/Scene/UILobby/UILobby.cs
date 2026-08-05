@@ -43,6 +43,10 @@ namespace PixelChroma.UI
         [Header("친구 초대")]
         [SerializeField] private Button inviteFriendButton;
 
+        [Header("Setting Buttons")]
+        [SerializeField] private Button settingButton;
+        [SerializeField] private Button languageSettingButton;
+
         [Header("Room Option")]
         [SerializeField] private UIRoomOptionPanel roomOptionPanel;
 
@@ -67,8 +71,11 @@ namespace PixelChroma.UI
             if (readyButton != null) readyButton.AddClickListener(OnClickReady);
             if (roomSettingsButton != null) roomSettingsButton.AddClickListener(OnClickRoomSettings);
             if (showCodeButton != null) showCodeButton.AddClickListener(OnClickToggleCode);
+            if (settingButton != null) settingButton.AddClickListener(OnClickSetting);
+            if (languageSettingButton != null) languageSettingButton.AddClickListener(OnClickLanguageButton);
 
             if (colorPicker != null) colorPicker.Initialize();
+
 
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
         }
@@ -342,6 +349,16 @@ namespace PixelChroma.UI
             _isCodeVisible = !_isCodeVisible;
             ApplyCodeVisibility();
             RefreshRoomCode();
+        }
+
+        private void OnClickSetting()
+        {
+            UIManager.Instance.ShowPopup<UISetting>().Forget();
+        }
+
+        private void OnClickLanguageButton()
+        {
+            UIManager.Instance.ShowPopup<UILanguageSelect>().Forget();
         }
     }
 }

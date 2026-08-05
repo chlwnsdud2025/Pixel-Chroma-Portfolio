@@ -3,6 +3,7 @@ using DG.Tweening;
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
@@ -36,6 +37,9 @@ namespace PixelChroma.UI
         [Header("Localization")]
         [SerializeField] private HUDTextDataSO textData;
 
+        [Header("Setting Button")]
+        [SerializeField] private Button settingButton;
+
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
@@ -48,6 +52,8 @@ namespace PixelChroma.UI
             base.Initialize();
             if (colorPicker != null) 
                 colorPicker.Initialize();
+
+            if (settingButton != null) settingButton.AddClickListener(OnClickSetting);
 
             ResetHUDState();
         }
@@ -231,5 +237,12 @@ namespace PixelChroma.UI
             ShowWinnerOverlay(winner);
         }
 
+
+
+        // --------------------- 클릭 이벤트-----------------------------------
+        private void OnClickSetting()
+        {
+            UIManager.Instance.ShowPopup<UISetting>().Forget();
+        }
     }
 }
