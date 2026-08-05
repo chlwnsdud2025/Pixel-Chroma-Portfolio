@@ -20,6 +20,8 @@ namespace PixelChroma
         [Header("피격 점멸")]
         [SerializeField] private float flashDuration = 0.1f;
 
+
+
         private static readonly int FlashAmountID = Shader.PropertyToID("_FlashAmount");
         private static int _wallIgnoreRefCount;
 
@@ -33,7 +35,7 @@ namespace PixelChroma
         public float KnockbackDuration => knockbackDuration;
         public float DeathBlinkDuration => deathBlinkDuration;
 
-        public void Init(Rigidbody2D rb, SpriteRenderer visualRenderer, Animator animator)
+        public void Init(Rigidbody2D rb, SpriteRenderer visualRenderer, Animator animator)  
         {
             _rb = rb;
             _visualRenderer = visualRenderer;
@@ -54,7 +56,7 @@ namespace PixelChroma
 
         public void PlayDeathSequence() => StartCoroutine(DeathSequenceRoutine());
 
-        private IEnumerator Knockback(KnockbackInfo info) // 날아가기
+        private IEnumerator Knockback(KnockbackInfo info)
         {
             _isKnockedBack = true;
             _rb.constraints = RigidbodyConstraints2D.None;
@@ -63,11 +65,10 @@ namespace PixelChroma
             if (_impulseSource != null && GameSettings.ScreenShakeEnabled)
                 _impulseSource.GenerateImpulse(new Vector3(info.dir.x, info.dir.y, 0f) * hitImpulseStrength);
 
-            _rb.linearVelocity = Vector2.zero;
             _rb.linearDamping = info.drag;
             _rb.angularDamping = info.drag;
             _rb.angularVelocity = info.rotSpeed * (info.dir.x >= 0 ? -1f : 1f);
-            _rb.AddForce(info.dir * info.impulse, ForceMode2D.Impulse);
+            _rb.linearVelocity = info.dir * (info.impulse / _rb.mass);
 
             yield return new WaitForSeconds(knockbackDuration);
 
@@ -75,6 +76,7 @@ namespace PixelChroma
             _rb.linearVelocity = Vector2.zero;
             _rb.angularVelocity = 0f;
             _rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
         }
 
         private IEnumerator HitFlash() // 번쩍이기
