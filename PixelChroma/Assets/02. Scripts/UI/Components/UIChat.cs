@@ -25,6 +25,12 @@ namespace PixelChroma.UI
         // 페이드아웃에 걸리는 시간(초)
         [SerializeField] private float messageFadeDuration = 1f;
 
+        [Header("Panel Fade")]
+        [Tooltip("마지막 메시지 수신 후 패널이 보이는 시간(초)")]
+        [SerializeField] private float panelDisplayDuration = 5f;
+        [Tooltip("패널 페이드아웃에 걸리는 시간(초)")]
+        [SerializeField] private float panelFadeDuration = 1f;
+
         [Header("Input")]
         [SerializeField] private InputActionAsset inputActions;
 
@@ -35,6 +41,7 @@ namespace PixelChroma.UI
         [SerializeField] private Color otherMessageColor = new Color(0.4f, 0.7f, 1f);
 
         [Header("Chat UI Elements")]
+        [SerializeField] private Image panelBackground;
         [SerializeField] private CanvasGroup chatCanvasGroup;    // 채팅창 전체 투명도 제어용
         [SerializeField] private Button openChatButton;          // InputField 활성화 버튼
         [SerializeField] private TMP_InputField chatInputField;
@@ -55,6 +62,8 @@ namespace PixelChroma.UI
         // ActivateInputField 후 실제 포커스가 잡힐 때까지 대기 중인지
         private bool _waitingForFocus;
 
+        private float _lastMessageTime = -100f;
+        private float _bgBaseAlpha;
         // ── 메시지 항목: TMP_Text + 타이머 정보를 묶어서 관리 ──
         private struct ChatEntry
         {
@@ -109,9 +118,12 @@ namespace PixelChroma.UI
             chatInputField.gameObject.SetActive(false);
             _isInputActive = false;
 
-            // 초기에는 메시지가 없으므로 채팅창 투명
-            if (chatCanvasGroup != null)
-                chatCanvasGroup.alpha = 0f;
+            // 기존 초기화 코드 위치에 추가
+            if (panelBackground != null)
+            {
+                _bgBaseAlpha = panelBackground.color.a;   // Inspector의 170/255 ≈ 0.667
+                SetBgAlpha(0f);                           // 시작 시 투명
+            }
         }
 
         private void Update()
@@ -212,13 +224,37 @@ namespace PixelChroma.UI
         // ── 채팅창 전체 투명도 제어 ──
         private void UpdateChatVisibility()
         {
-            if (chatCanvasGroup == null) return;
+            if (panelBackground == null) return;
 
-            // InputField가 열려있으면 항상 보이게
-            bool shouldShow = _isInputActive || _activeMessages.Count > 0;
+            if (_isInputActive)
+            {
+                SetBgAlpha(1f);
+                return;
+            }
 
-            float targetAlpha = shouldShow ? 1f : 0f;
-            chatCanvasGroup.alpha = Mathf.MoveTowards(chatCanvasGroup.alpha, targetAlpha, Time.deltaTime * 3f);
+            float elapsed = Time.time - _lastMessageTime;
+
+            if (elapsed < panelDisplayDuration)
+            {
+                SetBgAlpha(1f);
+            }
+            else if (elapsed < panelDisplayDuration + panelFadeDuration)
+            {
+                float t = (elapsed - panelDisplayDuration) / panelFadeDuration;
+                SetBgAlpha(1f - t);
+            }
+            else
+            {
+                SetBgAlpha(0f);
+            }
+        }
+
+        private void SetBgAlpha(float ratio)
+        {
+            if (panelBackground == null) return;
+            var c = panelBackground.color;
+            c.a = _bgBaseAlpha * ratio;
+            panelBackground.color = c;
         }
 
         // ── InputField 토글 (기존 ToggleChat 대체) ──
@@ -237,13 +273,13 @@ namespace PixelChroma.UI
                 // InputField 열릴 때 기존 메시지들을 다시 보이게 (페이드 리셋)
                 RefreshAllMessageAlpha();
 
-                // 채팅창 전체도 즉시 보이게
-                if (chatCanvasGroup != null)
-                    chatCanvasGroup.alpha = 1f;
+                // 패널 배경 즉시 보이게
+                SetBgAlpha(1f);
             }
             else
             {
                 chatInputField.DeactivateInputField();
+                _lastMessageTime = Time.time;
             }
 
             // PlayerBase에 입력 차단 통지 (기존 연동 유지)
@@ -309,9 +345,10 @@ namespace PixelChroma.UI
                 isFading = false,
             });
 
-            // 채팅창 즉시 보이게
-            if (chatCanvasGroup != null)
-                chatCanvasGroup.alpha = 1f;
+            _lastMessageTime = Time.time;
+
+            // 패널 배경 즉시 보이게
+            SetBgAlpha(0.7f);
 
             // 스크롤 맨 아래로
             if (scrollRect != null)
