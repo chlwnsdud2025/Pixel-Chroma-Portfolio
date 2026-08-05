@@ -62,7 +62,7 @@ namespace PixelChroma
             _rb.constraints = RigidbodyConstraints2D.None;
             _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
-            if (_impulseSource != null)
+            if (_impulseSource != null && GameSettings.ScreenShakeEnabled)
                 _impulseSource.GenerateImpulse(new Vector3(info.dir.x, info.dir.y, 0f) * hitImpulseStrength);
 
             _rb.linearVelocity = Vector2.zero;
