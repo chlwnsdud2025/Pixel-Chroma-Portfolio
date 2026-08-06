@@ -29,8 +29,7 @@ namespace PixelChroma
         private static readonly int EdgeShadowID = Shader.PropertyToID("_EdgeShadow");
         private static readonly int LightAngleID = Shader.PropertyToID("_LightAngle");
         private static readonly int PaintVisibleID = Shader.PropertyToID("_PaintVisible");
-        public bool _debugDeathMonitor = false;
-        private int _lastMonitorState = int.MinValue;
+
 
         [System.Serializable]
         public class PaintForm
@@ -54,18 +53,11 @@ namespace PixelChroma
             [System.NonSerialized] public Dictionary<Sprite, int> spriteIndex;
             [System.NonSerialized] public int paintedCells;
             [System.NonSerialized] public int totalOpaquePixels;
-            [System.NonSerialized] public Dictionary<int, Fade> fading;
             [System.NonSerialized] public bool isDirty;
 
             // Undo/Redo 스택(폼=도화지마다 독립). 구현은 PlayerPaintCanvas.History.cs 참고.
             [System.NonSerialized] internal List<PaintCommand> undo;
             [System.NonSerialized] internal List<PaintCommand> redo;
-        }
-
-        public struct Fade
-        {
-            public byte startAlpha;
-            public float startTime;
         }
 
         // ── 직렬화 필드 ─────────────────────────────────────────────────────────
@@ -81,10 +73,6 @@ namespace PixelChroma
 
         [Tooltip("PixelChroma/PlayerPaintMask 셰이더. 비워두면 Shader.Find로 찾습니다(빌드 포함을 위해 배정 권장).")]
         [SerializeField] private Shader paintShader;
-
-        [Header("Erase Fade (물총 서서히 지우기)")]
-        [Tooltip("물총에 맞은 물감이 균일하게 옅어지며 완전히 씻겨나가기까지 걸리는 시간(초)")]
-        [SerializeField] private float eraseFadeDuration = 0.5f;
 
         [Header("입체감 (외곽선 엠보스)")]
         [Tooltip("엠보스 효과 전체 세기. 0 = 완전 단색. 몸통 내부는 항상 페인트색 그대로 유지됨")]
@@ -107,10 +95,6 @@ namespace PixelChroma
         private int _currentIndex = -1;
         private Material _material;
         private RuntimeAnimatorController _baseAnimatorController;
-        private readonly List<int> _fadeRemoveBuffer = new();
-
-        public event System.Action OnEraseFadeCompleted;
-
         // ── Public 프로퍼티 ─────────────────────────────────────────────────────
 
         public int BrushSize { get => brushSize; set => brushSize = value; }
@@ -137,11 +121,6 @@ namespace PixelChroma
             InitializeAllForms();
         }
 
-        void Update()
-        {
-            ProcessFading();
-        }
-
         void LateUpdate()
         {
             var form = _activeForm;
@@ -156,7 +135,6 @@ namespace PixelChroma
                 ApplyFrameToMaterial(form, index);
             }
 
-            if (_debugDeathMonitor) DebugMonitorFrame();
         }
 
 #if UNITY_EDITOR
@@ -244,27 +222,10 @@ namespace PixelChroma
                 _activeForm.formCollider.enabled = false;
         }
 
-        public Color32[] GetActiveFormMaskPixels()
-        {
-            return _activeForm.maskPixels;
-        }
-
-        public void RestoreMaskPixels(PaintFormType formType, Color32[] pixels)
-        {
-            if (_formLookup == null || !_formLookup.TryGetValue(formType, out var form)) return;
-            if (form.maskPixels == null || pixels == null) return;
-
-            System.Array.Copy(pixels, form.maskPixels, Mathf.Min(pixels.Length, form.maskPixels.Length));
-            if (form.fading != null) form.fading.Clear();
-
-            form.paintMask.SetPixels32(form.maskPixels);
-            form.paintMask.Apply();
-        }
-
-        public void ForceReapplyFrame()
-        {
-            _currentIndex = -1;   // 다음 LateUpdate에서 현재 스프라이트로 maskRect 강제 갱신
-        }
+        //public void ForceReapplyFrame()
+        //{
+        //    _currentIndex = -1;   // 다음 LateUpdate에서 현재 스프라이트로 maskRect 강제 갱신
+        //}
         public int GetCurrentFrameIndex()
         {
             var form = _activeForm;
@@ -294,47 +255,7 @@ namespace PixelChroma
             }
 
             _currentIndex = index;
-            ApplyFrameToMaterial(form, index);   // maskRect + emboss = 이 프레임에 정확 일치DebugMonitorFrame
-
-
-            // 진단: 이 프레임에 못박는 값 확인
-            _debugDeathMonitor = true;
-            Debug.Log($"[Freeze] form={formType} index={index} sprite={form.sprites[index].name} " +
-                      $"maskRect={form.maskRects[index]}");
-        }
-
-
-        private long _lastChk = long.MinValue;
-        private string _lastSig = null;
-        private void DebugMonitorFrame()
-        {
-            var form = _activeForm;
-            var spr = targetRenderer.sprite;
-            bool inForm = spr != null && form.spriteIndex.TryGetValue(spr, out _);
-            int spriteIdx = inForm ? form.spriteIndex[spr] : -1;
-
-            Vector4 applied = _material.GetVector(MaskRectID);
-            Vector4 expected = spriteIdx >= 0 ? form.maskRects[spriteIdx] : Vector4.zero;
-
-            long chk = 0;
-            var mp = form.maskPixels;
-            for (int i = 0; i < mp.Length; i++)
-            { var c = mp[i]; chk += (long)(c.r + c.g * 3 + c.b * 7 + c.a * 11) * (i + 1); }
-
-            bool animOn = targetAnimator != null && targetAnimator.enabled;
-            var tr = targetRenderer.transform;
-
-            string sig = $"{form.formType}|{(spr != null ? spr.name : "null")}|{spriteIdx}|{_currentIndex}|" +
-                         $"{applied}|{expected}|{chk}|{targetRenderer.flipX}|{animOn}|" +
-                         $"{tr.rotation.eulerAngles.z:F1}|{tr.lossyScale}|{targetRenderer.color}";
-
-            if (sig == _lastSig) return;   // 무엇이든 바뀔 때만 출력
-            _lastSig = sig;
-
-            Debug.Log($"[Mon t={Time.time:F2}] form={form.formType} sprite={(spr != null ? spr.name : "null")} " +
-                      $"spriteIdx={spriteIdx} currIdx={_currentIndex} maskMatch={(applied == expected)} chk={chk} " +
-                      $"flipX={targetRenderer.flipX} animOn={animOn} rotZ={tr.rotation.eulerAngles.z:F1} " +
-                      $"scale={tr.lossyScale} color={targetRenderer.color}");
+            ApplyFrameToMaterial(form, index);
         }
 
         public void SetPaintVisible(bool visible)
@@ -452,8 +373,6 @@ namespace PixelChroma
                     RecordBefore(form, idx);
                     SetMaskCell(form, idx, color);
 
-                    if (form.fading.Count > 0) form.fading.Remove(idx);
-
                     anyPainted = true;
                 }
             }
@@ -512,7 +431,6 @@ namespace PixelChroma
                     int idx = y * form.texWidth + x;
                     RecordBefore(form, idx);
                     ClearMaskCell(form, idx);
-                    if (form.fading.Count > 0) form.fading.Remove(idx);
                 }
             }
 
@@ -541,86 +459,6 @@ namespace PixelChroma
                 ApplyChanges();
         }
 
-        // ── 페이드 (물총 피격 → 서서히 지우기) ─────────────────────────────────
-
-        private void ProcessFading()
-        {
-            var form = _activeForm;
-            if (form == null || form.fading == null || form.fading.Count == 0) return;
-
-            float now = Time.time;
-            _fadeRemoveBuffer.Clear();
-
-            foreach (var kv in form.fading)
-            {
-                int idx = kv.Key;
-                Fade f = kv.Value;
-                float t = eraseFadeDuration <= 0f ? 1f : (now - f.startTime) / eraseFadeDuration;
-
-                if (t >= 1f)
-                {
-                    ClearMaskCell(form, idx);
-                    _fadeRemoveBuffer.Add(idx);
-                }
-                else
-                {
-                    var c = form.maskPixels[idx];
-                    c.a = (byte)(f.startAlpha * (1f - t));
-                    form.maskPixels[idx] = c;
-                }
-            }
-
-            for (int i = 0; i < _fadeRemoveBuffer.Count; i++)
-                form.fading.Remove(_fadeRemoveBuffer[i]);
-
-            form.isDirty = true;
-            ApplyChanges();
-
-            if (form.fading.Count == 0)
-                OnEraseFadeCompleted?.Invoke();
-        }
-
-        public void EraseArea(Vector2Int center, int pixelRadius)
-        {
-            var form = _activeForm;
-            if (form.maskPixels == null) return;
-
-            ClearHistory();   // 물총 피격 = 되돌리기 히스토리 무효화 (로컬 전용)
-            int r2 = pixelRadius * pixelRadius;
-            for (int dx = -pixelRadius; dx <= pixelRadius; dx++)
-                for (int dy = -pixelRadius; dy <= pixelRadius; dy++)
-                {
-                    if (dx * dx + dy * dy > r2) continue;
-                    int px = center.x + dx, py = center.y + dy;
-                    if (!IsInBounds(px, py)) continue;
-                    EnqueueFade(form, px, py);
-                }
-        }
-
-        private void EnqueueFade(PaintForm form, int px, int py)
-        {
-            int idx = py * form.texWidth + px;
-            byte a = form.maskPixels[idx].a;
-            if (a == 0) return;
-
-            form.fading[idx] = new Fade { startAlpha = a, startTime = Time.time };
-        }
-
-        public void FadeAllPaint(float duration)
-        {
-            eraseFadeDuration = duration;
-            var form = _activeForm;
-            if (form?.maskPixels == null) return;
-
-            float now = Time.time;
-            for (int i = 0; i < form.maskPixels.Length; i++)
-            {
-                byte a = form.maskPixels[i].a;
-                if (a == 0) continue;
-                form.fading[i] = new Fade { startAlpha = a, startTime = now };
-            }
-        }
-
         // ── 판정 ────────────────────────────────────────────────────────────────
 
         public float GetPaintRatio()
@@ -630,12 +468,12 @@ namespace PixelChroma
             return (float)form.paintedCells / form.totalOpaquePixels;
         }
 
-        public bool HasAnyPaintedPixels()
-        {
-            var form = _activeForm;
-            if (form.maskPixels == null) return true;
-            return form.paintedCells > 0;
-        }
+        //public bool HasAnyPaintedPixels()
+        //{
+        //    var form = _activeForm;
+        //    if (form.maskPixels == null) return true;
+        //    return form.paintedCells > 0;
+        //}
 
         // ── 좌표 변환 / 브러시 유틸리티 ─────────────────────────────────────────
 
@@ -685,7 +523,6 @@ namespace PixelChroma
             if (form.maskPixels == null) return;
 
             ClearHistory();
-            form.fading.Clear();
             System.Array.Clear(form.maskPixels, 0, form.maskPixels.Length);
             form.paintedCells = 0;
             form.paintMask.SetPixels32(form.maskPixels);

@@ -23,18 +23,10 @@ namespace PixelChroma
         //[SerializeField] private GameObject visual;
         [SerializeField] private Collider2D bodyCollider;
 
-        [Header("Wet Debuff Settings")]
-        [Tooltip("물에 맞았을 때 적용되는 이동 속도 배율 (예: 0.5 = 기본 속도의 50%)")]
-        [SerializeField, Range(0f, 1f)] private float wetSpeedMultiplier = 0.5f;
-
         [Header("Paint Mode Settings")]
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
         [SerializeField, Range(0f, 1f)] private float paintModeSpeedMultiplier = 0.2f;
         protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint 진입 가능 여부로 설정
-
-        [Header("Camouflage")]
-        [Tooltip("위장으로 인정되는 최소 색칠 비율 (0.3 = 30%)")]
-        [SerializeField, Range(0f, 1f)] private float camouflagedThreshold = 0.3f;
 
         [Header("Expose Skill")]
         [SerializeField] private float exposeDuration = 1f;
@@ -52,11 +44,7 @@ namespace PixelChroma
         private bool _isVisuallyDead;
         [SyncVar] private float _paintRatio;
 
-        [SyncVar(hook = nameof(OnWetStateChanged))]
-        private bool _isWet;
-
         private float _baseMoveSpeed;
-        private float _wetTimer = 0f;
         private float _lastExposeTime = float.NegativeInfinity;
         private float _lastExposeTimeServer = float.NegativeInfinity;
         private float _lastPaintRatioSyncTime;
@@ -69,8 +57,6 @@ namespace PixelChroma
         protected override UIInGameHUD InGameHUD => _runnerHUD;
 
         public bool IsDead => _isDead;
-        public bool IsWet => _isWet;
-        public bool IsCamouflaged => _paintRatio >= camouflagedThreshold;
         public bool IsKnockedBack => _deathEffects != null && _deathEffects.IsKnockedBack;
 
 
@@ -117,15 +103,6 @@ namespace PixelChroma
         {
             base.Update();
 
-            if (isServer && _isWet)
-            {
-                _wetTimer -= Time.deltaTime;
-                if (_wetTimer <= 0)
-                {
-                    _isWet = false;
-                }
-            }
-
             if (!isLocalPlayer) return;
 
             SyncPaintRatioIfNeeded();
@@ -152,26 +129,6 @@ namespace PixelChroma
 
             CleanupSpectator();
             PaintController.OnPaintModeChanged -= HandlePaintModeChanged;
-        }
-
-        [Server]
-        public void ApplyWetState(float duration)
-        {
-            _isWet = true;
-            _wetTimer = duration;
-        }
-
-        [Server]
-        public void ServerTakeEraseDamage(Vector2 hitWorldPos, float aoeRadius)
-        {
-            if (paintCanvas == null) return;
-
-            Vector2Int centerPixel = paintCanvas.WorldToPixel(hitWorldPos);
-            float lossyScale = transform.lossyScale.x;
-            float localAoeRadius = aoeRadius / lossyScale;
-            int pixelRadius = Mathf.RoundToInt(localAoeRadius * paintCanvas.PixelsPerUnit);
-
-            RpcTakeEraseDamageByPixel(centerPixel, pixelRadius);
         }
 
         //--------------------------------------사망시 로직(모드따라 다름)------------------------------------------
@@ -387,20 +344,10 @@ namespace PixelChroma
         {
             float targetSpeed = _baseMoveSpeed;
 
-            if (_isWet)
-                targetSpeed *= wetSpeedMultiplier;
-
             if (IsPaintMode)
                 targetSpeed *= paintModeSpeedMultiplier;
 
             moveSpeed = targetSpeed;
-        }
-
-        [ClientRpc]
-        private void RpcTakeEraseDamageByPixel(Vector2Int centerPixel, int pixelRadius)
-        {
-            if (paintCanvas == null) return;
-            paintCanvas.EraseArea(centerPixel, pixelRadius);
         }
 
         [ClientRpc]
@@ -487,11 +434,6 @@ namespace PixelChroma
         private void RpcPlayExposeSound()
         {
             SoundManager.Instance?.PlaySfxAt(SfxType.Expose, transform.position);
-        }
-
-        private void OnWetStateChanged(bool oldVal, bool newVal)
-        {
-            RecalculateMoveSpeed();
         }
 
         // 사망 상태 복제 시 모든 클라이언트에서 호출됩니다. 생존 인원 HUD 갱신을 트리거합니다.

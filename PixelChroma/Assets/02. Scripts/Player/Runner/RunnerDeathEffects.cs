@@ -23,12 +23,10 @@ namespace PixelChroma
 
 
         private static readonly int FlashAmountID = Shader.PropertyToID("_FlashAmount");
-        private static int _wallIgnoreRefCount;
 
         private Rigidbody2D _rb;
         private SpriteRenderer _visualRenderer;
         private CinemachineImpulseSource _impulseSource;
-        private Animator _animator;
 
         private bool _isKnockedBack;
         public bool IsKnockedBack => _isKnockedBack;
@@ -39,7 +37,6 @@ namespace PixelChroma
         {
             _rb = rb;
             _visualRenderer = visualRenderer;
-            _animator = animator;
             _impulseSource = GetComponent<CinemachineImpulseSource>();
         }
 

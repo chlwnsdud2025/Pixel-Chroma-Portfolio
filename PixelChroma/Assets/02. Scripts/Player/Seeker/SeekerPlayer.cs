@@ -7,9 +7,7 @@ namespace PixelChroma
 {
     public class SeekerPlayer : PlayerBase
     {
-        [Header("Seeker Basic Settings")]
-        public float catchRadius = 1.5f;
-
+ 
         [Header("Indicator Settings")]
         [Tooltip("도망자를 가리킬 화살표 프리팹")]
         public GameObject indicatorPrefab;
@@ -18,7 +16,6 @@ namespace PixelChroma
 
         private SeekerWaterGun _waterGun;
         private UIInGameHUD_Seeker _seekerHUD;
-        private RunnerPlayer _targetRunnerToCatch;
         
 
         protected override UIInGameHUD InGameHUD => _seekerHUD;
@@ -45,8 +42,6 @@ namespace PixelChroma
             if (!IsChatActive)
             {
                 HandleSpectateInput();
-                CheckForCatchableRunner();
-                HandleCatchInput();
                 if (_waterGun != null)
                     _waterGun.LocalTick(IsPaintMode);
             }
@@ -113,21 +108,6 @@ namespace PixelChroma
             return CursorType.Crosshair;
         }
 
-        [Command]
-        public void CmdExecuteCatch(RunnerPlayer target)
-        {
-            if (target == null || target.IsDead)
-                return;
-
-            if (target.IsCamouflaged && !target.IsWet)
-                return;
-
-            float dist = Vector2.Distance(transform.position, target.transform.position);
-            if (dist <= catchRadius + 0.5f)
-            {
-                target.ServerNotifyCaught(playerName);
-            }
-        }
 
         [ClientRpc]
         public void RpcTeleport(Vector3 newPosition)
@@ -165,47 +145,6 @@ namespace PixelChroma
             }
         }
 
-        private void CheckForCatchableRunner()
-        {
-            _targetRunnerToCatch = null;
-            float closestDist = catchRadius;
-
-            if (InGameManager.Instance == null) 
-                return;
-
-            foreach (var runner in InGameManager.Instance.Runners)
-            {
-                if (runner != null && !runner.IsDead && (!runner.IsCamouflaged || runner.IsWet))
-                {
-                    float dist = Vector2.Distance(transform.position, runner.transform.position);
-                    if (dist <= closestDist)
-                    {
-                        closestDist = dist;
-                        _targetRunnerToCatch = runner;
-                    }
-                }
-            }
-
-            if (_seekerHUD != null)
-                _seekerHUD.SetCatchIconActive(_targetRunnerToCatch != null);
-        }
-
-        private void HandleCatchInput()
-        {
-            if (Input.Catch.WasPressedThisFrame() && _targetRunnerToCatch != null)
-            {
-                ExecuteCatch();
-            }
-        }
-
-        private void ExecuteCatch()
-        {
-            if (_targetRunnerToCatch != null)
-            {
-                CmdExecuteCatch(_targetRunnerToCatch);
-                _targetRunnerToCatch = null;
-            }
-        }
 
         private async UniTaskVoid ShowHUDAsync()
         {
@@ -226,9 +165,6 @@ namespace PixelChroma
 
         private void OnDrawGizmosSelected()
         {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, catchRadius);
-
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(transform.position, indicatorRadius);
         }

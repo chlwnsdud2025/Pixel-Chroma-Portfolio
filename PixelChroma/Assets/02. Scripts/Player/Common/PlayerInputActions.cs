@@ -12,7 +12,6 @@ namespace PixelChroma
         private const string ActionSelectEyedropper = "SelectEyedropper";
         private const string ActionBrushSizeModifier = "BrushSizeModifier";
         private const string ActionExposeSkill = "ExposeSkill";
-        private const string ActionCatch = "Catch";
         private const string ActionToggleSpectate = "ToggleSpectate";
         private const string ActionSpectateSeeker = "SpectateSeeker";
         private const string ActionSpectateRunner = "SpectateRunner";
@@ -33,7 +32,6 @@ namespace PixelChroma
         public InputAction SelectEyedropper { get; }
         public InputAction BrushSizeModifier { get; }
         public InputAction ExposeSkill { get; }
-        public InputAction Catch { get; }
         public InputAction ToggleSpectate { get; }
         public InputAction SpectateSeeker { get; }
         public InputAction SpectateRunner { get; }
@@ -56,7 +54,6 @@ namespace PixelChroma
             SelectEyedropper = _map.FindAction(ActionSelectEyedropper);
             BrushSizeModifier = _map.FindAction(ActionBrushSizeModifier);
             ExposeSkill = _map.FindAction(ActionExposeSkill);
-            Catch = _map.FindAction(ActionCatch);
             ToggleSpectate = _map.FindAction(ActionToggleSpectate);
             SpectateSeeker = _map.FindAction(ActionSpectateSeeker);
             SpectateRunner = _map.FindAction(ActionSpectateRunner);

@@ -47,7 +47,6 @@ namespace PixelChroma
             form.embossTextures = new Texture2D[count];
             form.maskRects = new Vector4[count];
             form.spriteIndex = new Dictionary<Sprite, int>(count);
-            form.fading = new Dictionary<int, Fade>();
             form.undo = new List<PaintCommand>();
             form.redo = new List<PaintCommand>();
 

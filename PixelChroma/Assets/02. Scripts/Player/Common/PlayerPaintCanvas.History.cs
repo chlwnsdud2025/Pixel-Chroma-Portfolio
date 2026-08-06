@@ -178,7 +178,6 @@ namespace PixelChroma
                 else if (oldA != 0 && newA == 0) form.paintedCells--;
             }
             form.maskPixels[idx] = value;
-            if (form.fading != null && form.fading.Count > 0) form.fading.Remove(idx);
         }
 
         // 피격(EraseArea)·리셋(ResetTexture)에서 호출 → 활성 폼 히스토리만 비운다.

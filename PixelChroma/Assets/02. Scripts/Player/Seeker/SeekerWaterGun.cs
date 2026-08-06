@@ -34,9 +34,6 @@ namespace PixelChroma
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
 
-        [Tooltip("피격된 도망자가 젖음 상태로 유지되는 시간(초)")]
-        [SerializeField] private float wetDuration = 5f;
-
         [Header("Debug")]
         [Tooltip("발사 시 실제 피격 범위(aoeRadius)를 씬 뷰에 잠시 표시합니다. (에디터 전용)")]
         [SerializeField] private bool drawAoeGizmo = true;
@@ -332,12 +329,6 @@ namespace PixelChroma
             if (_effects != null)
                 _effects.PlayFireEffect(firePoint, targetPos, didHit, direction, hitNormal);
         }
-
-        private void OnTriggerEnter2D(Collider2D collision)
-        {
-            
-        }
-
 
 #if UNITY_EDITOR
         // 발사 직후 gizmoDisplayDuration 동안 실제 피격 판정 원을 씬 뷰에 그립니다.

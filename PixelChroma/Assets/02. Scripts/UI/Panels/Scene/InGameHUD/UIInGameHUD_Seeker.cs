@@ -6,8 +6,6 @@ namespace PixelChroma.UI
 {
     public class UIInGameHUD_Seeker : UIInGameHUD
     {
-        [Header("Catch Icon")]
-        [SerializeField] private GameObject catchInactiveOverlay;
 
         [Header("Water Gun")]
         [SerializeField] private Image waterGunCooldownOverlay;
@@ -31,12 +29,6 @@ namespace PixelChroma.UI
             if (waterGunCooldownOverlay != null) waterGunCooldownOverlay.fillAmount = 0f;
             if (waterGunCooldownText != null) waterGunCooldownText.gameObject.SetActive(false);
             if (seekerIndicatorPanel != null) seekerIndicatorPanel.Deactivate();
-        }
-
-        public void SetCatchIconActive(bool isActive)
-        {
-            if (catchInactiveOverlay != null)
-                catchInactiveOverlay.SetActive(!isActive);
         }
 
         public void SetWaterGunCooldownDuration(float duration)
