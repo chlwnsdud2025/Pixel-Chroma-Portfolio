@@ -6,9 +6,6 @@ using UnityEngine.Localization.Settings;
 
 namespace PixelChroma.UI
 {
-    // 언어 탭. UILanguageSelect와 동일한 방식으로 로케일 버튼을 만든다.
-    // 단, 설정창 안에 얹히므로 언어 선택 후 팝업을 닫지 않고 포커스만 갱신한다.
-    // 언어 변경 로직은 단일 지점(LocalizationManager)을 공유하므로 타이틀 언어 버튼과 항상 일치한다.
     public class UISettingLanguagePanel : MonoBehaviour
     {
         [Header("Language List")]

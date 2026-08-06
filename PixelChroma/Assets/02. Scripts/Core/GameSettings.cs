@@ -3,14 +3,6 @@ using UnityEngine;
 
 namespace PixelChroma
 {
-    // 화면 모드. Unity의 FullScreenMode와 1:1 대응하며, enum 순서가 드롭다운 인덱스와 일치한다.
-    public enum ScreenMode
-    {
-        Fullscreen,   // ExclusiveFullScreen (전용 전체화면)
-        Borderless,   // FullScreenWindow   (테두리 없는 창 = 창모드 전체화면)
-        Windowed,     // Windowed           (창모드)
-    }
-
     // 사운드를 제외한 게임 옵션(화면/그래픽)의 저장·적용을 담당하는 정적 홀더.
     // 볼륨은 SoundManager가 소유하므로 여기서 다루지 않는다.
     //
@@ -21,7 +13,9 @@ namespace PixelChroma
     public static class GameSettings
     {
         private const string PrefPrefix = "Settings.";
-        private const string KeyScreenMode = PrefPrefix + "ScreenMode";
+        private const string KeyFullscreen = PrefPrefix + "Fullscreen";
+        // 구버전 int 키(0=전용 전체화면, 1=테두리 없는 전체화면, 2=창모드). 최초 1회 마이그레이션용.
+        private const string KeyScreenModeLegacy = PrefPrefix + "ScreenMode";
         private const string KeyResWidth = PrefPrefix + "ResWidth";
         private const string KeyResHeight = PrefPrefix + "ResHeight";
         private const string KeyVSync = PrefPrefix + "VSync";
@@ -30,7 +24,8 @@ namespace PixelChroma
         // 게임 로직이 매 발사마다 조회하므로 PlayerPrefs 접근 없이 캐시된 값으로 노출한다.
         public static bool ScreenShakeEnabled { get; private set; } = true;
         public static bool VSyncEnabled { get; private set; } = true;
-        public static ScreenMode ScreenMode { get; private set; } = ScreenMode.Borderless;
+        // true = 테두리 없는 전체화면(FullScreenWindow), false = 창모드(Windowed).
+        public static bool Fullscreen { get; private set; } = true;
         public static int ResolutionWidth { get; private set; }
         public static int ResolutionHeight { get; private set; }
 
@@ -47,7 +42,11 @@ namespace PixelChroma
 
             ScreenShakeEnabled = PlayerPrefs.GetInt(KeyScreenShake, 1) == 1;
             VSyncEnabled = PlayerPrefs.GetInt(KeyVSync, 1) == 1;
-            ScreenMode = (ScreenMode)PlayerPrefs.GetInt(KeyScreenMode, (int)ScreenMode.Borderless);
+
+            // 신규 bool 키가 있으면 그대로 쓰고, 없으면 구버전 int 키를 마이그레이션한다(2=창모드 → false).
+            Fullscreen = PlayerPrefs.HasKey(KeyFullscreen)
+                ? PlayerPrefs.GetInt(KeyFullscreen, 1) == 1
+                : PlayerPrefs.GetInt(KeyScreenModeLegacy, 1) != 2;
 
             // 저장된 해상도가 없으면(최초 실행) 데스크톱 해상도를 기본값으로 사용한다.
             var desktop = Screen.currentResolution;
@@ -59,10 +58,10 @@ namespace PixelChroma
         }
 
         // ── Setters (옵션 UI가 호출) ──────────────────────────────
-        public static void SetScreenMode(ScreenMode mode)
+        public static void SetFullscreen(bool enabled)
         {
-            ScreenMode = mode;
-            PlayerPrefs.SetInt(KeyScreenMode, (int)mode);
+            Fullscreen = enabled;
+            PlayerPrefs.SetInt(KeyFullscreen, enabled ? 1 : 0);
             ApplyDisplay();
             Changed?.Invoke();
         }
@@ -96,20 +95,13 @@ namespace PixelChroma
         private static void ApplyDisplay()
         {
             if (ResolutionWidth <= 0 || ResolutionHeight <= 0) return;
-            Screen.SetResolution(ResolutionWidth, ResolutionHeight, ToFullScreenMode(ScreenMode));
+            var mode = Fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+            Screen.SetResolution(ResolutionWidth, ResolutionHeight, mode);
         }
 
         private static void ApplyVSync()
         {
             QualitySettings.vSyncCount = VSyncEnabled ? 1 : 0;
         }
-
-        private static FullScreenMode ToFullScreenMode(ScreenMode mode) => mode switch
-        {
-            ScreenMode.Fullscreen => FullScreenMode.ExclusiveFullScreen,
-            ScreenMode.Borderless => FullScreenMode.FullScreenWindow,
-            ScreenMode.Windowed => FullScreenMode.Windowed,
-            _ => FullScreenMode.FullScreenWindow,
-        };
     }
 }

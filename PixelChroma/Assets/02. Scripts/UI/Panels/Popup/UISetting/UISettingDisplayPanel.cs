@@ -1,63 +1,46 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Localization;
-using UnityEngine.Localization.Settings;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
     public class UISettingDisplayPanel : MonoBehaviour
     {
-        [Header("Screen Mode")]
-        [SerializeField] private TMP_Dropdown screenModeDropdown;
-
         [Header("Resolution")]
         [SerializeField] private TMP_Dropdown resolutionDropdown;
 
         [Header("Toggles")]
+        [SerializeField] private Toggle fullscreenToggle;   // On = 테두리 없는 전체화면, Off = 창모드
         [SerializeField] private Toggle vSyncToggle;
         [SerializeField] private Toggle screenShakeToggle;
-
-        [Header("Localization")]
-        [SerializeField] private SettingTextDataSO textData;
 
         private readonly List<Vector2Int> _resolutions = new();
 
         public void Initialize()
         {
-            BuildScreenModeOptions();
             BuildResolutionOptions();
 
-            if (screenModeDropdown != null)
-                screenModeDropdown.onValueChanged.AddListener(OnScreenModeChanged);
+            if (fullscreenToggle != null)
+                fullscreenToggle.onValueChanged.AddListener(OnFullscreenChanged);
             if (resolutionDropdown != null)
                 resolutionDropdown.onValueChanged.AddListener(OnResolutionChanged);
             if (vSyncToggle != null)
                 vSyncToggle.onValueChanged.AddListener(GameSettings.SetVSync);
             if (screenShakeToggle != null)
                 screenShakeToggle.onValueChanged.AddListener(GameSettings.SetScreenShake);
-
-            LocalizationSettings.SelectedLocaleChanged += OnLocaleChanged;
-        }
-
-        private void OnDestroy()
-        {
-            LocalizationSettings.SelectedLocaleChanged -= OnLocaleChanged;
-        }
-
-        private void OnLocaleChanged(Locale locale)
-        {
-            BuildScreenModeOptions();
         }
 
         public void Refresh()
         {
-            if (screenModeDropdown != null)
-                screenModeDropdown.SetValueWithoutNotify((int)GameSettings.ScreenMode);
+            if (fullscreenToggle != null)
+                fullscreenToggle.SetIsOnWithoutNotify(GameSettings.Fullscreen);
 
             if (resolutionDropdown != null)
+            {
                 resolutionDropdown.SetValueWithoutNotify(CurrentResolutionIndex());
+                resolutionDropdown.interactable = !GameSettings.Fullscreen;
+            }
 
             if (vSyncToggle != null)
                 vSyncToggle.SetIsOnWithoutNotify(GameSettings.VSyncEnabled);
@@ -65,27 +48,11 @@ namespace PixelChroma.UI
                 screenShakeToggle.SetIsOnWithoutNotify(GameSettings.ScreenShakeEnabled);
         }
 
-        private void BuildScreenModeOptions()
+        private void OnFullscreenChanged(bool isFullscreen)
         {
-            if (screenModeDropdown == null) return;
-
-            screenModeDropdown.ClearOptions();
-
-            if (textData != null)
-            {
-                screenModeDropdown.AddOptions(new List<string>
-                {
-                    textData.optionFullscreen.GetLocalizedString(),
-                    textData.optionBorderless.GetLocalizedString(),
-                    textData.optionWindowed.GetLocalizedString(),
-                });
-            }
-            else
-            {
-                screenModeDropdown.AddOptions(new List<string> { "Fullscreen", "Borderless", "Windowed" });
-            }
-
-            screenModeDropdown.SetValueWithoutNotify((int)GameSettings.ScreenMode);
+            GameSettings.SetFullscreen(isFullscreen);
+            if (resolutionDropdown != null)
+                resolutionDropdown.interactable = !isFullscreen;
         }
 
         // 모니터가 지원하는 해상도를 (너비×높이) 기준으로 중복 제거해 나열한다(주사율 차이는 합침).
@@ -96,11 +63,12 @@ namespace PixelChroma.UI
             _resolutions.Clear();
             var seen = new HashSet<long>();
 
-            foreach (var r in Screen.resolutions)
+            var resArr = Screen.resolutions;
+            for (int i = resArr.Length - 1; i >= 0; i--)
             {
-                long key = ((long)r.width << 32) | (uint)r.height;
+                long key = ((long)resArr[i].width << 32) | (uint)resArr[i].height;
                 if (seen.Add(key))
-                    _resolutions.Add(new Vector2Int(r.width, r.height));
+                    _resolutions.Add(new Vector2Int(resArr[i].width, resArr[i].height));
             }
 
             // 저장된 해상도가 목록에 없으면(모니터 변경 등) 추가해 항상 선택 가능하게 한다.
@@ -121,11 +89,6 @@ namespace PixelChroma.UI
             var current = new Vector2Int(GameSettings.ResolutionWidth, GameSettings.ResolutionHeight);
             int index = _resolutions.IndexOf(current);
             return index >= 0 ? index : 0;
-        }
-
-        private void OnScreenModeChanged(int index)
-        {
-            GameSettings.SetScreenMode((ScreenMode)index);
         }
 
         private void OnResolutionChanged(int index)
