@@ -14,8 +14,6 @@ namespace PixelChroma
     {
         private const string PrefPrefix = "Settings.";
         private const string KeyFullscreen = PrefPrefix + "Fullscreen";
-        // 구버전 int 키(0=전용 전체화면, 1=테두리 없는 전체화면, 2=창모드). 최초 1회 마이그레이션용.
-        private const string KeyScreenModeLegacy = PrefPrefix + "ScreenMode";
         private const string KeyResWidth = PrefPrefix + "ResWidth";
         private const string KeyResHeight = PrefPrefix + "ResHeight";
         private const string KeyVSync = PrefPrefix + "VSync";
@@ -43,10 +41,7 @@ namespace PixelChroma
             ScreenShakeEnabled = PlayerPrefs.GetInt(KeyScreenShake, 1) == 1;
             VSyncEnabled = PlayerPrefs.GetInt(KeyVSync, 1) == 1;
 
-            // 신규 bool 키가 있으면 그대로 쓰고, 없으면 구버전 int 키를 마이그레이션한다(2=창모드 → false).
-            Fullscreen = PlayerPrefs.HasKey(KeyFullscreen)
-                ? PlayerPrefs.GetInt(KeyFullscreen, 1) == 1
-                : PlayerPrefs.GetInt(KeyScreenModeLegacy, 1) != 2;
+            Fullscreen = PlayerPrefs.GetInt(KeyFullscreen, 1) == 1;
 
             // 저장된 해상도가 없으면(최초 실행) 데스크톱 해상도를 기본값으로 사용한다.
             var desktop = Screen.currentResolution;
