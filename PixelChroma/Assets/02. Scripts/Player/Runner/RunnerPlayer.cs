@@ -20,9 +20,6 @@ namespace PixelChroma
     {
         private const float PaintRatioSyncInterval = 0.5f;
 
-        //[SerializeField] private GameObject visual;
-        [SerializeField] private Collider2D bodyCollider;
-
         [Header("Paint Mode Settings")]
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
         [SerializeField, Range(0f, 1f)] private float paintModeSpeedMultiplier = 0.2f;
@@ -159,6 +156,8 @@ namespace PixelChroma
         [Server]
         private System.Collections.IEnumerator DeathSequenceServer(GameMode mode)
         {
+            RpcPlayDeathAnimation();
+
             RpcKnockback(_pendingKnockback);
             yield return new WaitForSeconds(_deathEffects.KnockbackDuration);
 
@@ -187,7 +186,6 @@ namespace PixelChroma
         private void RpcKnockback(KnockbackInfo info)
         {
             if (_netTransform != null) _netTransform.enabled = false;
-            if (_netAnimator != null) _netAnimator.enabled = false;
             if (paintCanvas != null)
             {
                 paintCanvas.DisableActiveCollider();
@@ -228,6 +226,13 @@ namespace PixelChroma
                 paintCanvas.FreezeFrame(formType, index, flipX);
                 if (paintCanvas != null) paintCanvas.SetPaintVisible(true);
             }
+        }
+
+        [ClientRpc]
+        private void RpcPlayDeathAnimation()
+        {
+            if (animator != null)
+                animator.SetTrigger("Death");
         }
 
         //----------------------------------------------------------------------------------------------------

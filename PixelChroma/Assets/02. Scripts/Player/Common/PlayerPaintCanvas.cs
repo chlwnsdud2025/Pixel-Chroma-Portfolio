@@ -18,7 +18,7 @@ namespace PixelChroma
             Mushroom,
             Star,
             BigCube,
-            test,
+            Circle,
         }
 
         private static readonly int PaintMaskID = Shader.PropertyToID("_PaintMask");

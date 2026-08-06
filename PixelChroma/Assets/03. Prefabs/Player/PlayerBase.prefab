@@ -352,9 +352,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2396460819231521245}
-  - component: {fileID: 1845603693337836388}
+  - component: {fileID: 4092697217836042722}
   m_Layer: 8
-  m_Name: TestColider
+  m_Name: CircleColider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -375,14 +375,14 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2205136279145630252}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &1845603693337836388
-BoxCollider2D:
+--- !u!58 &4092697217836042722
+CircleCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4298820840411680995}
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
   m_Material: {fileID: 0}
@@ -410,17 +410,7 @@ BoxCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0, y: 0}
-    oldSize: {x: 0, y: 0}
-    newSize: {x: 0, y: 0}
-    adaptiveTilingThreshold: 0
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  m_Size: {x: 0.75, y: 1}
-  m_EdgeRadius: 0
+  m_Radius: 0.5
 --- !u!1 &5076602233018039120
 GameObject:
   m_ObjectHideFlags: 0
@@ -569,6 +559,11 @@ MonoBehaviour:
     - {fileID: -5653934593256627241, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
     - {fileID: -139388104607612486, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
     - {fileID: -1718027947735458575, guid: 64e706f1892fd9f4780648edd6e4db9d, type: 3}
+    - {fileID: 7093468729157269583, guid: e1313e2749c346b4e99cad2b703206be, type: 3}
+    - {fileID: -2111346521207048391, guid: e1313e2749c346b4e99cad2b703206be, type: 3}
+    - {fileID: 4786311342772173794, guid: e1313e2749c346b4e99cad2b703206be, type: 3}
+    - {fileID: 5112227453118299831, guid: e1313e2749c346b4e99cad2b703206be, type: 3}
+    - {fileID: -6119307048180882150, guid: e1313e2749c346b4e99cad2b703206be, type: 3}
     overrideController: {fileID: 22100000, guid: e264435bc204ed74f8ec78ff097a9b7c, type: 2}
     formCollider: {fileID: 7939687966517465771}
   - formType: 1
@@ -586,6 +581,10 @@ MonoBehaviour:
     - {fileID: 3307052733864262680, guid: 1b843d9d85d91e548b2dda9a4f48ce93, type: 3}
     - {fileID: -8719286503084242186, guid: 1b843d9d85d91e548b2dda9a4f48ce93, type: 3}
     - {fileID: -447269233326638339, guid: 1b843d9d85d91e548b2dda9a4f48ce93, type: 3}
+    - {fileID: 7898011171112490851, guid: f0d30a6548286d34491f150f2a43d87f, type: 3}
+    - {fileID: -7756123414366380952, guid: f0d30a6548286d34491f150f2a43d87f, type: 3}
+    - {fileID: -5872411155467000174, guid: f0d30a6548286d34491f150f2a43d87f, type: 3}
+    - {fileID: 6784765330927724125, guid: f0d30a6548286d34491f150f2a43d87f, type: 3}
     overrideController: {fileID: 22100000, guid: 21d4032f3ada39943a3ad1e8b3da2e73, type: 2}
     formCollider: {fileID: 1164888907145747173}
   - formType: 2
@@ -602,6 +601,9 @@ MonoBehaviour:
     - {fileID: 2623524167701646543, guid: e3fe68f149cf27046ad6bb4042568a81, type: 3}
     - {fileID: 4508349250220177379, guid: e3fe68f149cf27046ad6bb4042568a81, type: 3}
     - {fileID: 2552605515034949574, guid: e3fe68f149cf27046ad6bb4042568a81, type: 3}
+    - {fileID: 3288143109222547052, guid: abbb350676cc7ee4da9b8f898fb3c471, type: 3}
+    - {fileID: -303181021238482283, guid: abbb350676cc7ee4da9b8f898fb3c471, type: 3}
+    - {fileID: -2264984369456728880, guid: abbb350676cc7ee4da9b8f898fb3c471, type: 3}
     overrideController: {fileID: 22100000, guid: c6920e1c9630a654bbf34888a008e7ed, type: 2}
     formCollider: {fileID: 7389522974941718427}
   - formType: 3
@@ -618,31 +620,37 @@ MonoBehaviour:
     - {fileID: 7054367466133322436, guid: d349853f64ee14240b78d6dd19ffeb88, type: 3}
     - {fileID: -8026091374970746714, guid: d349853f64ee14240b78d6dd19ffeb88, type: 3}
     - {fileID: 7944848956737588174, guid: d349853f64ee14240b78d6dd19ffeb88, type: 3}
+    - {fileID: 7492472097737501350, guid: 3a70e3bba23d5cf428af42b12fb353ef, type: 3}
+    - {fileID: -759292007219337026, guid: 3a70e3bba23d5cf428af42b12fb353ef, type: 3}
+    - {fileID: -7494133710465168404, guid: 3a70e3bba23d5cf428af42b12fb353ef, type: 3}
+    - {fileID: -8509820769715698336, guid: 3a70e3bba23d5cf428af42b12fb353ef, type: 3}
     overrideController: {fileID: 22100000, guid: 9989317105dd31444a71c1eec554b047, type: 2}
     formCollider: {fileID: 3789751042637938430}
   - formType: 4
     sprites:
-    - {fileID: -6598946016331564889, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -7675304248189546062, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -6388338761078672736, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -303320121775701381, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: 3729461876300729580, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -672529477206987394, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: 5629586733242638167, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: 7767812757204367948, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: 2249745419088220813, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: 5333771517180107481, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -646623592477257922, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: 5856893256139009897, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: 7043811978007918041, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -7723253972256136601, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -1137364592071911362, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    - {fileID: -3549988229105279555, guid: 23748c298f885bf4c89671f6d30f562b, type: 3}
-    overrideController: {fileID: 22100000, guid: b2630cfed3ba927499b80b4577314929, type: 2}
-    formCollider: {fileID: 1845603693337836388}
+    - {fileID: 2701156317356141717, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -2825268061470249368, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -8835068144089497585, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -164725490688062903, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: 6275954689028042976, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -3892569755044640360, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -5345353212324486130, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -2369118523667559656, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: 6359611307279006634, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -4174904399266162536, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: 9132496340416481648, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -6478259908547302528, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -2883640412670824678, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: -6548332064551758263, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: 3511376619397181989, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
+    - {fileID: 5316718702655591193, guid: 5f81fab21ad472445bae24ec6678d91a, type: 3}
+    - {fileID: -7394462916055991097, guid: 5f81fab21ad472445bae24ec6678d91a, type: 3}
+    - {fileID: 7221972878358962690, guid: 5f81fab21ad472445bae24ec6678d91a, type: 3}
+    - {fileID: -5632387910407685268, guid: 5f81fab21ad472445bae24ec6678d91a, type: 3}
+    overrideController: {fileID: 22100000, guid: e7176c09170dcd941bbdec085446cf90, type: 2}
+    formCollider: {fileID: 4092697217836042722}
   brushSize: 1
   paintShader: {fileID: 4800000, guid: f096f447e9424a54284fb6acfed9c89e, type: 3}
-  eraseFadeDuration: 0.5
   shadingStrength: 1
   edgeHighlight: 0.1
   edgeShadow: 0.1
@@ -902,6 +910,10 @@ PrefabInstance:
       propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6574356275971925688, guid: a8db7da285613f846b0275b699b48ce8, type: 3}
+      propertyPath: m_sharedMaterial
+      value: 
+      objectReference: {fileID: 2279246074572603584, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
     - target: {fileID: 6716622868539826155, guid: a8db7da285613f846b0275b699b48ce8, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -1024,6 +1036,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: RadiusCanvas
       objectReference: {fileID: 0}
+    - target: {fileID: 3853753312789249987, guid: 18ccc4648ade908419f8d01fb57734ab, type: 3}
+      propertyPath: items.Array.data[4].icon
+      value: 
+      objectReference: {fileID: 2701156317356141717, guid: 18dcb880426b3224b9fabcbbd61c53c5, type: 3}
     - target: {fileID: 6716622868539826155, guid: 18ccc4648ade908419f8d01fb57734ab, type: 3}
       propertyPath: m_Pivot.x
       value: 0

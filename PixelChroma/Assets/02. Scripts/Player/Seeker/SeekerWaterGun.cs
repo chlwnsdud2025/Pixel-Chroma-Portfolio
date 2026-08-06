@@ -303,7 +303,12 @@ namespace PixelChroma
 
                         // 2, 1 + 총알 진행방향 혼합
                         Vector2 knockbackDir = Vector2.Lerp(radialDir, direction, knockbackForwardBias);
-                        knockbackDir = knockbackDir.sqrMagnitude > 0.0001f ? knockbackDir.normalized : direction;
+
+                        // 상쇄되어 0에 가까우면 총알 진행방향으로 폴백
+                        if (knockbackDir.sqrMagnitude < 0.01f)
+                            knockbackDir = direction;
+                        else
+                            knockbackDir = knockbackDir.normalized;
 
                         runner.ServerNotifyCaught(_seeker.playerName, knockbackDir, knockbackImpulse, knockbackDrag, knockbackRotSpeed);
                     }
