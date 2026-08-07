@@ -18,7 +18,10 @@ namespace PixelChroma.UI
         [SerializeField] private UIPunchText timerText;
         [SerializeField] private TMP_Text forcedExposeTimerText;
 
+        [Header("Result UI")]
         [SerializeField] private TMP_Text gameResultOverlayText;
+        [SerializeField] private float resultPunchScale = 0.3f;    
+        [SerializeField] private float resultPunchDuration = 0.3f;
 
         [Header("Game Mode UI")]
         [SerializeField] private TMP_Text modeText;
@@ -194,6 +197,18 @@ namespace PixelChroma.UI
             gameResultOverlayText.text = winner == PlayerRole.Seeker
                 ? $"<color=#FF2222>{textData.resultSeekerWin.GetLocalizedString()}</color>"
                 : $"<color=#00FFFF>{textData.resultRunnerWin.GetLocalizedString()}</color>";
+
+            PunchResultText();
+        }
+
+        private void PunchResultText()
+        {
+            if (gameResultOverlayText == null) return;
+
+            var t = gameResultOverlayText.transform;
+            t.DOKill();          
+            t.localScale = Vector3.one;
+            t.DOPunchScale(Vector3.one * resultPunchScale, resultPunchDuration);
         }
 
         private void UpdateTimerText(int remainingSeconds)
@@ -231,6 +246,8 @@ namespace PixelChroma.UI
             gameResultOverlayText.text = winner == PlayerRole.Seeker
                 ? textData.transitionAllCaught.GetLocalizedString()
                 : textData.transitionTimeUp.GetLocalizedString();
+
+            PunchResultText();
 
             await UniTask.Delay(TimeSpan.FromSeconds(2.5f));
 
