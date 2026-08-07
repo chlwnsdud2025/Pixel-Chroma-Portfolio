@@ -24,6 +24,7 @@ namespace PixelChroma.UI
 
         public UIScene CurrentScene => _currentScene;
         public UIPopup CurrentPopup => _popupStack.Count > 0 ? _popupStack.Peek() : null;
+        public bool IsPopupOpen => _popupStack.Count > 0;
         public IEscapeHandler GameplayEscapeHandler { get; set; }
         public IEscapeHandler ChatEscapeHandler { get; set; }
 

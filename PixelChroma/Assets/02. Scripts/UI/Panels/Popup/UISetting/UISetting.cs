@@ -97,7 +97,7 @@ namespace PixelChroma.UI
 
         private void OnClickExitToTitle()
         {
-            //UIManager.Instance.HideAllPopups().Forget();
+            UIManager.Instance.HideAllPopups().Forget();
             GameManager.Instance?.LeaveSession();
         }
     }

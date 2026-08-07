@@ -46,6 +46,9 @@ namespace PixelChroma
         [SerializeField] private TMP_Text likeCountText;
         [SerializeField] private LikeRiseEffect likeRiseEffect;
 
+        [Tooltip("스프라이트 상단에서 닉네임까지의 간격 (월드 유닛)")]
+        private float nicknameYPadding = 0.25f;
+
         [Header("Form Wheel")]
         [SerializeField] private RadialMenu formWheel;
 
@@ -86,6 +89,7 @@ namespace PixelChroma
         protected SpectatorController Spectator => _spectator;
         protected Rigidbody2D Rb { get; private set; }
         protected bool IsChatActive => _isChatActive;
+        protected bool IsPopupOpen => UIManager.Instance != null && UIManager.Instance.IsPopupOpen;
         protected bool IsCheckTimeSpectatorLocked { get; private set; }
 
         protected virtual UIInGameHUD InGameHUD => null;
@@ -96,9 +100,20 @@ namespace PixelChroma
             GameRoundManager.Instance != null
             && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
 
+
+
         protected virtual void Awake()
         {
             Rb = GetComponent<Rigidbody2D>();
+
+            if (paintCanvas != null)
+                paintCanvas.OnFormTopYChanged += AdjustNicknamePosition;
+        }
+
+        protected virtual void OnDestroy()
+        {
+            if (paintCanvas != null)
+                paintCanvas.OnFormTopYChanged -= AdjustNicknamePosition;
         }
 
         protected virtual void Update()
@@ -582,5 +597,16 @@ namespace PixelChroma
                 if (animator != null) animator.SetBool(IsMoving, false);
             }
         }
+        //----------------------------------헬퍼함수-------------------------------------------------
+        private void AdjustNicknamePosition(float formTopY)
+        {
+            if (nicknameRoot == null) return;
+
+            Vector3 pos = nicknameRoot.transform.localPosition;
+            pos.y = formTopY + nicknameYPadding;
+            nicknameRoot.transform.localPosition = pos;
+        }
+
     }
+
 }
