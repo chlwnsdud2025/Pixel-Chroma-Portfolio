@@ -163,7 +163,7 @@ PrefabInstance:
     - target: {fileID: 5958620739719859514, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_sharedMaterial
       value: 
-      objectReference: {fileID: 7479520477346530081, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
+      objectReference: {fileID: 2279246074572603584, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
     - target: {fileID: 6066479378772764670, guid: 78cb76db270489845893b629331fd5da, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -238,11 +238,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 2155416857987729589}
   m_SourcePrefab: {fileID: 100100000, guid: 78cb76db270489845893b629331fd5da, type: 3}
---- !u!58 &1545431394010188117 stripped
-CircleCollider2D:
-  m_CorrespondingSourceObject: {fileID: 2522633609704509906, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 3922714772001314951}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1748405270343520936 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3329247650249689647, guid: 78cb76db270489845893b629331fd5da, type: 3}
@@ -294,13 +289,11 @@ MonoBehaviour:
   nicknameText: {fileID: 2653543557656392703}
   likeCountText: {fileID: 7260099137320244669}
   likeRiseEffect: {fileID: 8129274853706073769}
+  nicknameBelow: 0
   formWheel: {fileID: 6583649736024657161}
   playerName: Player
   role: 1
-  bodyCollider: {fileID: 1545431394010188117}
-  wetSpeedMultiplier: 0.2
   paintModeSpeedMultiplier: 0.005
-  camouflagedThreshold: 0.3
   exposeDuration: 1.5
   exposeCooldown: 0.5
   visualRenderer: {fileID: 2820592367099867149}

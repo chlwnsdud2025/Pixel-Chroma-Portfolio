@@ -95,6 +95,9 @@ namespace PixelChroma
         private int _currentIndex = -1;
         private Material _material;
         private RuntimeAnimatorController _baseAnimatorController;
+
+        public event System.Action<float> OnFormTopYChanged;
+
         // ── Public 프로퍼티 ─────────────────────────────────────────────────────
 
         public int BrushSize { get => brushSize; set => brushSize = value; }
@@ -200,6 +203,18 @@ namespace PixelChroma
             }
             if (form.formCollider != null)
                 form.formCollider.enabled = true;
+
+            float topY = GetFormTopY(form);
+            OnFormTopYChanged?.Invoke(topY);
+        }
+
+        private float GetFormTopY(PaintForm form)
+        {
+            if (form.sprites == null || form.sprites.Length == 0) return 0.5f;
+
+            // Sprite.bounds.max.y = 피벗 기준 스프라이트 상단까지의 거리 (월드 유닛, 스케일 1 기준)
+            // 예: 16×16 @PPU16 중앙피벗 → 0.5,  32×32 @PPU16 중앙피벗 → 1.0
+            return form.sprites[0].bounds.max.y;
         }
 
         [Command]
