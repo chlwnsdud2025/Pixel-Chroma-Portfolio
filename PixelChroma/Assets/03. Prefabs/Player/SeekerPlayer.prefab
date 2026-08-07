@@ -398,10 +398,10 @@ MonoBehaviour:
   nicknameText: {fileID: 3940827996639946310}
   likeCountText: {fileID: 8548650488576737284}
   likeRiseEffect: {fileID: 7112056309027656464}
+  nicknameYPadding: 0.2
   formWheel: {fileID: 0}
   playerName: Player
   role: 2
-  catchRadius: 1.5
   indicatorPrefab: {fileID: 1947588112852113063, guid: fa1af3b30dcd5df429ab718b131434ca, type: 3}
   indicatorRadius: 2
 --- !u!114 &1438680196427242636
@@ -425,16 +425,12 @@ MonoBehaviour:
   firePoint: {fileID: 1880835392203279830}
   fireCooldown: 1.5
   fireRange: 8
-  aoeRadius: 0.6
   runnerLayer:
     serializedVersion: 2
     m_Bits: 256
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 2048
-  wetDuration: 2
-  drawAoeGizmo: 1
-  gizmoDisplayDuration: 0.4
   recoilDistance: 0.3
   impulseStrength: 1
   recoilKickAngle: 30
