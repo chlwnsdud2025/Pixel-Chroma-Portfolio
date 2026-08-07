@@ -39,7 +39,7 @@ namespace PixelChroma
                 return;
             }
 
-            if (!IsChatActive)
+            if (!IsChatActive && !IsPopupOpen)
             {
                 HandleSpectateInput();
                 if (_waterGun != null)

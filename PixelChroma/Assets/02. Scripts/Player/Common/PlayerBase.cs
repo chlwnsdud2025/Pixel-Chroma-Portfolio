@@ -89,6 +89,7 @@ namespace PixelChroma
         protected SpectatorController Spectator => _spectator;
         protected Rigidbody2D Rb { get; private set; }
         protected bool IsChatActive => _isChatActive;
+        protected bool IsPopupOpen => UIManager.Instance != null && UIManager.Instance.IsPopupOpen;
         protected bool IsCheckTimeSpectatorLocked { get; private set; }
 
         protected virtual UIInGameHUD InGameHUD => null;

@@ -1,6 +1,7 @@
 using UnityEngine;
 using Mirror;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 using PixelChroma.UI;
 using System.Collections;
 using Unity.Cinemachine;
@@ -234,6 +235,7 @@ namespace PixelChroma
         {
             if (_mainCam == null || Mouse.current == null) return;
             if (isPaintMode || !Mouse.current.leftButton.wasPressedThisFrame) return;
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
             if (!CanFireLocally) return;
 
             _lastFireTime = Time.time;
