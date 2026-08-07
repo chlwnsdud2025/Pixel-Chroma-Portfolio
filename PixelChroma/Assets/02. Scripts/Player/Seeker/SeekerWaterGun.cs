@@ -2,18 +2,11 @@ using UnityEngine;
 using Mirror;
 using UnityEngine.InputSystem;
 using PixelChroma.UI;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 using System.Collections;
 using Unity.Cinemachine;
-using static UnityEngine.LowLevelPhysics2D.PhysicsLayers;
 
 namespace PixelChroma
 {
-    // 술래의 물총(조준 + 발사 + 쿨타임)을 담당하는 NetworkBehaviour입니다.
-    // SeekerPlayer와 같은 NetworkIdentity에 붙는 형제 컴포넌트로, 자체 SyncVar/Command/Rpc를 가집니다.
-    // 로컬 입력 진입은 SeekerPlayer.Update가 LocalTick()으로 게이팅해서 호출합니다.
     [RequireComponent(typeof(WaterGunEffects))]
     public class SeekerWaterGun : NetworkBehaviour
     {
@@ -30,16 +23,8 @@ namespace PixelChroma
         [Header("Settings")]
         [SerializeField] private float fireCooldown = 1.5f;
         [SerializeField] private float fireRange = 8f;
-        [SerializeField] private float aoeRadius = 2f;
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
-
-        [Header("Debug")]
-        [Tooltip("발사 시 실제 피격 범위(aoeRadius)를 씬 뷰에 잠시 표시합니다. (에디터 전용)")]
-        [SerializeField] private bool drawAoeGizmo = true;
-        [Tooltip("피격 범위 기즈모가 표시되는 시간(초)")]
-        [SerializeField] private float gizmoDisplayDuration = 1f;
-
 
         [Header("Recoil (발사 반동)")]
         [Tooltip("발사 시 총이 총구 반대방향으로 밀리는 거리(월드 유닛). 0이면 반동 없음")]
@@ -58,15 +43,10 @@ namespace PixelChroma
         [SerializeField] private float knockbackDrag = 5f;
         [SerializeField] private float knockbackRotSpeed = 720f;
 
-        [Tooltip("넉백 방향에서 총알 진행방향이 차지하는 비중 (0 = 착탄점 방사형만, 1 = 총알 진행방향만)")]
-        [Range(0f, 1f)]
-        [SerializeField] private float knockbackForwardBias = 0.5f;
+
+        [SerializeField] private float knockbackForwardBias = 0.7f;
 
         private SeekerPlayer _seeker;
-
-        // 마지막 발사의 착탄 지점과 시각. 기즈모를 발사 직후 잠깐만 그리기 위한 값입니다.
-        private Vector2 _lastImpactPos;
-        private float _lastImpactGizmoTime = -100f;
 
         [SyncVar(hook = nameof(OnAimAngleChanged))]
         private float _syncAimAngle;
@@ -278,8 +258,8 @@ namespace PixelChroma
             if (Time.time - _lastServerFireTime < fireCooldown - ServerCooldownGrace) return;
             _lastServerFireTime = Time.time;
 
-            Vector2 origin = FireOrigin;                    // 서버 기준 총구 위치
-            Vector2 direction = targetPoint - origin;       // 총구 → 마우스 지점
+            Vector2 origin = FireOrigin;
+            Vector2 direction = targetPoint - origin;
             if (direction.sqrMagnitude < 0.0001f) direction = Vector2.right;
             direction.Normalize();
 
@@ -287,45 +267,44 @@ namespace PixelChroma
             bool didHit = hit.collider != null;
 
             Vector2 laserEndPos = didHit ? hit.point : origin + direction * fireRange;
-            Vector2 hitNormal = didHit ? hit.normal : -direction;   // 안 맞았을 땐 의미 없으니 대충 반대 방향으로 폴백
+            Vector2 hitNormal = didHit ? hit.normal : -direction;
 
+            // Ray가 직접 맞힌 대상이 Runner인지 확인
             if (didHit)
             {
-                Collider2D[] hitColliders = Physics2D.OverlapCircleAll(laserEndPos, aoeRadius, runnerLayer);
-                foreach (var col in hitColliders)
+                var runner = hit.collider.GetComponentInParent<RunnerPlayer>();
+                if (runner != null)
                 {
-                    var runner = col.GetComponentInParent<RunnerPlayer>();
-                    if (runner != null)
-                    {
-                        // 1, 착탄점 → 러너 (총알과 반대방향으로 밀어냄)
-                        Vector2 radial = (Vector2)runner.transform.position - laserEndPos;
-                        Vector2 radialDir = radial.sqrMagnitude > 0.0001f ? radial.normalized : direction;
+                    // 착탄점 → Runner 중심 방향
+                    Vector2 radial = (Vector2)runner.transform.position - hit.point;
+                    Vector2 radialDir = radial.sqrMagnitude > 0.0001f
+                        ? radial.normalized
+                        : direction;
 
-                        // 2, 1 + 총알 진행방향 혼합
-                        Vector2 knockbackDir = Vector2.Lerp(radialDir, direction, knockbackForwardBias);
+                    // 방사형 + 총알 진행방향 블렌드
+                    Vector2 knockbackDir = Vector2.Lerp(radialDir, direction, knockbackForwardBias);
 
-                        // 상쇄되어 0에 가까우면 총알 진행방향으로 폴백
-                        if (knockbackDir.sqrMagnitude < 0.01f)
-                            knockbackDir = direction;
-                        else
-                            knockbackDir = knockbackDir.normalized;
+                    // 상쇄되어 0에 가까우면 총알 진행방향으로 폴백
+                    if (knockbackDir.sqrMagnitude < 0.01f)
+                        knockbackDir = direction;
+                    else
+                        knockbackDir = knockbackDir.normalized;
 
-                        runner.ServerNotifyCaught(_seeker.playerName, knockbackDir, knockbackImpulse, knockbackDrag, knockbackRotSpeed);
-                    }
+                    runner.ServerNotifyCaught(
+                        _seeker.playerName,
+                        knockbackDir,
+                        knockbackImpulse,
+                        knockbackDrag,
+                        knockbackRotSpeed);
                 }
             }
 
-            RpcPlayFireEffect(laserEndPos, didHit, direction, hitNormal);   // direction, hitNormal 추가
+            RpcPlayFireEffect(laserEndPos, didHit, direction, hitNormal);
         }
 
         [ClientRpc]
         private void RpcPlayFireEffect(Vector2 targetPos, bool didHit, Vector2 direction, Vector2 hitNormal)
         {
-            if (didHit)
-            {
-                _lastImpactPos = targetPos;
-                _lastImpactGizmoTime = Time.time;
-            }
 
             if (!isLocalPlayer) PlayRecoil();
 
@@ -334,21 +313,5 @@ namespace PixelChroma
             if (_effects != null)
                 _effects.PlayFireEffect(firePoint, targetPos, didHit, direction, hitNormal);
         }
-
-#if UNITY_EDITOR
-        // 발사 직후 gizmoDisplayDuration 동안 실제 피격 판정 원을 씬 뷰에 그립니다.
-        // 물 스플래시 이펙트 크기와 이 원이 겹치면 시각/판정이 일치한다는 뜻입니다.
-        private void OnDrawGizmos()
-        {
-            if (!drawAoeGizmo) return;
-            if (Time.time - _lastImpactGizmoTime > gizmoDisplayDuration) return;
-
-            Color baseColor = Color.cyan;
-            Handles.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0.12f);
-            Handles.DrawSolidDisc(_lastImpactPos, Vector3.forward, aoeRadius);
-            Handles.color = baseColor;
-            Handles.DrawWireDisc(_lastImpactPos, Vector3.forward, aoeRadius);
-        }
-#endif
     }
 }
