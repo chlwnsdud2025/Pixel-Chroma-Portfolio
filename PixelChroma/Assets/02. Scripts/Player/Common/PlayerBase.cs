@@ -73,6 +73,7 @@ namespace PixelChroma
         private bool _isChatActive;
         private bool _likeEffectsReady;
         private bool _likedByLocal;
+        private int _ownerConnectionId = -1;
 
         protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
@@ -165,7 +166,11 @@ namespace PixelChroma
         {
             base.OnStartServer();
             if (connectionToClient != null)
+            {
+                _ownerConnectionId = connectionToClient.connectionId;
                 _likeCount = LikeManager.GetLikeCount(connectionToClient.connectionId);
+
+            }
         }
 
         public override void OnStartClient()
@@ -472,16 +477,16 @@ namespace PixelChroma
             if (sender == null) return;
             if (!IsLikeAllowedNow) return;
             if (!CanReceiveLike) return;
-            if (connectionToClient == null) return;
+            if (_ownerConnectionId < 0) return;
             var senderPlayer = sender.identity?.GetComponent<PlayerBase>();
             if (senderPlayer == this) return;
 
             // 클라이언트가 자체 판정으로 중복을 걸러주지만, 그건 UI 편의일 뿐이라
             // 카운트 정확성은 서버 장부(LikeManager)로만 보장합니다.
-            if (!LikeManager.AddLike(sender.connectionId, connectionToClient.connectionId))
+            if (!LikeManager.AddLike(sender.connectionId, _ownerConnectionId))
                 return;
 
-            _likeCount = LikeManager.GetLikeCount(connectionToClient.connectionId);
+            _likeCount = LikeManager.GetLikeCount(_ownerConnectionId);
         }
 
         private void SetupCinemachineFollow()
