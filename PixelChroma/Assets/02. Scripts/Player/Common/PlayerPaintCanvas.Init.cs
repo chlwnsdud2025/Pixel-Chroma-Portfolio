@@ -19,7 +19,7 @@ namespace PixelChroma
 
             _material = new Material(shader) { name = "PlayerPaintMask (Instance)" };
             targetRenderer.material = _material;
-            PushShadingParams();
+            //PushShadingParams();
 
             if (targetAnimator != null)
                 _baseAnimatorController = targetAnimator.runtimeAnimatorController;
@@ -32,8 +32,8 @@ namespace PixelChroma
             }
 
             ActivateForm(PaintFormType.Default);
+            Recomposite();
         }
-
         private void InitializeForm(PaintForm form)
         {
             if (form.sprites == null || form.sprites.Length == 0) return;
@@ -44,15 +44,12 @@ namespace PixelChroma
             form.texHeight = (int)first.rect.height;
             int pixelCount = form.texWidth * form.texHeight;
 
-            form.embossTextures = new Texture2D[count];
-            form.maskRects = new Vector4[count];
             form.spriteIndex = new Dictionary<Sprite, int>(count);
             form.undo = new List<PaintCommand>();
             form.redo = new List<PaintCommand>();
 
-            // 1) 원본 픽셀 읽기. Read/Write 꺼진 시트도 읽도록 GPU→CPU 복사본을 만들어
-            //    프레임별로 잘라 originalPixels에 저장(연속된 같은 시트는 복사본 재사용).
-            var originalPixels = new Color[count][];
+            // ── 1) 원본 픽셀 읽기 (기존과 동일하되, form에 보존) ──────────
+            form.allOriginalPixels = new Color[count][];
             Texture2D lastSourceTex = null;
             Texture2D readableCopy = null;
 
@@ -69,56 +66,66 @@ namespace PixelChroma
                     lastSourceTex = srcTex;
                 }
 
-                originalPixels[i] = readableCopy.GetPixels(
+                form.allOriginalPixels[i] = readableCopy.GetPixels(
                     (int)rect.x, (int)rect.y, form.texWidth, form.texHeight);
                 form.spriteIndex[srcSprite] = i;
-                form.maskRects[i] = ComputeMaskRect(srcSprite);
+                // form.maskRects[i] = ComputeMaskRect(srcSprite);  ← 삭제
             }
 
             if (readableCopy != null) Destroy(readableCopy);
 
-            // 2) 엠보스 법선 + 실루엣 빌드. unionOpaque=어느 프레임에서든 몸인 칸(칠 허용),
-            //    referenceOpaque=프레임0 실루엣(칠 비율 기준), embossTextures=법선을 구운 텍스처.
-            var edgeNormals = BuildEdgeNormals(originalPixels, form.texWidth, form.texHeight);
+            // ── 2) 외곽선 법선 빌드 (form에 보존, 텍스처화 안 함) ────────
+            form.allEdgeNormals = BuildEdgeNormals(
+                form.allOriginalPixels, form.texWidth, form.texHeight);
 
+            // ── 3) unionOpaque / referenceOpaque (기존과 동일) ───────────
             form.unionOpaque = new bool[pixelCount];
             form.referenceOpaque = new bool[pixelCount];
             for (int i = 0; i < count; i++)
             {
                 for (int k = 0; k < pixelCount; k++)
                 {
-                    bool opaque = originalPixels[i][k].a >= 0.01f;
+                    bool opaque = form.allOriginalPixels[i][k].a >= 0.01f;
                     if (opaque) form.unionOpaque[k] = true;
                     if (i == 0) form.referenceOpaque[k] = opaque;
                 }
-
-                var tex = new Texture2D(form.texWidth, form.texHeight, TextureFormat.RGBA32, false)
-                {
-                    filterMode = FilterMode.Point,
-                    wrapMode = TextureWrapMode.Clamp
-                };
-                tex.SetPixels32(BuildNormalPixels(edgeNormals[i]));
-                tex.Apply();
-                form.embossTextures[i] = tex;
+                // embossTextures 생성 코드 전체 삭제
             }
 
-            // 3) 기준 실루엣 불투명 픽셀 수(GetPaintRatio의 분모).
             form.totalOpaquePixels = 0;
             for (int i = 0; i < pixelCount; i++)
                 if (form.referenceOpaque[i]) form.totalOpaquePixels++;
 
-            // 4) 빈 페인트 마스크(rgba=0) 생성.
-            form.paintMask = new Texture2D(form.texWidth, form.texHeight, TextureFormat.RGBA32, false)
+            // ── 4) 빈 paint 데이터 + 합성 텍스처 생성 ─────────────────────
+            form.maskPixels = new Color32[pixelCount];
+            form.paintedCells = 0;
+            form.isDirty = false;
+            form.paintVisible = true;
+
+            // 현재 프레임 = frame 0으로 초기화
+            form.originalPixels = form.allOriginalPixels[0];
+            form.edgeNormals = form.allEdgeNormals[0];
+
+            // 합성 결과 버퍼 + 텍스처 + Sprite 생성
+            form.compositedPixels = new Color32[pixelCount];
+            form.compositedTexture = new Texture2D(
+                form.texWidth, form.texHeight, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp
             };
-            form.maskPixels = new Color32[pixelCount];
-            form.paintMask.SetPixels32(form.maskPixels);
-            form.paintMask.Apply();
-            form.paintedCells = 0;
-            form.isDirty = false;
+
+            // Sprite 생성: 원본 sprite와 동일한 pivot, PPU 사용
+            Vector2 pivotNormalized = new Vector2(
+                first.pivot.x / first.rect.width,
+                first.pivot.y / first.rect.height);
+            form.compositedSprite = Sprite.Create(
+                form.compositedTexture,
+                new Rect(0, 0, form.texWidth, form.texHeight),
+                pivotNormalized,
+                first.pixelsPerUnit);
         }
+
 
         // ── 텍스처 읽기 유틸리티 ────────────────────────────────────────────────
 

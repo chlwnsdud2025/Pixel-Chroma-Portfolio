@@ -21,15 +21,6 @@ namespace PixelChroma
             Circle,
         }
 
-        private static readonly int PaintMaskID = Shader.PropertyToID("_PaintMask");
-        private static readonly int EmbossTexID = Shader.PropertyToID("_EmbossTex");
-        private static readonly int MaskRectID = Shader.PropertyToID("_MaskRect");
-        private static readonly int ShadingStrengthID = Shader.PropertyToID("_ShadingStrength");
-        private static readonly int EdgeHighlightID = Shader.PropertyToID("_EdgeHighlight");
-        private static readonly int EdgeShadowID = Shader.PropertyToID("_EdgeShadow");
-        private static readonly int LightAngleID = Shader.PropertyToID("_LightAngle");
-        private static readonly int PaintVisibleID = Shader.PropertyToID("_PaintVisible");
-
 
         [System.Serializable]
         public class PaintForm
@@ -44,10 +35,10 @@ namespace PixelChroma
 
             [System.NonSerialized] public int texWidth;
             [System.NonSerialized] public int texHeight;
-            [System.NonSerialized] public Texture2D paintMask;
+            //[System.NonSerialized] public Texture2D paintMask;
             [System.NonSerialized] public Color32[] maskPixels;
-            [System.NonSerialized] public Texture2D[] embossTextures;
-            [System.NonSerialized] public Vector4[] maskRects;
+            //[System.NonSerialized] public Texture2D[] embossTextures;
+            //[System.NonSerialized] public Vector4[] maskRects;
             [System.NonSerialized] public bool[] unionOpaque;
             [System.NonSerialized] public bool[] referenceOpaque;
             [System.NonSerialized] public Dictionary<Sprite, int> spriteIndex;
@@ -58,6 +49,16 @@ namespace PixelChroma
             // Undo/Redo 스택(폼=도화지마다 독립). 구현은 PlayerPaintCanvas.History.cs 참고.
             [System.NonSerialized] internal List<PaintCommand> undo;
             [System.NonSerialized] internal List<PaintCommand> redo;
+
+            [System.NonSerialized] public Color[] originalPixels;        // 현재 프레임의 원본 픽셀 (Recomposite 입력)
+            [System.NonSerialized] public Color[][] allOriginalPixels;   // 모든 프레임의 원본 픽셀
+            [System.NonSerialized] public Vector2[][] allEdgeNormals;    // 모든 프레임의 외곽선 법선
+            [System.NonSerialized] public Vector2[] edgeNormals;         // 현재 프레임의 외곽선 법선
+            [System.NonSerialized] public Color32[] compositedPixels;    // CPU 합성 결과
+            [System.NonSerialized] public Texture2D compositedTexture;   // GPU에 올릴 합성 텍스처
+            [System.NonSerialized] public Sprite compositedSprite;       // SpriteRenderer에 세팅할 Sprite
+            [System.NonSerialized] public bool paintVisible = true;      // paint 표시 여부 (셰이더 파라미터 대체)
+
         }
 
         // ── 직렬화 필드 ─────────────────────────────────────────────────────────
@@ -98,6 +99,9 @@ namespace PixelChroma
 
         public event System.Action<float> OnFormTopYChanged;
 
+        private Vector2 _cachedLightDir;
+        private float _cachedLightAngle = -1f;
+
         // ── Public 프로퍼티 ─────────────────────────────────────────────────────
 
         public int BrushSize { get => brushSize; set => brushSize = value; }
@@ -132,20 +136,22 @@ namespace PixelChroma
             var current = targetRenderer.sprite;
             if (current == null) return;
 
+            // Animator가 세팅한 atlas sprite → frame index 조회
             if (form.spriteIndex.TryGetValue(current, out int index) && index != _currentIndex)
             {
                 _currentIndex = index;
-                ApplyFrameToMaterial(form, index);
+                //ApplyFrameToMaterial(form, index);  // ← 삭제
+
+                // 현재 프레임의 원본/법선 참조를 갱신
+                form.originalPixels = form.allOriginalPixels[index];
+                form.edgeNormals = form.allEdgeNormals[index];
+                Recomposite();
             }
 
+            // compositedSprite로 교체 (Animator가 다음 프레임에 다시 덮어쓸 것)
+            if (form.compositedSprite != null)
+                targetRenderer.sprite = form.compositedSprite;
         }
-
-#if UNITY_EDITOR
-        private void OnValidate()
-        {
-            PushShadingParams();
-        }
-#endif
 
         private void OnDestroy()
         {
@@ -153,12 +159,10 @@ namespace PixelChroma
             {
                 foreach (var form in forms)
                 {
-                    if (form.embossTextures != null)
-                    {
-                        for (int i = 0; i < form.embossTextures.Length; i++)
-                            if (form.embossTextures[i] != null) Destroy(form.embossTextures[i]);
-                    }
-                    if (form.paintMask != null) Destroy(form.paintMask);
+
+                    if (form.compositedSprite != null) Destroy(form.compositedSprite);
+                    if (form.compositedTexture != null) Destroy(form.compositedTexture);
+
                 }
             }
 
@@ -183,9 +187,6 @@ namespace PixelChroma
             EndStroke();
             _activeForm = form;
             _currentIndex = -1;
-
-            if (_material != null && form.paintMask != null)
-                _material.SetTexture(PaintMaskID, form.paintMask);
 
             if (targetAnimator != null && _baseAnimatorController != null)
             {
@@ -237,10 +238,6 @@ namespace PixelChroma
                 _activeForm.formCollider.enabled = false;
         }
 
-        //public void ForceReapplyFrame()
-        //{
-        //    _currentIndex = -1;   // 다음 LateUpdate에서 현재 스프라이트로 maskRect 강제 갱신
-        //}
         public int GetCurrentFrameIndex()
         {
             var form = _activeForm;
@@ -265,21 +262,29 @@ namespace PixelChroma
 
             if (targetRenderer != null)
             {
-                targetRenderer.sprite = form.sprites[index];
                 targetRenderer.flipX = flipX;
             }
 
             _currentIndex = index;
-            ApplyFrameToMaterial(form, index);
+
+            // 현재 프레임 참조 갱신 + 합성
+            form.originalPixels = form.allOriginalPixels[index];
+            form.edgeNormals = form.allEdgeNormals[index];
+            Recomposite();
+
+            // compositedSprite 적용 (Animator 정지 상태이므로 덮어쓰기 없음)
+            if (targetRenderer != null && form.compositedSprite != null)
+                targetRenderer.sprite = form.compositedSprite;
+
         }
 
         public void SetPaintVisible(bool visible)
         {
-            if (targetRenderer == null) return;
-            var block = new MaterialPropertyBlock();
-            targetRenderer.GetPropertyBlock(block);
-            block.SetFloat(PaintVisibleID, visible ? 1f : 0f);
-            targetRenderer.SetPropertyBlock(block);
+            var form = _activeForm;
+            if (form == null) return;
+            form.paintVisible = visible;
+            Recomposite();
+
         }
 
         // ── Late-join 동기화 ─────────────────────────────────────────────────────
@@ -344,8 +349,10 @@ namespace PixelChroma
                 ApplyCellRaw(form, idx, colors[i]);
             }
 
-            form.paintMask.SetPixels32(form.maskPixels);
-            form.paintMask.Apply();
+            //form.paintMask.SetPixels32(form.maskPixels);
+            //form.paintMask.Apply();
+            if (form == _activeForm) Recomposite();
+
             form.isDirty = false;
         }
 
@@ -483,13 +490,6 @@ namespace PixelChroma
             return (float)form.paintedCells / form.totalOpaquePixels;
         }
 
-        //public bool HasAnyPaintedPixels()
-        //{
-        //    var form = _activeForm;
-        //    if (form.maskPixels == null) return true;
-        //    return form.paintedCells > 0;
-        //}
-
         // ── 좌표 변환 / 브러시 유틸리티 ─────────────────────────────────────────
 
         public Vector2Int WorldToPixel(Vector3 worldPos)
@@ -540,8 +540,8 @@ namespace PixelChroma
             ClearHistory();
             System.Array.Clear(form.maskPixels, 0, form.maskPixels.Length);
             form.paintedCells = 0;
-            form.paintMask.SetPixels32(form.maskPixels);
-            form.paintMask.Apply();
+
+            Recomposite();
             form.isDirty = false;
         }
 
@@ -550,24 +550,8 @@ namespace PixelChroma
             var form = _activeForm;
             if (!form.isDirty) return;
 
-            form.paintMask.SetPixels32(form.maskPixels);
-            form.paintMask.Apply();
+            Recomposite();
             form.isDirty = false;
-        }
-
-        private void ApplyFrameToMaterial(PaintForm form, int index)
-        {
-            _material.SetVector(MaskRectID, form.maskRects[index]);
-            _material.SetTexture(EmbossTexID, form.embossTextures[index]);
-        }
-
-        private void PushShadingParams()
-        {
-            if (_material == null) return;
-            _material.SetFloat(ShadingStrengthID, shadingStrength);
-            _material.SetFloat(EdgeHighlightID, edgeHighlight);
-            _material.SetFloat(EdgeShadowID, edgeShadow);
-            _material.SetFloat(LightAngleID, lightAngle);
         }
 
         private void GetBrushBounds(PaintForm form, int px, int py, int size,
@@ -649,5 +633,81 @@ namespace PixelChroma
             Debug.Log($"[{newType}] 스프라이트 {sprites.Count}개를 수집하여 인덱스 {newIndex}에 추가했습니다.", this);
         }
 #endif
+
+        // ── CPU 컴포지팅 ────────────────────────────────────────────────
+
+        private Vector2 GetLightDir()
+        {
+            if (lightAngle != _cachedLightAngle)
+            {
+                float rad = lightAngle * Mathf.Deg2Rad;
+                _cachedLightDir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+                _cachedLightAngle = lightAngle;
+            }
+            return _cachedLightDir;
+        }
+
+        /// <summary>
+        /// CPU에서 originalPixels + maskPixels + edgeNormals을 합성하여
+        /// compositedTexture에 업로드한다. UV 변환 없이 pixel 인덱스로 직접 접근.
+        /// </summary>
+        private void Recomposite()
+        {
+            var form = _activeForm;
+            if (form == null || form.compositedPixels == null) return;
+
+            var orig = form.originalPixels;           // 현재 프레임의 원본
+            var mask = form.maskPixels;               // paint 데이터
+            var normals = form.edgeNormals;           // 현재 프레임의 법선
+            var output = form.compositedPixels;
+            bool showPaint = form.paintVisible;
+            Vector2 ld = GetLightDir();
+            int count = form.texWidth * form.texHeight;
+
+            for (int i = 0; i < count; i++)
+            {
+                // 원본 알파 → byte (0~255)
+                byte origA = (byte)Mathf.RoundToInt(Mathf.Clamp01(orig[i].a) * 255f);
+
+                if (showPaint && mask[i].a > 0 && origA > 0)
+                {
+                    // ── paint가 있고, 원본이 불투명, paint 표시 중 ──
+                    float pr = mask[i].r / 255f;
+                    float pg = mask[i].g / 255f;
+                    float pb = mask[i].b / 255f;
+
+                    // 엠보스: 법선 · 빛방향 (셰이더와 동일한 계산)
+                    Vector2 n = normals[i];
+                    bool isEdge = n.x != 0f || n.y != 0f;
+                    if (isEdge)
+                    {
+                        float edge = Vector2.Dot(n, ld);
+                        float hi = Mathf.Max(0f, edge) * edgeHighlight * shadingStrength;
+                        float sh = Mathf.Max(0f, -edge) * edgeShadow * shadingStrength;
+                        pr = Mathf.Lerp(Mathf.Lerp(pr, 0f, sh), 1f, hi);
+                        pg = Mathf.Lerp(Mathf.Lerp(pg, 0f, sh), 1f, hi);
+                        pb = Mathf.Lerp(Mathf.Lerp(pb, 0f, sh), 1f, hi);
+                    }
+
+                    output[i] = new Color32(
+                        (byte)Mathf.RoundToInt(pr * 255f),
+                        (byte)Mathf.RoundToInt(pg * 255f),
+                        (byte)Mathf.RoundToInt(pb * 255f),
+                        origA);
+                }
+                else
+                {
+                    // ── paint 없음 / 투명 / paint 숨김 → 원본 그대로 ──
+                    output[i] = new Color32(
+                        (byte)Mathf.RoundToInt(Mathf.Clamp01(orig[i].r) * 255f),
+                        (byte)Mathf.RoundToInt(Mathf.Clamp01(orig[i].g) * 255f),
+                        (byte)Mathf.RoundToInt(Mathf.Clamp01(orig[i].b) * 255f),
+                        origA);
+                }
+            }
+
+            form.compositedTexture.SetPixels32(output);
+            form.compositedTexture.Apply();
+        }
     }
 }
