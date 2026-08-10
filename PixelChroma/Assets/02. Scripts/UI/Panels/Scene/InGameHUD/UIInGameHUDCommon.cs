@@ -1,6 +1,5 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,9 +23,12 @@ namespace PixelChroma.UI
         [SerializeField] private TMP_Text forcedExposeTimerText;
 
         [Header("Result UI")]
+        [SerializeField] private CanvasGroup resultOverlayGroup;
         [SerializeField] private TMP_Text gameResultOverlayText;
-        [SerializeField] private float resultPunchScale = 0.3f;
-        [SerializeField] private float resultPunchDuration = 0.3f;
+        [SerializeField] private float resultAppearDuration = 0.5f;
+        [SerializeField] private float resultRiseOffset = 40f;
+        [SerializeField] private float resultAppearStartScale = 0.8f;
+        [SerializeField] private float resultHoldDuration = 2f;
 
         [Header("Game Mode UI")]
         [SerializeField] private TMP_Text modeText;
@@ -51,12 +53,20 @@ namespace PixelChroma.UI
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
+        private Vector2 resultBaseAnchoredPos;
+
         public void Initialize()
         {
             if (colorPicker != null)
                 colorPicker.Initialize();
 
             if (settingButton != null) settingButton.AddClickListener(OnClickSetting);
+
+            if (resultOverlayGroup != null)
+            {
+                resultBaseAnchoredPos = ((RectTransform)resultOverlayGroup.transform).anchoredPosition;
+                resultOverlayGroup.gameObject.SetActive(false);
+            }
         }
 
         public void SubscribeEvents()
@@ -83,7 +93,7 @@ namespace PixelChroma.UI
         public void ResetHUDState()
         {
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
-            if (gameResultOverlayText != null) gameResultOverlayText.gameObject.SetActive(false);
+            if (resultOverlayGroup != null) resultOverlayGroup.gameObject.SetActive(false);
             if (spectatorPanel != null) spectatorPanel.Hide();
             if (catchLog != null) catchLog.ClearAll();
         }
@@ -173,24 +183,35 @@ namespace PixelChroma.UI
 
         private void ShowWinnerOverlay(PlayerRole winner)
         {
-            if (gameResultOverlayText == null) return;
+            if (resultOverlayGroup == null || gameResultOverlayText == null) return;
 
-            gameResultOverlayText.gameObject.SetActive(true);
             gameResultOverlayText.text = winner == PlayerRole.Seeker
-                ? $"<color=#FF2222>{textData.resultSeekerWin.GetLocalizedString()}</color>"
-                : $"<color=#00FFFF>{textData.resultRunnerWin.GetLocalizedString()}</color>";
+                ? textData.resultSeekerWin.GetLocalizedString()
+                : textData.resultRunnerWin.GetLocalizedString();
 
-            PunchResultText();
-        }
+            // 시작 상태: 투명 + 아래로 살짝 + 작은 스케일
+            var rect = (RectTransform)resultOverlayGroup.transform;
+            var startPos = resultBaseAnchoredPos + Vector2.down * resultRiseOffset;
+            var startScale = Vector3.one * resultAppearStartScale;
 
-        private void PunchResultText()
-        {
-            if (gameResultOverlayText == null) return;
+            resultOverlayGroup.DOKill();
+            rect.DOKill();
 
-            var t = gameResultOverlayText.transform;
-            t.DOKill();
-            t.localScale = Vector3.one;
-            t.DOPunchScale(Vector3.one * resultPunchScale, resultPunchDuration);
+            resultOverlayGroup.gameObject.SetActive(true);
+            resultOverlayGroup.alpha = 0f;
+            rect.anchoredPosition = startPos;
+            rect.localScale = startScale;
+
+            // 등장(페이드/라이즈/스케일 업) → N초 유지 → 퇴장(반대로) → 비활성화
+            DOTween.Sequence().SetTarget(resultOverlayGroup)
+                .Append(resultOverlayGroup.DOFade(1f, resultAppearDuration).SetEase(Ease.OutCubic))
+                .Join(rect.DOAnchorPos(resultBaseAnchoredPos, resultAppearDuration).SetEase(Ease.OutCubic))
+                .Join(rect.DOScale(Vector3.one, resultAppearDuration).SetEase(Ease.OutCubic))
+                .AppendInterval(resultHoldDuration)
+                .Append(resultOverlayGroup.DOFade(0f, resultAppearDuration).SetEase(Ease.InCubic))
+                .Join(rect.DOAnchorPos(startPos, resultAppearDuration).SetEase(Ease.InCubic))
+                .Join(rect.DOScale(startScale, resultAppearDuration).SetEase(Ease.InCubic))
+                .OnComplete(() => resultOverlayGroup.gameObject.SetActive(false));
         }
 
         private void UpdateTimerText(int remainingSeconds)
@@ -217,22 +238,6 @@ namespace PixelChroma.UI
 
         private void HandleWinnerDecided(PlayerRole winner)
         {
-            ShowTransitionSequenceAsync(winner).Forget();
-        }
-
-        private async UniTaskVoid ShowTransitionSequenceAsync(PlayerRole winner)
-        {
-            if (gameResultOverlayText == null) return;
-
-            gameResultOverlayText.gameObject.SetActive(true);
-            gameResultOverlayText.text = winner == PlayerRole.Seeker
-                ? textData.transitionAllCaught.GetLocalizedString()
-                : textData.transitionTimeUp.GetLocalizedString();
-
-            PunchResultText();
-
-            await UniTask.Delay(TimeSpan.FromSeconds(2.5f));
-
             ShowWinnerOverlay(winner);
         }
 
