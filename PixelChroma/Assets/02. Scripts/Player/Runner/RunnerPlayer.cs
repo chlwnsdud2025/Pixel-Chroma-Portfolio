@@ -29,10 +29,6 @@ namespace PixelChroma
         [Tooltip("사망 또는 서로 안보이게 할 때 껏다 켯다 할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
 
-        [Header("Death Cam")]
-        [Tooltip("물총에 맞아 남을 관전하다 내 몸으로 급하게 전환할 때 카메라 도달 시간(초)")]
-        [SerializeField, Range(0.05f, 5f)] private float _deathCamTransitionTime = 2.5f;
-
         // 넉백~소멸 연출 구간. 이 동안엔 관전 입력이 카메라를 다시 뺏지 못하게 잠급니다.
         private bool _isDeathCamActive;
 
@@ -188,10 +184,6 @@ namespace PixelChroma
             {
                 // 사망 연출 동안 관전 입력을 잠가, 넉백·소멸 연출을 본인이 놓치지 않게 합니다.
                 _isDeathCamActive = true;
-
-                // 남을 관전 중이었다면 카메라를 내 몸으로 빠르게 되돌려 연출을 보여줍니다.
-                if (Spectator != null && Spectator.IsSpectating)
-                    Spectator.FocusOwner(_deathCamTransitionTime);
             }
 
             if (_netTransform != null) _netTransform.enabled = false;
@@ -206,7 +198,6 @@ namespace PixelChroma
             {
                 Spectator.ExitSpectate();
             }
-
 
             _deathEffects.PlayKnockbackVisuals(paintCanvas);
             if (Rb != null)
