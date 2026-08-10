@@ -2,9 +2,7 @@ using Cysharp.Threading.Tasks;
 using Mirror;
 using PixelChroma.UI;
 using System;
-using Unity.Cinemachine;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public struct KnockbackInfo
 {
@@ -23,7 +21,6 @@ namespace PixelChroma
         [Header("Paint Mode Settings")]
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
         [SerializeField, Range(0f, 1f)] private float paintModeSpeedMultiplier = 0.2f;
-        protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint 진입 가능 여부로 설정
 
         [Header("Expose Skill")]
         [SerializeField] private float exposeDuration = 1f;
@@ -31,6 +28,13 @@ namespace PixelChroma
 
         [Tooltip("사망 또는 서로 안보이게 할 때 껏다 켯다 할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
+
+        [Header("Death Cam")]
+        [Tooltip("물총에 맞아 남을 관전하다 내 몸으로 급하게 전환할 때 카메라 도달 시간(초)")]
+        [SerializeField, Range(0.05f, 5f)] private float _deathCamTransitionTime = 2.5f;
+
+        // 넉백~소멸 연출 구간. 이 동안엔 관전 입력이 카메라를 다시 뺏지 못하게 잠급니다.
+        private bool _isDeathCamActive;
 
         private KnockbackInfo _pendingKnockback;
 
@@ -52,6 +56,7 @@ namespace PixelChroma
         private RunnerDeathEffects _deathEffects;
 
         protected override UIInGameHUD InGameHUD => _runnerHUD;
+        protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint 진입 가능 여부로 설정
 
         public bool IsDead => _isDead;
         public bool IsKnockedBack => _deathEffects != null && _deathEffects.IsKnockedBack;
@@ -142,13 +147,11 @@ namespace PixelChroma
             GameRoundManager.Instance?.CurrentRule?.OnRunnerCaught(this);
         }
 
-
         [ClientRpc]
         private void RpcNotifyCaught(string catcherName, string caughtName)
         {
             OnPlayerCaught?.Invoke(catcherName, caughtName);
         }
-
 
         [Server]
         public void ServerBeginDeath(GameMode mode) => StartCoroutine(DeathSequenceServer(mode));
@@ -164,8 +167,6 @@ namespace PixelChroma
             RpcDeathSequence();
             yield return new WaitForSeconds(_deathEffects.DeathBlinkDuration);
 
-           
-
             RpcRestoreDeathPosition(_deathSnapshot.Position);
             RpcFreezeDeathFrame(_deathSnapshot.FormType, _deathSnapshot.FrameIndex, _deathSnapshot.FlipX);
 
@@ -180,11 +181,19 @@ namespace PixelChroma
             }
         }
 
-
-
         [ClientRpc]
         private void RpcKnockback(KnockbackInfo info)
         {
+            if (isLocalPlayer)
+            {
+                // 사망 연출 동안 관전 입력을 잠가, 넉백·소멸 연출을 본인이 놓치지 않게 합니다.
+                _isDeathCamActive = true;
+
+                // 남을 관전 중이었다면 카메라를 내 몸으로 빠르게 되돌려 연출을 보여줍니다.
+                if (Spectator != null && Spectator.IsSpectating)
+                    Spectator.FocusOwner(_deathCamTransitionTime);
+            }
+
             if (_netTransform != null) _netTransform.enabled = false;
 
             if (paintCanvas != null)
@@ -210,6 +219,7 @@ namespace PixelChroma
         [ClientRpc]
         private void RpcBecomeGhost()
         {
+            if (isLocalPlayer) _isDeathCamActive = false;   // 연출 종료 → 시커 전환 인계
             _isVisuallyDead = true;
             if (paintCanvas != null) paintCanvas.DisableActiveCollider();
             RefreshVisualVisibilityForLocalViewer();
@@ -312,6 +322,9 @@ namespace PixelChroma
         {
             if (Spectator == null) return;
 
+            // 사망 연출 중에는 관전 입력을 무시해 카메라가 내 몸에 고정되게 합니다.
+            if (_isDeathCamActive) return;
+
             if (Input.ToggleSpectate.WasPressedThisFrame())
             {
                 if (Spectator.IsSpectating && !_isDeathSpectatorLocked && !IsCheckTimeSpectatorLocked)
@@ -377,6 +390,7 @@ namespace PixelChroma
             if (isLocalPlayer)
             {
                 _isDeathSpectatorLocked = true;
+                _isDeathCamActive = false;   // 연출 종료 → 사망 관전으로 인계
 
                 if (PaintController.IsPaintMode)
                     PaintController.TogglePaintMode();

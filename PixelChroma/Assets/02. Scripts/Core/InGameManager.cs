@@ -7,22 +7,16 @@ namespace PixelChroma
 {
     public class InGameManager : MonoSingleton<InGameManager>
     {
-        [Header("Spectator Camera")]
-        [Tooltip("관전 대상 전환 시 카메라 도달 목표 시간(초). 거리와 무관하게 균일")]
-        [SerializeField] private float spectateTransitionTime = 0.4f;
-
-        public float SpectateTransitionTime => Mathf.Max(0.01f, spectateTransitionTime);
-
         private Transform _spawnPoint;
 
         private readonly List<RunnerPlayer> _runners = new();
         private readonly List<SeekerPlayer> _seekers = new();
 
-        public IReadOnlyList<RunnerPlayer> Runners => _runners;
-        public IReadOnlyList<SeekerPlayer> Seekers => _seekers;
-
         // 명부(스폰/퇴장/사망)가 바뀔 때마다 (생존 러너 수, 생존 술래 수)로 발화됩니다.
         public static event Action<int, int> OnPlayerCountChanged;
+
+        public IReadOnlyList<RunnerPlayer> Runners => _runners;
+        public IReadOnlyList<SeekerPlayer> Seekers => _seekers;
 
         public void RegisterPlayer(PlayerBase player)
         {
