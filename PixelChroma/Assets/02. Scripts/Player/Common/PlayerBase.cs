@@ -504,7 +504,7 @@ namespace PixelChroma
             float scroll = GetScrollValue();
             if (Mathf.Approximately(scroll, 0f)) return;
 
-            if (IsAltHeld())
+            if (IsBrushSizeModifierHeld())
             {
                 if (_paintController != null && _paintController.IsPaintMode)
                     _paintController.HandleBrushScroll(scroll);
@@ -558,7 +558,7 @@ namespace PixelChroma
             return Mouse.current.scroll.y.ReadValue();
         }
 
-        private bool IsAltHeld()
+        private bool IsBrushSizeModifierHeld()
         {
             return _input.BrushSizeModifier.IsPressed();
         }

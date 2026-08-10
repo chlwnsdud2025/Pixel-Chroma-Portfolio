@@ -89,9 +89,16 @@ namespace PixelChroma
         // ── Apply ─────────────────────────────────────────────────
         private static void ApplyDisplay()
         {
+            if (Fullscreen)
+            {
+                int nativeW = Display.main.systemWidth;
+                int nativeH = Display.main.systemHeight;
+                Screen.SetResolution(nativeW, nativeH, FullScreenMode.FullScreenWindow);
+                return;
+            }
+
             if (ResolutionWidth <= 0 || ResolutionHeight <= 0) return;
-            var mode = Fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
-            Screen.SetResolution(ResolutionWidth, ResolutionHeight, mode);
+            Screen.SetResolution(ResolutionWidth, ResolutionHeight, FullScreenMode.Windowed);
         }
 
         private static void ApplyVSync()
