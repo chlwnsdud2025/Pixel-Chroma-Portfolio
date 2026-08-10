@@ -44,8 +44,16 @@ namespace PixelChroma
         [SerializeField] private float knockbackDrag = 5f;
         [SerializeField] private float knockbackRotSpeed = 720f;
 
-
         [SerializeField] private float knockbackForwardBias = 0.7f;
+
+        //---------------테스트-------------------------
+#if UNITY_EDITOR
+        [Header("=== Auto Fire Test (Editor Only) ===")]
+        [SerializeField] private bool autoFireEnabled = false;
+        [SerializeField] private float autoFireInterval = 3f;
+        private float _autoFireTimer;
+#endif
+        //---------------------------------------------
 
         private SeekerPlayer _seeker;
 
@@ -99,6 +107,10 @@ namespace PixelChroma
         {
             HandleAiming(isPaintMode);
             HandleShooting(isPaintMode);
+
+#if UNITY_EDITOR
+            AutoFireTick();
+#endif
         }
 
         public void SetWeaponVisible(bool visible)
@@ -253,7 +265,41 @@ namespace PixelChroma
                 _impulseSource.GenerateImpulse(new Vector3(recoilDir.x, recoilDir.y, 0f));
             }
         }
+        //----------------------------------------테스트--------------------------------------------------
+#if UNITY_EDITOR
+        private void AutoFireTick()
+        {
+            if (!autoFireEnabled) return;
 
+            _autoFireTimer += Time.deltaTime;
+            if (_autoFireTimer < autoFireInterval) return;
+            _autoFireTimer = 0f;
+
+            // 가장 가까운 생존 Runner 탐색
+            var runners = FindObjectsByType<RunnerPlayer>(FindObjectsSortMode.None);
+            RunnerPlayer nearest = null;
+            float minDist = float.MaxValue;
+
+            foreach (var r in runners)
+            {
+                if (r.IsDead) continue;
+                float dist = Vector2.Distance(transform.position, r.transform.position);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    nearest = r;
+                }
+            }
+
+            if (nearest == null) return;
+
+            Vector2 targetPoint = nearest.transform.position;
+            _lastFireTime = Time.time;
+            CmdFireWaterGun(targetPoint);
+        }
+#endif
+
+        //---------------------------------------------------------------------------------------------
         [Command]
         private void CmdFireWaterGun(Vector2 targetPoint)
         {
