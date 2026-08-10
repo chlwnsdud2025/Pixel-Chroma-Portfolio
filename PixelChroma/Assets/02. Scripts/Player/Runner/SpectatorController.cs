@@ -13,8 +13,14 @@ namespace PixelChroma
 
     public class SpectatorController
     {
+        private const float SpectateTransitionTime = 5f;  // 관전 대상 전환 시 카메라 도달 목표 시간(초). 거리와 무관하게 균일.
+        private const float ArriveThreshold = 0.05f;
+
+        private const float SnapDistance = 500f;        // 이 거리(월드 유닛) 이상 벌어지면 Lerp 대신 즉시 스냅(컷).
+
         private readonly PlayerBase _owner;
         private readonly CinemachineCamera _camera;
+        private readonly CinemachinePositionComposer _composer;   // vcam의 Body(Position Composer)
         private readonly float _freeCamSpeed;
 
         private SpectateMode _mode = SpectateMode.None;
@@ -22,9 +28,7 @@ namespace PixelChroma
         private int _targetIndex = -1;
         private PlayerBase _currentTarget;
 
-        private readonly CinemachinePositionComposer _composer;   // vcam의 Body(Position Composer)
         private Vector3 _defaultDamping;
-        private const float ArriveThreshold = 0.05f;
 
         // 관전 대상이 바뀔 때 발생합니다. null이면 자유 시점이거나 관전을 끝낸 상태입니다.
         public event Action<PlayerBase> OnTargetChanged;
@@ -96,7 +100,24 @@ namespace PixelChroma
             _mode = SpectateMode.None;
             _targetIndex = -1;
 
-            SetTarget(null, _owner.transform);
+            SetTarget(null, _owner.transform);   // 기본 damping으로 복귀
+        }
+
+        public void FocusOwner(float transitionTime)
+        {
+            _mode = SpectateMode.None;
+            _targetIndex = -1;
+
+            if (_camera != null)
+            {
+                ApplyFixedTimeDamping(_owner.transform, transitionTime);
+                _camera.Follow = _owner.transform;
+            }
+
+            if (_currentTarget == null) return;
+
+            _currentTarget = null;
+            OnTargetChanged?.Invoke(null);
         }
 
         public void CycleTarget(int direction)
@@ -183,11 +204,23 @@ namespace PixelChroma
 
         private void ApplyDistanceBasedDamping(Transform followTarget)
         {
+            ApplyFixedTimeDamping(followTarget, SpectateTransitionTime);
+        }
+
+        // 현재 카메라 위치에서 대상까지, 대략 t초 안에 도착하도록 damping을 역산해 적용합니다.
+        private void ApplyFixedTimeDamping(Transform followTarget, float t)
+        {
             if (_composer == null || followTarget == null || _camera == null) return;
 
-            float t = InGameManager.Instance != null ? InGameManager.Instance.SpectateTransitionTime : 0.4f;
-
             float d0 = Vector2.Distance(_camera.transform.position, followTarget.position);
+
+            // 존 간 이동처럼 거리가 매우 멀면, 빈 공간을 가로지르는 팬 대신 즉시 스냅(컷).
+            if (d0 >= SnapDistance)
+            {
+                SnapDamping();
+                return;
+            }
+
             float ratio = Mathf.Max(d0 / ArriveThreshold, 1.01f);   // ln > 0 보장
             float damping = t / Mathf.Log(ratio);                   // τ = T / ln(d0/ε)
             damping = Mathf.Clamp(damping, 0.02f, 5f);
@@ -195,6 +228,17 @@ namespace PixelChroma
             var d = _composer.Damping;
             d.x = damping;
             d.y = damping;                 // z는 2D라 그대로 유지
+            _composer.Damping = d;
+        }
+
+        // damping을 0으로 만들어 다음 갱신에서 대상 위치로 즉시 스냅시킵니다.
+        private void SnapDamping()
+        {
+            if (_composer == null) return;
+
+            var d = _composer.Damping;
+            d.x = 0f;
+            d.y = 0f;
             _composer.Damping = d;
         }
 
