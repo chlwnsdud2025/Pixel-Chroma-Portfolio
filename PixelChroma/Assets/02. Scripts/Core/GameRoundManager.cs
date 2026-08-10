@@ -12,7 +12,6 @@ namespace PixelChroma
     {
         private const float CountdownDuration = 10f;
 
-        private const float LobbyReturnDelayOnWipe = 5f;
         private const float LobbyReturnDelayOnCheckEnd = 0.5f;
 
         public static event Action<TimeState, int> OnTimeStateChanged;
@@ -174,8 +173,7 @@ namespace PixelChroma
             if (aliveRunners == 0)
             {
                 SetWinner(PlayerRole.Seeker);
-                CancelTimer();
-                DelayedCheckTimeTransition().Forget();
+                SetTimeState(TimeState.CheckTime, OptionCheckTime);
             }
         }
 
@@ -225,14 +223,6 @@ namespace PixelChroma
         private void OnSeekTimeExpired()
         {
             SetWinner(PlayerRole.Runner);
-            DelayedCheckTimeTransition().Forget();
-        }
-
-        [Server]
-        private async UniTaskVoid DelayedCheckTimeTransition()
-        {
-            await UniTask.Delay(TimeSpan.FromSeconds(5f));
-            SetTimeState(TimeState.CheckTime, OptionCheckTime);
         }
 
         [Server]
