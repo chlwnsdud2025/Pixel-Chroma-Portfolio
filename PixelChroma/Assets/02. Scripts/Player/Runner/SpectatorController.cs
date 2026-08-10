@@ -103,23 +103,6 @@ namespace PixelChroma
             SetTarget(null, _owner.transform);   // 기본 damping으로 복귀
         }
 
-        public void FocusOwner(float transitionTime)
-        {
-            _mode = SpectateMode.None;
-            _targetIndex = -1;
-
-            if (_camera != null)
-            {
-                ApplyFixedTimeDamping(_owner.transform, transitionTime);
-                _camera.Follow = _owner.transform;
-            }
-
-            if (_currentTarget == null) return;
-
-            _currentTarget = null;
-            OnTargetChanged?.Invoke(null);
-        }
-
         public void CycleTarget(int direction)
         {
             if (_mode == SpectateMode.Runner)
