@@ -8,6 +8,7 @@ namespace PixelChroma.UI
     public class UISettingDisplayPanel : MonoBehaviour
     {
         [Header("Resolution")]
+        [SerializeField] private GameObject resolutionRow;
         [SerializeField] private TMP_Dropdown resolutionDropdown;
 
         [Header("Toggles")]
@@ -37,10 +38,9 @@ namespace PixelChroma.UI
                 fullscreenToggle.SetIsOnWithoutNotify(GameSettings.Fullscreen);
 
             if (resolutionDropdown != null)
-            {
                 resolutionDropdown.SetValueWithoutNotify(CurrentResolutionIndex());
-                resolutionDropdown.interactable = !GameSettings.Fullscreen;
-            }
+
+            SetResolutionRowActive(!GameSettings.Fullscreen);
 
             if (vSyncToggle != null)
                 vSyncToggle.SetIsOnWithoutNotify(GameSettings.VSyncEnabled);
@@ -51,8 +51,15 @@ namespace PixelChroma.UI
         private void OnFullscreenChanged(bool isFullscreen)
         {
             GameSettings.SetFullscreen(isFullscreen);
-            if (resolutionDropdown != null)
-                resolutionDropdown.interactable = !isFullscreen;
+            SetResolutionRowActive(!isFullscreen);
+        }
+
+        private void SetResolutionRowActive(bool active)
+        {
+            if (resolutionRow != null)
+                resolutionRow.SetActive(active);
+            else if (resolutionDropdown != null)
+                resolutionDropdown.interactable = active;
         }
 
         // 모니터가 지원하는 해상도를 (너비×높이) 기준으로 중복 제거해 나열한다(주사율 차이는 합침).
