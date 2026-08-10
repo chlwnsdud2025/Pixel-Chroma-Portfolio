@@ -186,11 +186,18 @@ namespace PixelChroma
         private void RpcKnockback(KnockbackInfo info)
         {
             if (_netTransform != null) _netTransform.enabled = false;
+
             if (paintCanvas != null)
             {
                 paintCanvas.DisableActiveCollider();
                 paintCanvas.SetPaintVisible(false);
             }
+
+            if (isLocalPlayer && Spectator != null && Spectator.IsSpectating)
+            {
+                Spectator.ExitSpectate();
+            }
+
 
             _deathEffects.PlayKnockbackVisuals(paintCanvas);
             if (Rb != null)
