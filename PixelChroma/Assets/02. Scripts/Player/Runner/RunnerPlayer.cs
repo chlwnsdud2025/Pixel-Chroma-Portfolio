@@ -213,8 +213,13 @@ namespace PixelChroma
         [ClientRpc]
         private void RpcBecomeGhost()
         {
-            if (isLocalPlayer) _isDeathCamActive = false;   // 연출 종료 → 시커 전환 인계
-            _isVisuallyDead = true;
+            if (isLocalPlayer) _isDeathCamActive = false;
+
+            bool isCheckTime = GameRoundManager.Instance != null
+                    && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
+
+            _isVisuallyDead = !isCheckTime;
+
             if (paintCanvas != null) paintCanvas.DisableActiveCollider();
             RefreshVisualVisibilityForLocalViewer();
             RaiseNicknameVisibilityChanged();
