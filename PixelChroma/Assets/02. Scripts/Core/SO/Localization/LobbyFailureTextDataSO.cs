@@ -10,6 +10,7 @@ public class LobbyFailureTextDataSO : ScriptableObject
     public LocalizedString createFailed;
     public LocalizedString quickMatchNotFound;
     public LocalizedString codeNotFound;
+    public LocalizedString roomInGame;
     public LocalizedString joinFailed;
     public LocalizedString connectFailed;
     public LocalizedString disconnected;
@@ -24,6 +25,7 @@ public class LobbyFailureTextDataSO : ScriptableObject
             LobbyFailureReason.CreateFailed => createFailed,
             LobbyFailureReason.QuickMatchNotFound => quickMatchNotFound,
             LobbyFailureReason.CodeRoomNotFound => codeNotFound,
+            LobbyFailureReason.RoomInGame => roomInGame,
             LobbyFailureReason.JoinFailed => joinFailed,
             LobbyFailureReason.ConnectFailed => connectFailed,
             LobbyFailureReason.Disconnected => disconnected,

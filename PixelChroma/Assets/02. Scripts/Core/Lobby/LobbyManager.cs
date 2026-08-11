@@ -336,6 +336,16 @@ namespace PixelChroma
             }
 
             CSteamID matchedLobbyID = SteamMatchmaking.GetLobbyByIndex(0);
+
+            // 코드가 일치해도 이미 게임 진행 중인 방이면 입장을 막고 안내한다.
+            string status = SteamMatchmaking.GetLobbyData(matchedLobbyID, RoomStatusKey);
+            if (status == StatusInGame)
+            {
+                Debug.LogWarning("[LobbyManager] 코드에 해당하는 방이 이미 게임 진행 중입니다.");
+                OnLobbyFailed?.Invoke(LobbyFailureReason.RoomInGame);
+                return;
+            }
+
             SteamMatchmaking.JoinLobby(matchedLobbyID);
         }
 
