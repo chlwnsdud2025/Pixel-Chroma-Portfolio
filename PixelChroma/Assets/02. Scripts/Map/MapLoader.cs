@@ -26,6 +26,17 @@ namespace PixelChroma
             Debug.Log($"[MapLoader] 내장 맵 로드 완료: {mapData.name}");
         }
 
+        public void LoadWorkshopMap(string installPath)
+        {
+            UnloadCurrentMap();
+
+            var manifest = WorkshopMapPackageReader.ReadManifest(installPath);
+            var mapData = WorkshopMapPackageReader.ReadMapData(installPath, manifest.mapFile);
+
+            _currentMapInstance = RuntimeTilemapBuilder.Build(mapData, MapOffset);
+            SetupMap(_currentMapInstance);
+        }
+
         public void UnloadCurrentMap()
         {
             if (_currentMapInstance != null)

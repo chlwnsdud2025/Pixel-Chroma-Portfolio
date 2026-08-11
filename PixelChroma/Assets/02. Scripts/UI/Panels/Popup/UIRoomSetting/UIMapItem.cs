@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,6 +11,7 @@ namespace PixelChroma.UI
         [SerializeField] private OneTextLabel label;
         [SerializeField] private Button button;
         [SerializeField] private GameObject focus;
+        [SerializeField] private GameObject workshopBadge;
 
         public event Action<int> OnClicked;
 
@@ -37,6 +38,16 @@ namespace PixelChroma.UI
         {
             if (focus != null)
                 focus.SetActive(selected);
+        }
+
+        /// <summary>
+        /// 창작마당 뱃지 표시 여부를 설정한다.
+        /// 창작마당 프리팹에서만 의미 있다.
+        /// </summary>
+        public void SetWorkshopBadge(bool visible)
+        {
+            if (workshopBadge != null)
+                workshopBadge.SetActive(visible);
         }
     }
 }

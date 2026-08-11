@@ -134,9 +134,9 @@ namespace PixelChroma.UI
                 createButton.interactable = true;
         }
 
-        private void OnMapSelected(MapDataSO map)
+        private void OnMapSelected(string mapId)
         {
-            _option.mapName = map.name;
+            _option.mapName = mapId;
         }
 
         private void HandleLobbyFailed(LobbyFailureReason reason)
