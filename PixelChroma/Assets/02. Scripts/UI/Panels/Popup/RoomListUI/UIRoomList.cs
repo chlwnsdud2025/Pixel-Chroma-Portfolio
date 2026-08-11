@@ -1,8 +1,9 @@
-using System;
-using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using OneText.UGUI;
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.Localization;
 using UnityEngine.Localization.Settings;
@@ -42,6 +43,11 @@ namespace PixelChroma.UI
         [Header("Registry")]
         [SerializeField] private GameModeRegistrySO gameModeRegistry;
 
+        [Header("Auto Refresh")]
+        [SerializeField] private float autoRefreshInterval = 5f;
+
+        private CancellationTokenSource _refreshCts;
+
         private readonly List<UIRoomListItem> _items = new();
 
         // 드롭다운 인덱스 → 실제 값 매핑 (인덱스 0 = "전체" = null/빈값)
@@ -59,6 +65,11 @@ namespace PixelChroma.UI
             if (refreshButton != null) refreshButton.AddClickListener(RequestSearch);
             if (closeButton != null) closeButton.AddClickListener(OnClickBack);
         }
+        private void OnDestroy()
+        {
+            StopAutoRefresh();
+        }
+
 
         private void PopulateGameModeDropdown()
         {
@@ -183,12 +194,15 @@ namespace PixelChroma.UI
                 LobbyManager.Instance.OnLobbyFailed += HandleJoinFailed;
 
             RequestSearch();
+            StartAutoRefresh();
 
             return UniTask.CompletedTask;
         }
 
         protected override UniTask OnHide()
         {
+            StopAutoRefresh();
+
             var searcher = RoomListSearcher.Instance;
             if (searcher != null)
             {
@@ -268,6 +282,8 @@ namespace PixelChroma.UI
 
         private void HandleJoinRoom(RoomListEntry entry)
         {
+            StopAutoRefresh();
+
             foreach (var item in _items)
                 item.SetInteractable(false);
 
@@ -282,6 +298,7 @@ namespace PixelChroma.UI
             UIManager.Instance.ShowPopup<UIwarningTextPopup>(p => p.SetReason(reason)).Forget();
 
             RequestSearch();
+            StartAutoRefresh();
         }
 
         // ── 유틸 ─────────────────────────────────────────────
@@ -304,6 +321,32 @@ namespace PixelChroma.UI
         private void SetStatus(string message)
         {
             if (statusText != null) statusText.text = message;
+        }
+
+        private void StartAutoRefresh()
+        {
+            StopAutoRefresh();
+            _refreshCts = new CancellationTokenSource();
+            AutoRefreshLoop(_refreshCts.Token).Forget();
+        }
+
+        private void StopAutoRefresh()
+        {
+            _refreshCts?.Cancel();
+            _refreshCts?.Dispose();
+            _refreshCts = null;
+        }
+
+        private async UniTaskVoid AutoRefreshLoop(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await UniTask.Delay(
+                    TimeSpan.FromSeconds(autoRefreshInterval),
+                    cancellationToken: token);
+
+                RequestSearch();
+            }
         }
     }
 }
