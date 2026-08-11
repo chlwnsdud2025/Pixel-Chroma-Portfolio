@@ -19,38 +19,19 @@ namespace PixelChroma
 
         private const int OriginalPPU = 16;
 
-        [Header("Input")]
-        public InputActionAsset inputActions;
-
-        [Header("References")]
-        public Animator animator;
-        public PlayerPaintCanvas paintCanvas;
-
         [Header("Settings")]
         public float moveSpeed = 5f;
 
-        [Header("Zoom (PPU)")]
-        [SerializeField] private int maxPPU = 64;
-        [SerializeField] private int zoomStepPPU = 5;
-        [SerializeField] private float manualZoomTweenDuration = 0.15f;
-        [Tooltip("페인트 모드에서 빠져나올 때 최대 줌아웃 상태로 돌아가는 데 걸리는 시간(초)")]
-        [SerializeField] private float forcedZoomOutDuration = 0.4f;
-
-        [Header("Free Cam Settings")]
-        [Tooltip("자유 시점(고정 모드)일 때 카메라의 이동 속도")]
-        [SerializeField] private float freeCamSpeed = 15f;
-
-        [Header("Nickname UI")]
-        [SerializeField] private GameObject nicknameRoot;
-        [SerializeField] private OneTextLabel nicknameText;
-        [SerializeField] private OneTextLabel likeCountText;
-        [SerializeField] private LikeRiseEffect likeRiseEffect;
-
-        [Tooltip("스프라이트 상단에서 닉네임까지의 간격 (월드 유닛)")]
-        private float nicknameYPadding = 0.25f;
-
         [Header("Form Wheel")]
         [SerializeField] private RadialMenu formWheel;
+
+        // 역할 중립 + 베이스 계층 참조/설정값은 PlayerCommon(베이스 프리팹에 1회 배선)으로 이관했습니다.
+        private PlayerCommon _common;
+        protected PlayerCommon Common => _common != null ? _common : (_common = GetComponent<PlayerCommon>());
+
+        // 서브클래스·기존 호출부 호환을 위해 동명 위임 프로퍼티로 노출합니다(읽기 전용, 값은 Common이 소유).
+        public Animator animator => Common.Animator;
+        public PlayerPaintCanvas paintCanvas => Common.PaintCanvas;
 
         [SyncVar(hook = nameof(OnPlayerNameChanged))]
         public string playerName = "Player";
@@ -67,7 +48,6 @@ namespace PixelChroma
         private PlayerPaintController _paintController;
         private Camera _mainCamera;
         private PixelPerfectCamera _pixelPerfectCamera;
-        private PlayerNicknameDisplay _nicknameDisplay;
         private Tween _zoomTween;
         private SpectatorController _spectator;
         private bool _isChatActive;
@@ -95,6 +75,7 @@ namespace PixelChroma
 
         protected virtual UIInGameHUD InGameHUD => null;
         protected virtual bool CanTogglePaintMode => true;   // PaintMode 진입 가능 여부
+        protected virtual bool CanUseFormWheel => true;      // Form(변신) 휠 사용 가능 여부. Seeker 등은 오버라이드로 제한.
 
         // CheckTime 동안에만 좋아요를 주고받을 수 있습니다. 클라이언트 입력 차단과 서버 검증에 함께 씁니다.
         private static bool IsLikeAllowedNow =>
@@ -106,15 +87,10 @@ namespace PixelChroma
         protected virtual void Awake()
         {
             Rb = GetComponent<Rigidbody2D>();
-
-            if (paintCanvas != null)
-                paintCanvas.OnFormTopYChanged += AdjustNicknamePosition;
         }
 
         protected virtual void OnDestroy()
         {
-            if (paintCanvas != null)
-                paintCanvas.OnFormTopYChanged -= AdjustNicknamePosition;
         }
 
         protected virtual void Update()
@@ -122,7 +98,7 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
             if (_isChatActive) return;
 
-            if (role != PlayerRole.Seeker && formWheel != null
+            if (CanUseFormWheel && formWheel != null
                 && (_spectator == null || !_spectator.IsSpectating))
             {
                 if (_input.FormWheel.WasPressedThisFrame())
@@ -182,10 +158,8 @@ namespace PixelChroma
             if (InGameManager.Instance != null)
                 InGameManager.Instance.RegisterPlayer(this);
 
-            _nicknameDisplay ??= new PlayerNicknameDisplay(this, nicknameText, nicknameRoot, likeCountText);
-            _nicknameDisplay.Refresh();
-            _nicknameDisplay.UpdateVisibility();
-            NicknameVisibilityChanged += _nicknameDisplay.UpdateVisibility;
+            Common.InitializeNickname(this);
+            NicknameVisibilityChanged += Common.UpdateNicknameVisibility;
 
             _likeEffectsReady = true;
         }
@@ -197,13 +171,12 @@ namespace PixelChroma
             if (InGameManager.Instance != null)
                 InGameManager.Instance.UnregisterPlayer(this);
 
-            if (_nicknameDisplay != null)
-                NicknameVisibilityChanged -= _nicknameDisplay.UpdateVisibility;
+            NicknameVisibilityChanged -= Common.UpdateNicknameVisibility;
         }
 
         public override void OnStartLocalPlayer()
         {
-            _input = new PlayerInputActions(Instantiate(inputActions));
+            _input = new PlayerInputActions(Instantiate(Common.InputActions));
             _input.EnableAll();
 
             if (UIManager.Instance != null)
@@ -211,7 +184,7 @@ namespace PixelChroma
 
             _paintController = new PlayerPaintController(this, paintCanvas, _input);
             _paintController.OnPaintModeChanged += HandlePaintModeChangedForZoom;
-            _paintController.OnPaintModeChanged += _nicknameDisplay.HandlePaintModeChanged;
+            _paintController.OnPaintModeChanged += Common.HandlePaintModeChanged;
 
             UIChat.OnChatToggled += HandleChatToggled;
 
@@ -240,7 +213,7 @@ namespace PixelChroma
             if (_paintController != null)
             {
                 _paintController.OnPaintModeChanged -= HandlePaintModeChangedForZoom;
-                _paintController.OnPaintModeChanged -= _nicknameDisplay.HandlePaintModeChanged;
+                _paintController.OnPaintModeChanged -= Common.HandlePaintModeChanged;
             }
 
             _paintController?.Dispose();
@@ -427,7 +400,7 @@ namespace PixelChroma
 
         protected void InitializeSpectator()
         {
-            _spectator = new SpectatorController(this, cinemachineCamera, freeCamSpeed);
+            _spectator = new SpectatorController(this, cinemachineCamera, Common.FreeCamSpeed);
             _spectator.OnTargetChanged += HandleSpectateTargetChanged;
         }
 
@@ -528,14 +501,14 @@ namespace PixelChroma
             _zoomTween?.Kill();
 
             int current = _pixelPerfectCamera.assetsPPU;
-            int delta = scroll > 0 ? zoomStepPPU : -zoomStepPPU;
-            int target = Mathf.Clamp(current + delta, OriginalPPU, maxPPU);
+            int delta = scroll > 0 ? Common.ZoomStepPPU : -Common.ZoomStepPPU;
+            int target = Mathf.Clamp(current + delta, OriginalPPU, Common.MaxPPU);
 
             _zoomTween = DOTween.To(
                     () => _pixelPerfectCamera.assetsPPU,
                     v => _pixelPerfectCamera.assetsPPU = v,
                     target,
-                    manualZoomTweenDuration)
+                    Common.ManualZoomTweenDuration)
                 .SetEase(Ease.OutQuad);
         }
 
@@ -554,7 +527,7 @@ namespace PixelChroma
                     () => _pixelPerfectCamera.assetsPPU,
                     v => _pixelPerfectCamera.assetsPPU = v,
                     OriginalPPU,
-                    forcedZoomOutDuration)
+                    Common.ForcedZoomOutDuration)
                 .SetEase(Ease.OutQuad);
         }
 
@@ -571,7 +544,7 @@ namespace PixelChroma
 
         private void OnPlayerNameChanged(string oldName, string newName)
         {
-            _nicknameDisplay?.Refresh();
+            Common.RefreshNickname();
             OnAnyPlayerNameChanged?.Invoke();
         }
 
@@ -582,12 +555,12 @@ namespace PixelChroma
 
         private void OnLikeCountChanged(int oldVal, int newVal)
         {
-            _nicknameDisplay?.RefreshLikeCount();
+            Common.RefreshLikeCount();
 
             if (!_likeEffectsReady) return;   // 스폰 시 초기 동기화는 값만 반영하고 연출은 생략
             if (newVal <= oldVal) return;
 
-            likeRiseEffect?.Play(newVal - oldVal);
+            Common.PlayLikeRise(newVal - oldVal);
         }
 
         private void HandleChatToggled(bool isActive)
@@ -602,15 +575,6 @@ namespace PixelChroma
                 if (Rb != null) Rb.linearVelocity = Vector2.zero;
                 if (animator != null) animator.SetBool(IsMoving, false);
             }
-        }
-        //----------------------------------헬퍼함수-------------------------------------------------
-        private void AdjustNicknamePosition(float formTopY)
-        {
-            if (nicknameRoot == null) return;
-
-            Vector3 pos = nicknameRoot.transform.localPosition;
-            pos.y = formTopY + nicknameYPadding;
-            nicknameRoot.transform.localPosition = pos;
         }
 
         //---------------------------BackGround로 빠지는 경우-------------------------------

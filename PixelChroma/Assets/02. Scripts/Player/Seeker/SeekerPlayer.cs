@@ -19,6 +19,7 @@ namespace PixelChroma
         
 
         protected override UIInGameHUD InGameHUD => _seekerHUD;
+        protected override bool CanUseFormWheel => false;   // Seeker는 변신 불가
 
         protected override void Awake()
         {

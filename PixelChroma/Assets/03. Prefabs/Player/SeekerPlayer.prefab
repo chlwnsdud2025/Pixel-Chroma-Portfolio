@@ -359,11 +359,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 9032511839906710470}
   m_SourcePrefab: {fileID: 100100000, guid: 78cb76db270489845893b629331fd5da, type: 3}
---- !u!95 &679610911053342941 stripped
-Animator:
-  m_CorrespondingSourceObject: {fileID: 3278017070318577123, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &729707062136588049 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3329247650249689647, guid: 78cb76db270489845893b629331fd5da, type: 3}
@@ -385,19 +380,7 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
-  inputActions: {fileID: -944628639613478452, guid: dae94752ad76752479be012774c50f69, type: 3}
-  animator: {fileID: 679610911053342941}
-  paintCanvas: {fileID: 4827550069596389989}
   moveSpeed: 5
-  maxPPU: 128
-  zoomStepPPU: 5
-  manualZoomTweenDuration: 0.15
-  forcedZoomOutDuration: 0.4
-  freeCamSpeed: 15
-  nicknameRoot: {fileID: 2763492050235784611}
-  nicknameText: {fileID: 3940827996639946310}
-  likeCountText: {fileID: 8548650488576737284}
-  likeRiseEffect: {fileID: 7112056309027656464}
   formWheel: {fileID: 0}
   playerName: Player
   role: 2
@@ -515,55 +498,6 @@ MonoBehaviour:
     DissipationDistance: 100
     PropagationSpeed: 343
   DefaultVelocity: {x: 0.15, y: -0.15, z: 0}
---- !u!1 &2763492050235784611 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 165024383658258589, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &3940827996639946310 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1342934170316467064, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
---- !u!114 &4827550069596389989 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7416666179242397531, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 23a81b8823b21ba48aa2ea91138e7c8e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.PlayerPaintCanvas
---- !u!114 &7112056309027656464 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5089265652569103918, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f3f2d0d7a4b01d74c8ce10eef218ac9b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.LikeRiseEffect
---- !u!114 &8548650488576737284 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5958620739719859514, guid: 78cb76db270489845893b629331fd5da, type: 3}
-  m_PrefabInstance: {fileID: 2599612371665227070}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!4 &9065390561776009410 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6475350542838631932, guid: 78cb76db270489845893b629331fd5da, type: 3}
