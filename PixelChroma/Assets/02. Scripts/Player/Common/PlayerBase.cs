@@ -141,6 +141,8 @@ namespace PixelChroma
                 }
             }
 
+            UpdateAnimation();
+
             if (formWheel != null && formWheel.IsOpen) return;
 
             if (CanTogglePaintMode && !IsCheckTimeSpectatorLocked && _input.TogglePaint.WasPressedThisFrame())
@@ -151,7 +153,6 @@ namespace PixelChroma
             if (_paintController.IsPaintMode)
                 _paintController.Tick();
 
-            UpdateAnimation();
         }
 
         protected virtual void FixedUpdate()
