@@ -18,7 +18,7 @@ namespace PixelChroma.UI
         [SerializeField] private Button copyCodeButton;
         [SerializeField] private Button leaveButton;
 
-        [SerializeField] private Button roomSettingsButton;
+        [SerializeField] private UIDisableCoverButton roomSettingsButton;
 
         [Header("Show Code")]
         [SerializeField] private Button showCodeButton;
@@ -26,22 +26,17 @@ namespace PixelChroma.UI
         [SerializeField] private GameObject hiddenIcon;
 
         [Header("Start (Host)")]
-        [SerializeField] private GameObject startButtonPanel;
-        [SerializeField] private Button startGameButton;
+        [SerializeField] private UIDisableCoverButton startGameButton;
         [SerializeField] private TMP_Text startReadyCountText;
 
         [Header("Ready (Client)")]
-        [SerializeField] private GameObject readyButtonPanel;
-        [SerializeField] private Button readyButton;
+        [SerializeField] private UIDisableCoverButton readyButton;
         [SerializeField] private Image readyCheckImage;
         [SerializeField] private TMP_Text readyCountText;
 
         [Header("Countdown")]
         [SerializeField] private GameObject timerPanel;
         [SerializeField] private UIPunchText timerText;
-
-        [Header("친구 초대")]
-        [SerializeField] private Button inviteFriendButton;
 
         [Header("Setting Buttons")]
         [SerializeField] private Button settingButton;
@@ -67,9 +62,9 @@ namespace PixelChroma.UI
             base.Initialize();
             if (copyCodeButton != null) copyCodeButton.AddClickListener(OnClickCopyCode);
             if (leaveButton != null) leaveButton.AddClickListener(OnClickLeave);
-            if (startGameButton != null) startGameButton.AddClickListener(OnClickStartGame);
-            if (readyButton != null) readyButton.AddClickListener(OnClickReady);
-            if (roomSettingsButton != null) roomSettingsButton.AddClickListener(OnClickRoomSettings);
+            if (startGameButton != null) startGameButton.Button.AddClickListener(OnClickStartGame);
+            if (readyButton != null) readyButton.Button.AddClickListener(OnClickReady);
+            if (roomSettingsButton != null) roomSettingsButton.Button.AddClickListener(OnClickRoomSettings);
             if (showCodeButton != null) showCodeButton.AddClickListener(OnClickToggleCode);
             if (settingButton != null) settingButton.AddClickListener(OnClickSetting);
             if (languageSettingButton != null) languageSettingButton.AddClickListener(OnClickLanguageButton);
@@ -117,22 +112,23 @@ namespace PixelChroma.UI
             if (timerPanel != null)
                 timerPanel.SetActive(false);
 
-            if (readyButton != null)
-                readyButton.interactable = true;
-
             bool isHost = LobbyManager.Instance.IsHost;
 
-            if (startButtonPanel != null) startButtonPanel.SetActive(isHost);
-            if (readyButtonPanel != null) readyButtonPanel.SetActive(!isHost);
+            // 역할 게이팅: 호스트는 Start, 클라는 Ready 버튼만 노출
+            if (startGameButton != null) startGameButton.gameObject.SetActive(isHost);
+            if (readyButton != null) readyButton.gameObject.SetActive(!isHost);
 
-            if (isHost && startGameButton != null)
-                startGameButton.interactable = false;
+            // 이전 라운드의 카운트다운 비활성화 상태가 남아있을 수 있으니 초기화
+            if (readyButton != null) readyButton.SetInteractable(true);
+
+            // 시작 버튼은 모두 레디 전까지 비활성 (RefreshReadyUI에서 갱신)
+            if (startGameButton != null) startGameButton.SetInteractable(false);
 
             if (roomSettingsButton != null)
+            {
                 roomSettingsButton.gameObject.SetActive(isHost);
-
-            if (inviteFriendButton != null)
-                inviteFriendButton.gameObject.SetActive(isHost);
+                roomSettingsButton.SetInteractable(true);
+            }
 
             _isCodeVisible = false;
             ApplyCodeVisibility();
@@ -234,8 +230,12 @@ namespace PixelChroma.UI
 
             bool isEveryoneReady = (readyPlayers == totalPlayers);
 
+            // 카운트다운 중에는 인원 변동으로 갱신되더라도 시작 버튼을 다시 켜지 않는다.
+            bool isCountdown = GameRoundManager.Instance != null
+                && GameRoundManager.Instance.CurrentTimeState == TimeState.Countdown;
+
             if (LobbyManager.Instance.IsHost && startGameButton != null)
-                startGameButton.interactable = isEveryoneReady;
+                startGameButton.SetInteractable(isEveryoneReady && !isCountdown);
 
             if (!LobbyManager.Instance.IsHost && readyCheckImage != null)
             {
@@ -301,7 +301,20 @@ namespace PixelChroma.UI
                 timerPanel.SetActive(isCountdown);
 
             if (readyButton != null)
-                readyButton.interactable = !isCountdown;
+                readyButton.SetInteractable(!isCountdown);
+
+            if (roomSettingsButton != null)
+                roomSettingsButton.SetInteractable(!isCountdown);
+
+            if (isCountdown)
+            {
+                if (startGameButton != null)
+                    startGameButton.SetInteractable(false);
+            }
+            else
+            {
+                RefreshReadyUI();
+            }
         }
 
         private void OnTimerTick(int remainingSeconds)
