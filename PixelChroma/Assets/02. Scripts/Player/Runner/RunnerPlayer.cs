@@ -52,11 +52,11 @@ namespace PixelChroma
         private RunnerDeathEffects _deathEffects;
 
         protected override UIInGameHUD InGameHUD => _runnerHUD;
-        protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint 진입 가능 여부로 설정
+        protected override bool CanTogglePaintMode => !_isDead && !IsCheckTimeSpectatorLocked;// 사망여부를 Paint 진입 가능 여부로 설정
         protected override bool CanUseFormWheel => !_isDead;
         public bool IsDead => _isDead;
         public bool IsKnockedBack => _deathEffects != null && _deathEffects.IsKnockedBack;
-
+        protected override bool CanEnterCheckTimeSpectator => !_isDead;
 
         public static event Action<string, string> OnPlayerCaught;
 

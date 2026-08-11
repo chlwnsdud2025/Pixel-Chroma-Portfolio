@@ -52,6 +52,8 @@ namespace PixelChroma
 
         public void Dispose()
         {
+            RestoreDefaultDamping();
+
             if (_freeCamTarget != null)
                 UnityEngine.Object.Destroy(_freeCamTarget);
         }

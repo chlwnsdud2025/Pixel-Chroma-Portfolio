@@ -20,6 +20,7 @@ namespace PixelChroma
 
         protected override UIInGameHUD InGameHUD => _seekerHUD;
         protected override bool CanUseFormWheel => false;   // Seeker는 변신 불가
+        protected override bool CanTogglePaintMode => true;
 
         protected override void Awake()
         {
@@ -181,6 +182,12 @@ namespace PixelChroma
         {
             if (_waterGun != null)
                 _waterGun.SetWeaponVisible(!isPaint);
+
+            if (isPaint && Spectator != null && Spectator.IsSpectating)
+            {
+                Spectator.ExitSpectate();
+                _seekerHUD?.SetSpectatorMode(false);
+            }
         }
 
         private void OnDrawGizmosSelected()

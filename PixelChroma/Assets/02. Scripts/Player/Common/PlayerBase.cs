@@ -74,9 +74,9 @@ namespace PixelChroma
         protected bool IsCheckTimeSpectatorLocked { get; private set; }
 
         protected virtual UIInGameHUD InGameHUD => null;
-        protected virtual bool CanTogglePaintMode => true;   // PaintMode 진입 가능 여부
+        protected virtual bool CanTogglePaintMode => !IsCheckTimeSpectatorLocked;   // PaintMode 진입 가능 여부
         protected virtual bool CanUseFormWheel => true;      // Form(변신) 휠 사용 가능 여부. Seeker 등은 오버라이드로 제한.
-
+        protected virtual bool CanEnterCheckTimeSpectator => true;
         // CheckTime 동안에만 좋아요를 주고받을 수 있습니다. 클라이언트 입력 차단과 서버 검증에 함께 씁니다.
         private static bool IsLikeAllowedNow =>
             GameRoundManager.Instance != null
@@ -121,7 +121,7 @@ namespace PixelChroma
 
             if (formWheel != null && formWheel.IsOpen) return;
 
-            if (CanTogglePaintMode && !IsCheckTimeSpectatorLocked && _input.TogglePaint.WasPressedThisFrame())
+            if (CanTogglePaintMode && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
 
             HandleScrollWheel();
@@ -200,6 +200,12 @@ namespace PixelChroma
             CmdRequestPaintSnapshots();
 
             GameRoundManager.OnTimeStateChanged += HandleCheckTimeSpectator;
+
+            if (GameRoundManager.Instance != null
+            && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime)
+            {
+                HandleCheckTimeSpectator(TimeState.CheckTime, GameRoundManager.Instance.CurrentTimer);
+            }
         }
 
         public override void OnStopLocalPlayer()
@@ -373,7 +379,7 @@ namespace PixelChroma
                 if (_paintController != null && _paintController.IsPaintMode)
                     _paintController.TogglePaintMode();
 
-                if (!_spectator.IsSpectating)
+                if (!_spectator.IsSpectating && CanEnterCheckTimeSpectator)
                 {
                     _spectator.EnterRunnerMode();
                     InGameHUD?.SetSpectatorMode(true);
