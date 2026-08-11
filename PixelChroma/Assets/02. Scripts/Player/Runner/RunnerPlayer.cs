@@ -53,7 +53,7 @@ namespace PixelChroma
 
         protected override UIInGameHUD InGameHUD => _runnerHUD;
         protected override bool CanTogglePaintMode => !_isDead;// 사망여부를 Paint 진입 가능 여부로 설정
-
+        protected override bool CanUseFormWheel => !_isDead;
         public bool IsDead => _isDead;
         public bool IsKnockedBack => _deathEffects != null && _deathEffects.IsKnockedBack;
 
@@ -184,6 +184,9 @@ namespace PixelChroma
             {
                 // 사망 연출 동안 관전 입력을 잠가, 넉백·소멸 연출을 본인이 놓치지 않게 합니다.
                 _isDeathCamActive = true;
+
+                if (formWheel != null && formWheel.IsOpen)
+                    formWheel.ForceClose();
             }
 
             if (_netTransform != null) _netTransform.enabled = false;

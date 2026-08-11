@@ -23,7 +23,7 @@ namespace PixelChroma
         public float moveSpeed = 5f;
 
         [Header("Form Wheel")]
-        [SerializeField] private RadialMenu formWheel;
+        [SerializeField] protected RadialMenu formWheel;
 
         // 역할 중립 + 베이스 계층 참조/설정값은 PlayerCommon(베이스 프리팹에 1회 배선)으로 이관했습니다.
         private PlayerCommon _common;
@@ -587,6 +587,8 @@ namespace PixelChroma
                     formWheel.ForceClose();
             }
         }
+
+
 
     }
 
