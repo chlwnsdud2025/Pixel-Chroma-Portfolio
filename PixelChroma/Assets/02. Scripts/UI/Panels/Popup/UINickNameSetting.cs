@@ -1,5 +1,5 @@
 using UnityEngine;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine.UI;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
@@ -16,7 +16,7 @@ namespace PixelChroma.UI
         [SerializeField] private BannedWordsSO bannedWords;
 
         [Header("Inputs & Buttons")]
-        [SerializeField] private TMP_InputField nicknameInputField;
+        [SerializeField] private OneTextInputField nicknameInputField;
         [SerializeField] private Button saveButton;     
         [SerializeField] private Button closeButton;      
 
@@ -82,10 +82,9 @@ namespace PixelChroma.UI
 
             string enteredName = nicknameInputField.text.Trim();
 
-            // 실제 렌더에 쓰이는 폰트를 넘겨, 이 폰트로 표시 불가능한(□) 문자를 저장 전에 막는다.
-            TMP_FontAsset font = nicknameInputField.textComponent != null ? nicknameInputField.textComponent.font : null;
-
-            switch (NicknameService.Validate(enteredName, bannedWords, maxNicknameLength, font))
+            // OneText는 NotoSans 동적 아틀라스와 폴백 스택으로 다국어를 폭넓게 렌더하므로,
+            // 렌더 폰트를 넘겨 □ 문자를 걸러내던 TMP 시절 안전망은 더 이상 넘기지 않는다.
+            switch (NicknameService.Validate(enteredName, bannedWords, maxNicknameLength))
             {
                 case NameValidation.TooLong:
                     SetwarningTextMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));

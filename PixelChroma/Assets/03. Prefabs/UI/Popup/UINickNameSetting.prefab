@@ -11,9 +11,9 @@ GameObject:
   - component: {fileID: 3918418127458918757}
   - component: {fileID: 8313410513003814386}
   - component: {fileID: 1003311172883253795}
-  - component: {fileID: 2369082542202772838}
+  - component: {fileID: 1868616593194236752}
   m_Layer: 5
-  m_Name: NickNameInputField (TMP)
+  m_Name: NickNameInputField
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -77,7 +77,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1.5
---- !u!114 &2369082542202772838
+--- !u!114 &1868616593194236752
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -86,9 +86,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 173735801539518952}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2da0c512f12947e489f739169773d7ca, type: 3}
+  m_Script: {fileID: 11500000, guid: 3be3588f4091e4920ab198d2517231d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TMP_InputField
+  m_EditorClassIdentifier: OneText.UGUI::OneText.UGUI.OneTextInputField
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -118,66 +118,32 @@ MonoBehaviour:
     m_DisabledTrigger: Disabled
   m_Interactable: 1
   m_TargetGraphic: {fileID: 1003311172883253795}
-  m_TextViewport: {fileID: 5937201352431903339}
-  m_TextComponent: {fileID: 5888632560522122937}
-  m_Placeholder: {fileID: 3239520823060481123}
-  m_VerticalScrollbar: {fileID: 0}
-  m_VerticalScrollbarEventHandler: {fileID: 0}
-  m_LayoutGroup: {fileID: 0}
-  m_ScrollSensitivity: 1
-  m_ContentType: 0
-  m_InputType: 0
-  m_AsteriskChar: 42
-  m_KeyboardType: 0
-  m_LineType: 0
-  m_HideMobileInput: 0
-  m_HideSoftKeyboard: 0
-  m_CharacterValidation: 0
-  m_RegexValue: 
-  m_GlobalPointSize: 10
-  m_CharacterLimit: 10
-  m_OnEndEdit:
+  _textComponent: {fileID: 5011507481633395981}
+  _placeholder: {fileID: 3239520823060481123}
+  _caret: {fileID: 0}
+  _text: 
+  _multiline: 0
+  _readOnly: 0
+  _characterLimit: 0
+  _inputMethodEnabled: 1
+  _caretColor: {r: 0, g: 0, b: 0, a: 1}
+  _caretWidth: 2
+  _caretBlinkRate: 0.85
+  _onValueChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_OnSubmit:
+  _onSubmit:
     m_PersistentCalls:
       m_Calls: []
-  m_OnSelect:
+  _onEndEdit:
     m_PersistentCalls:
       m_Calls: []
-  m_OnDeselect:
+  _onSelect:
     m_PersistentCalls:
       m_Calls: []
-  m_OnTextSelection:
+  _onDeselect:
     m_PersistentCalls:
       m_Calls: []
-  m_OnEndTextSelection:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnValueChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnTouchScreenKeyboardStatusChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_CaretColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
-  m_CustomCaretColor: 0
-  m_SelectionColor: {r: 0.65882355, g: 0.80784315, b: 1, a: 0.7529412}
-  m_Text: 
-  m_CaretBlinkRate: 0.85
-  m_CaretWidth: 1
-  m_ReadOnly: 0
-  m_RichText: 1
-  m_GlobalFontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
-  m_OnFocusSelectAll: 1
-  m_ResetOnDeActivation: 1
-  m_KeepTextSelectionVisible: 0
-  m_RestoreOriginalTextOnEscape: 1
-  m_isRichTextEditingAllowed: 0
-  m_LineLimit: 0
-  isAlert: 0
-  m_InputValidator: {fileID: 0}
-  m_ShouldActivateOnSelect: 1
 --- !u!1 &577738111683891448
 GameObject:
   m_ObjectHideFlags: 0
@@ -189,6 +155,7 @@ GameObject:
   - component: {fileID: 400246371067549027}
   - component: {fileID: 2231551658703506206}
   - component: {fileID: 596879562260520818}
+  - component: {fileID: 2309225264998308289}
   m_Layer: 5
   m_Name: CloseButtonText
   m_TagString: Untagged
@@ -237,7 +204,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: OneText.UGUI::OneText.UGUI.OneTextLabel
   m_Material: {fileID: 0}
   m_Color: {r: 0, g: 0, b: 0, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -283,7 +250,7 @@ MonoBehaviour:
   _wrap: 1
   _overflow: 0
   _lineSpacing: 1
-  _richText: 1
+  _richText: 0
   _parseEscapes: 1
   _precise: 0
   _quality: 0
@@ -304,6 +271,18 @@ MonoBehaviour:
   _revealComplete:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &2309225264998308289
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 577738111683891448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a88936371e19e84b9bc2798a05280de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontIgnore
 --- !u!1 &1026214115724442686
 GameObject:
   m_ObjectHideFlags: 0
@@ -740,7 +719,6 @@ GameObject:
   - component: {fileID: 6985627179836903743}
   - component: {fileID: 5871588458977750233}
   - component: {fileID: 2963921616378290289}
-  - component: {fileID: 6045287492772472413}
   - component: {fileID: 3239520823060481123}
   m_Layer: 5
   m_Name: Placeholder
@@ -816,18 +794,6 @@ MonoBehaviour:
   references:
     version: 2
     RefIds: []
---- !u!114 &6045287492772472413
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3210178748074339245}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontText
 --- !u!114 &3239520823060481123
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -919,8 +885,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1153551710460076912}
   - component: {fileID: 5902842294499947593}
-  - component: {fileID: 5888632560522122937}
-  - component: {fileID: 1103322074243728203}
+  - component: {fileID: 5011507481633395981}
   m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
@@ -955,7 +920,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3398042093008295347}
   m_CullTransparentMesh: 1
---- !u!114 &5888632560522122937
+--- !u!114 &5011507481633395981
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -964,101 +929,78 @@ MonoBehaviour:
   m_GameObject: {fileID: 3398042093008295347}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Script: {fileID: 11500000, guid: 06da5bce9ac1443d09b318e68a4f6ddb, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+  m_EditorClassIdentifier: OneText.UGUI::OneText.UGUI.OneTextLabel
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u200B"
-  m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
-  m_sharedMaterial: {fileID: 2279246074572603584, guid: 92ca2db9f6bcfad47853e65e4e87f3d0, type: 2}
-  m_fontSharedMaterials: []
-  m_fontMaterial: {fileID: 0}
-  m_fontMaterials: []
-  m_fontColor32:
-    serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
-  m_enableVertexGradient: 0
-  m_colorMode: 3
-  m_fontColorGradient:
-    topLeft: {r: 1, g: 1, b: 1, a: 1}
-    topRight: {r: 1, g: 1, b: 1, a: 1}
-    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
-    bottomRight: {r: 1, g: 1, b: 1, a: 1}
-  m_fontColorGradientPreset: {fileID: 0}
-  m_spriteAsset: {fileID: 0}
-  m_tintAllSprites: 0
-  m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: -1183493901
-  m_overrideHtmlColors: 0
-  m_faceColor:
-    serializedVersion: 2
-    rgba: 4294967295
-  m_fontSize: 40
-  m_fontSizeBase: 38
-  m_fontWeight: 400
-  m_enableAutoSizing: 1
-  m_fontSizeMin: 1
-  m_fontSizeMax: 40
-  m_fontStyle: 0
-  m_HorizontalAlignment: 2
-  m_VerticalAlignment: 512
-  m_textAlignment: 65535
-  m_characterSpacing: 0
-  m_characterHorizontalScale: 1
-  m_wordSpacing: 0
-  m_lineSpacing: 0
-  m_lineSpacingMax: 0
-  m_paragraphSpacing: 0
-  m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 3
-  m_wordWrappingRatios: 0.4
-  m_overflowMode: 0
-  m_linkedTextComponent: {fileID: 0}
-  parentLinkedComponent: {fileID: 0}
-  m_enableKerning: 0
-  m_ActiveFontFeatures: 6e72656b
-  m_enableExtraPadding: 1
-  checkPaddingRequired: 0
-  m_isRichText: 1
-  m_EmojiFallbackSupport: 1
-  m_parseCtrlCharacters: 1
-  m_isOrthographic: 1
-  m_isCullingEnabled: 0
-  m_horizontalMapping: 0
-  m_verticalMapping: 0
-  m_uvLineOffset: 0
-  m_geometrySortingOrder: 0
-  m_IsTextObjectScaleStatic: 0
-  m_VertexBufferAutoSizeReduction: 0
-  m_useMaxVisibleDescender: 1
-  m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
-  m_isUsingLegacyAnimationComponent: 0
-  m_isVolumetricText: 0
-  m_hasFontAssetChanged: 0
-  m_baseMaterial: {fileID: 0}
-  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &1103322074243728203
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3398042093008295347}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontText
+  _style: {fileID: 0}
+  _namedStyles: []
+  _decoration:
+    Set: 0
+    OutlineColor:
+      serializedVersion: 2
+      rgba: 0
+    OutlineWidth: 0
+    OutlineSoftness: 0
+    ShadowColor:
+      serializedVersion: 2
+      rgba: 0
+    ShadowOffset: {x: 0, y: 0}
+    ShadowSoftness: 0
+    GlowColor:
+      serializedVersion: 2
+      rgba: 0
+    GlowRadius: 0
+    GlowInner: 0
+    FaceDilate: 0
+  _namedFonts: []
+  _sprites: {fileID: 0}
+  _language: 
+  _kinsoku: 0
+  _cjkLatinSpacing: 0
+  _punctuationCompression: 0
+  _rubyScale: 0.5
+  _font: {fileID: 0}
+  _fallbackFonts: []
+  _text: 
+  _fontSize: 40
+  _autoSize: 1
+  _autoSizeMin: 1
+  _autoSizeMax: 40
+  _alignment: 2
+  _verticalAlignment: 1
+  _writingMode: 0
+  _wrap: 0
+  _overflow: 0
+  _lineSpacing: 1
+  _richText: 0
+  _parseEscapes: 0
+  _precise: 0
+  _quality: 0
+  _linkClicked:
+    m_PersistentCalls:
+      m_Calls: []
+  _maxVisibleGraphemes: -1
+  _animate: 1
+  _graphemeRevealed:
+    m_PersistentCalls:
+      m_Calls: []
+  _revealGranularity: 0
+  _charactersPerSecond: 0
+  _punctuationDelays: []
+  _characterRevealed:
+    m_PersistentCalls:
+      m_Calls: []
+  _revealComplete:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &3747475945398007040
 GameObject:
   m_ObjectHideFlags: 0
@@ -1290,7 +1232,7 @@ MonoBehaviour:
   closeOnEscape: 1
   maxNicknameLength: 10
   bannedWords: {fileID: 11400000, guid: 8b5c6e9e1e476014eb69afeb917cbf2b, type: 2}
-  nicknameInputField: {fileID: 2369082542202772838}
+  nicknameInputField: {fileID: 1868616593194236752}
   saveButton: {fileID: 469732217805289716}
   closeButton: {fileID: 8593808825289643170}
   warningText: {fileID: 7728591034964575476}
