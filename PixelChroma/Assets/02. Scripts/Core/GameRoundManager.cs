@@ -223,6 +223,7 @@ namespace PixelChroma
         private void OnSeekTimeExpired()
         {
             SetWinner(PlayerRole.Runner);
+            SetTimeState(TimeState.CheckTime, OptionCheckTime);
         }
 
         [Server]
