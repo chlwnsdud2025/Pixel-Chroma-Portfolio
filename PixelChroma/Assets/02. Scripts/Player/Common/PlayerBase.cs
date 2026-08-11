@@ -596,8 +596,8 @@ namespace PixelChroma
 
             if (_isChatActive)
             {
-                if (Rb != null) Rb.linearVelocity = Vector2.zero;
-                if (animator != null) animator.SetBool(IsMoving, false);
+                if (formWheel != null && formWheel.IsOpen)
+                    formWheel.ForceClose();
 
                 if (Rb != null) Rb.linearVelocity = Vector2.zero;
                 if (animator != null) animator.SetBool(IsMoving, false);
@@ -611,6 +611,17 @@ namespace PixelChroma
             Vector3 pos = nicknameRoot.transform.localPosition;
             pos.y = formTopY + nicknameYPadding;
             nicknameRoot.transform.localPosition = pos;
+        }
+
+        //---------------------------BackGround로 빠지는 경우-------------------------------
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus && isLocalPlayer)
+            {
+                if (formWheel != null && formWheel.IsOpen)
+                    formWheel.ForceClose();
+            }
         }
 
     }

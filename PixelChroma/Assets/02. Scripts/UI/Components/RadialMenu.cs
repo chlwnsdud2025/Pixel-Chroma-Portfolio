@@ -212,5 +212,17 @@ namespace PixelChroma.UI
             for (int i = 0; i < _slices.Count; i++)
                 _slices[i].color = normalColor;
         }
+
+        public void ForceClose()
+        {
+            if (!_isOpen) return;
+            _isOpen = false;
+
+            transform.DOKill();
+            gameObject.SetActive(false);
+            transform.localScale = Vector3.one;
+
+            // 선택 결과를 소비하지 않음 (OnSelected 미발동, 반환값 없음)
+        }
     }
 }
