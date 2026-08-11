@@ -73,7 +73,14 @@ namespace PixelChroma
 
         // Seeker의 관전은 체크타임 잠금 전용 → ESC로 종료하지 않는다.
         // (해제는 OnCheckTimeSpectatorExit에서만 일어남)
-        protected override bool TryExitSpectateByEscape() => false;
+        protected override bool TryExitSpectateByEscape()
+        {
+            if (Spectator == null || !Spectator.IsSpectating) return false;
+
+            Spectator.ExitSpectate();
+            _seekerHUD?.SetSpectatorMode(false);
+            return true;
+        }
 
         protected override void HandleSpectateInput()
         {
@@ -81,7 +88,19 @@ namespace PixelChroma
 
             if (Input.ToggleSpectate.WasPressedThisFrame())
             {
-                // CheckTime 중에는 잠금 → 나가기 불가, 아무 동작 안 함
+                if (Spectator.IsSpectating)
+                {
+                    // 관전 중 → 관전 종료 (자기 캐릭터로 복귀)
+                    Spectator.ExitSpectate();
+                    _seekerHUD?.SetSpectatorMode(false);
+                }
+                else
+                {
+                    // 관전 아닌 상태 → 다시 관전 진입
+                    Spectator.EnterRunnerMode();
+                    _seekerHUD?.SetSpectatorMode(true);
+                    _seekerHUD?.SetActiveSpectateMode(SpectateMode.Runner);
+                }
                 return;
             }
 
