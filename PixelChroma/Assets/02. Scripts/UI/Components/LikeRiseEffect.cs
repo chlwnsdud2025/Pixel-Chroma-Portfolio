@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using DG.Tweening;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,7 +13,7 @@ namespace PixelChroma
         [Tooltip("복제해서 띄울 아이콘 원본")]
         [SerializeField] private Image iconTemplate;
         [Tooltip("아이콘이 뜰 때마다 같이 튀어오를 카운트 텍스트. 비워두면 아이콘만 나옵니다.")]
-        [SerializeField] private TMP_Text countText;
+        [SerializeField] private OneTextLabel countText;
 
         [Header("Burst")]
         [Tooltip("한 번에 띄울 최대 개수. 여러 명이 동시에 누르거나 델타가 크게 들어와도 여기까지만 나옵니다.")]

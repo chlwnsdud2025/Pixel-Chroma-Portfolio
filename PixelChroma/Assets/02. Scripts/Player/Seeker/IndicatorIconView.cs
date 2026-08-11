@@ -1,12 +1,12 @@
 using UnityEngine;
-using TMPro;
+using OneText.UGUI;
 
 namespace PixelChroma.UI
 {
     public class IndicatorIconView : MonoBehaviour
     {
         [SerializeField] private RectTransform ringArrow;
-        [SerializeField] private TMP_Text nicknameText;
+        [SerializeField] private OneTextLabel nicknameText;
 
         public RectTransform Slot => (RectTransform)transform;
         public RectTransform RingArrow => ringArrow;

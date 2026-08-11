@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -39,7 +39,7 @@ namespace PixelChroma.UI
         [Header("Eyedropper Preview")]
         public RectTransform eyedropperPreview;
         public Image eyedropperColorSwatch;
-        public TMP_Text eyedropperHexLabel;
+        public OneTextLabel eyedropperHexLabel;
 
         private Canvas _parentCanvas;
 

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using OneText.UGUI;
 using TMPro;
 using UnityEditor;
 using UnityEditor.Localization;

@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,8 +6,8 @@ namespace PixelChroma.UI
 {
     public class UICatchLogEntry : MonoBehaviour
     {
-        [SerializeField] private TMP_Text catcherText;
-        [SerializeField] private TMP_Text caughtText;
+        [SerializeField] private OneTextLabel catcherText;
+        [SerializeField] private OneTextLabel caughtText;
 
         public CanvasGroup CanvasGroup { get; private set; }
         public LayoutElement LayoutElement { get; private set; }

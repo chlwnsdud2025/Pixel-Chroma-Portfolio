@@ -1,21 +1,21 @@
 using UnityEngine;
-using TMPro;
+using OneText.UGUI;
 using DG.Tweening;
 
 namespace PixelChroma.UI
 {
-    [RequireComponent(typeof(TMP_Text))]
+    [RequireComponent(typeof(OneTextLabel))]
     public class UIPunchText : MonoBehaviour
     {
         [SerializeField] private float punchScale = 0.2f;
         [SerializeField] private float duration = 0.2f;
 
-        private TMP_Text _text;
+        private OneTextLabel _text;
         private Vector3 _baseScale;
 
         private void Awake()
         {
-            _text = GetComponent<TMP_Text>();
+            _text = GetComponent<OneTextLabel>();
             _baseScale = transform.localScale;
         }
 

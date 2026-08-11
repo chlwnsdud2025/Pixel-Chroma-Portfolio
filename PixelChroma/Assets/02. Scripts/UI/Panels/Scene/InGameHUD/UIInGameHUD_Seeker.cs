@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
+using OneText.UGUI;
 
 namespace PixelChroma.UI
 {
@@ -9,7 +9,7 @@ namespace PixelChroma.UI
 
         [Header("Water Gun")]
         [SerializeField] private Image waterGunCooldownOverlay;
-        [SerializeField] private TMP_Text waterGunCooldownText;
+        [SerializeField] private OneTextLabel waterGunCooldownText;
 
         [Header("Seeker Indicator")]
         [SerializeField] private TeammateIndicatorPanel seekerIndicatorPanel;

@@ -1,6 +1,6 @@
 using System.Linq;
 using Cysharp.Threading.Tasks;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,9 +9,9 @@ namespace PixelChroma.UI
     public class UILobby : UIScene, IPaintHUD
     {
         [Header("Room Info")]
-        [SerializeField] private TMP_Text roomNameText;
-        [SerializeField] private TMP_Text roomCodeText;
-        [SerializeField] private TMP_Text playerCountText;
+        [SerializeField] private OneTextLabel roomNameText;
+        [SerializeField] private OneTextLabel roomCodeText;
+        [SerializeField] private OneTextLabel playerCountText;
 
         [Header("Member List")]
         [SerializeField] private UIMemberSlot[] memberSlots;
@@ -27,12 +27,12 @@ namespace PixelChroma.UI
 
         [Header("Start (Host)")]
         [SerializeField] private UIDisableCoverButton startGameButton;
-        [SerializeField] private TMP_Text startReadyCountText;
+        [SerializeField] private OneTextLabel startReadyCountText;
 
         [Header("Ready (Client)")]
         [SerializeField] private UIDisableCoverButton readyButton;
         [SerializeField] private Image readyCheckImage;
-        [SerializeField] private TMP_Text readyCountText;
+        [SerializeField] private OneTextLabel readyCountText;
 
         [Header("Countdown")]
         [SerializeField] private GameObject timerPanel;

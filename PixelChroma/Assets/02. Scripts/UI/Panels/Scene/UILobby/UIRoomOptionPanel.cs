@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.Localization;
 using UnityEngine.UI;
@@ -12,18 +12,18 @@ namespace PixelChroma.UI
         [SerializeField] private MapRegistrySO mapRegistry;
 
         [Header("Game Mode")]
-        [SerializeField] private TMP_Text gameModeText;
-        [SerializeField] private TMP_Text gameModeDescriptionText;
+        [SerializeField] private OneTextLabel gameModeText;
+        [SerializeField] private OneTextLabel gameModeDescriptionText;
 
         [Header("Map")]
-        [SerializeField] private TMP_Text mapNameText;
+        [SerializeField] private OneTextLabel mapNameText;
         [SerializeField] private Image mapPreviewImage;
 
         [Header("Time Settings")]
-        [SerializeField] private TMP_Text hideTimeText;
-        [SerializeField] private TMP_Text seekTimeText;
-        [SerializeField] private TMP_Text checkTimeText;
-        [SerializeField] private TMP_Text forcedExposeIntervalText;
+        [SerializeField] private OneTextLabel hideTimeText;
+        [SerializeField] private OneTextLabel seekTimeText;
+        [SerializeField] private OneTextLabel checkTimeText;
+        [SerializeField] private OneTextLabel forcedExposeIntervalText;
         [SerializeField] private LocalizedString offLabel;
 
         public void Refresh(RoomOption option)

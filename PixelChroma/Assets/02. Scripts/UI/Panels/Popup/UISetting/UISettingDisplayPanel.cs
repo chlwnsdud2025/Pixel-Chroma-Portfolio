@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,7 +9,7 @@ namespace PixelChroma.UI
     {
         [Header("Resolution")]
         [SerializeField] private GameObject resolutionRow;
-        [SerializeField] private TMP_Dropdown resolutionDropdown;
+        [SerializeField] private OneTextDropdown resolutionDropdown;
 
         [Header("Toggles")]
         [SerializeField] private Toggle fullscreenToggle;   // On = 테두리 없는 전체화면, Off = 창모드

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.Localization;
 using UnityEngine.Localization.Settings;
@@ -13,10 +13,10 @@ namespace PixelChroma.UI
     public class UIRoomList : UIPopup
     {
         [Header("Filters")]
-        [SerializeField] private TMP_Dropdown gameModeDropdown;
-        [SerializeField] private TMP_Dropdown mapDropdown;
-        [SerializeField] private TMP_Dropdown languageDropdown;
-        [SerializeField] private TMP_InputField roomNameInput;
+        [SerializeField] private OneTextDropdown gameModeDropdown;
+        [SerializeField] private OneTextDropdown mapDropdown;
+        [SerializeField] private OneTextDropdown languageDropdown;
+        [SerializeField] private OneTextInputField roomNameInput;
 
         [Header("Actions")]
         [SerializeField] private Button searchButton;
@@ -29,7 +29,7 @@ namespace PixelChroma.UI
 
         [Header("Status")]
         [SerializeField] private GameObject emptyRoot;
-        [SerializeField] private TMP_Text statusText;
+        [SerializeField] private OneTextLabel statusText;
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
@@ -68,14 +68,14 @@ namespace PixelChroma.UI
             _gameModeValues.Clear();
 
             string allLabel = textData.allFilterLabel.GetLocalizedString();
-            var options = new List<TMP_Dropdown.OptionData> { new(allLabel) };
+            var options = new List<OneTextDropdown.OptionData> { new(allLabel) };
             _gameModeValues.Add(null);
 
             foreach (GameMode mode in Enum.GetValues(typeof(GameMode)))
             {
                 var data = gameModeRegistry != null ? gameModeRegistry.Find(mode) : null;
                 string label = data != null ? data.displayName.GetLocalizedString() : mode.ToString();
-                options.Add(new TMP_Dropdown.OptionData(label));
+                options.Add(new OneTextDropdown.OptionData(label));
                 _gameModeValues.Add(mode);
             }
 
@@ -89,7 +89,7 @@ namespace PixelChroma.UI
             mapDropdown.ClearOptions();
             _mapIdValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
+            var options = new List<OneTextDropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
             _mapIdValues.Add(null);
 
             var registry = LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
@@ -99,7 +99,7 @@ namespace PixelChroma.UI
                 {
                     if (map == null) continue;
                     string label = map.GetDisplayName();
-                    options.Add(new TMP_Dropdown.OptionData(label));
+                    options.Add(new OneTextDropdown.OptionData(label));
                     _mapIdValues.Add(map.name);
                 }
             }
@@ -114,7 +114,7 @@ namespace PixelChroma.UI
             languageDropdown.ClearOptions();
             _languageCodeValues.Clear();
 
-            var options = new List<TMP_Dropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
+            var options = new List<OneTextDropdown.OptionData> { new(textData.allFilterLabel.GetLocalizedString()) };
             _languageCodeValues.Add(null);
 
             var locales = LocalizationSettings.AvailableLocales?.Locales;
@@ -131,7 +131,7 @@ namespace PixelChroma.UI
                             ? locale.Identifier.CultureInfo.NativeName
                             : code;
 
-                    options.Add(new TMP_Dropdown.OptionData(label));
+                    options.Add(new OneTextDropdown.OptionData(label));
                     _languageCodeValues.Add(code); // 필터 값은 항상 로케일 코드
                 }
             }

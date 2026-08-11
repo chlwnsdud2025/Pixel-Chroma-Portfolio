@@ -1,7 +1,7 @@
 using Mirror;
 using PixelChroma.UI;
 using System;
-using TMPro;
+using OneText.UGUI;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -42,8 +42,8 @@ namespace PixelChroma
 
         [Header("Nickname UI")]
         [SerializeField] private GameObject nicknameRoot;
-        [SerializeField] private TMP_Text nicknameText;
-        [SerializeField] private TMP_Text likeCountText;
+        [SerializeField] private OneTextLabel nicknameText;
+        [SerializeField] private OneTextLabel likeCountText;
         [SerializeField] private LikeRiseEffect likeRiseEffect;
 
         [Tooltip("스프라이트 상단에서 닉네임까지의 간격 (월드 유닛)")]

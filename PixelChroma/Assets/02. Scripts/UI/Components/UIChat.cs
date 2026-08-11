@@ -2,7 +2,7 @@ using Mirror;
 using PixelChroma.Network;
 using System;
 using System.Collections.Generic;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -44,7 +44,7 @@ namespace PixelChroma.UI
         [SerializeField] private Image panelBackground;
         [SerializeField] private CanvasGroup chatCanvasGroup;    // 채팅창 전체 투명도 제어용
         [SerializeField] private Button openChatButton;          // InputField 활성화 버튼
-        [SerializeField] private TMP_InputField chatInputField;
+        [SerializeField] private OneTextInputField chatInputField;
         [SerializeField] private Transform chatContentParent;
         [SerializeField] private GameObject chatTextPrefab;
         [SerializeField] private ScrollRect scrollRect;
@@ -55,7 +55,7 @@ namespace PixelChroma.UI
         // 활성 메시지 큐 (화면에 표시 중)
         private readonly Queue<ChatEntry> _activeMessages = new();
         // 비활성 풀 (재사용 대기)
-        private readonly Queue<TMP_Text> _inactivePool = new();
+        private readonly Queue<OneTextLabel> _inactivePool = new();
 
         // InputField가 현재 포커스 중인지
         private bool _isInputActive;
@@ -67,7 +67,7 @@ namespace PixelChroma.UI
         // ── 메시지 항목: TMP_Text + 타이머 정보를 묶어서 관리 ──
         private struct ChatEntry
         {
-            public TMP_Text text;
+            public OneTextLabel text;
             public CanvasGroup canvasGroup;  // 개별 메시지 페이드용
             public float spawnTime;          // 생성 시각
             public bool isFading;            // 페이드 진행 중 여부
@@ -299,7 +299,7 @@ namespace PixelChroma.UI
         // ── 새 메시지 수신 ──
         private void HandleNewMessage(uint senderNetId, string sender, string message)
         {
-            TMP_Text chatText;
+            OneTextLabel chatText;
             CanvasGroup cg;
 
             // 풀에서 가져오거나 새로 생성
@@ -317,7 +317,7 @@ namespace PixelChroma.UI
             else
             {
                 GameObject newChat = Instantiate(chatTextPrefab, chatContentParent);
-                chatText = newChat.GetComponent<TMP_Text>();
+                chatText = newChat.GetComponent<OneTextLabel>();
                 // CanvasGroup이 없으면 추가 (개별 메시지 페이드용)
                 cg = newChat.GetComponent<CanvasGroup>();
                 if (cg == null) cg = newChat.AddComponent<CanvasGroup>();

@@ -1,6 +1,6 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,8 +16,8 @@ namespace PixelChroma.UI
 
         [Header("Create")]
         [SerializeField] private Button createButton;
-        [SerializeField] private TMP_Text createButtonText;
-        [SerializeField] private TMP_Text statusText;
+        [SerializeField] private OneTextLabel createButtonText;
+        [SerializeField] private OneTextLabel statusText;
 
         [Header("Close")]
         [SerializeField] private Button closeButton;

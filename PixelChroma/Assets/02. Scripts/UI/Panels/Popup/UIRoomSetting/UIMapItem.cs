@@ -1,5 +1,5 @@
 ﻿using System;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,7 +8,7 @@ namespace PixelChroma.UI
     [RequireComponent(typeof(Button))]
     public class UIMapItem : MonoBehaviour
     {
-        [SerializeField] private TMP_Text label;
+        [SerializeField] private OneTextLabel label;
         [SerializeField] private Button button;
         [SerializeField] private GameObject focus;
 
@@ -22,7 +22,7 @@ namespace PixelChroma.UI
                 button = GetComponent<Button>();
 
             if (label == null)
-                label = GetComponentInChildren<TMP_Text>();
+                label = GetComponentInChildren<OneTextLabel>();
 
             button.AddClickListener(() => OnClicked?.Invoke(_index));
         }

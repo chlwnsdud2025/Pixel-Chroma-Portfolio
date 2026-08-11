@@ -1,6 +1,6 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,7 +11,7 @@ namespace PixelChroma.UI
     public class UIwarningTextPopup : UIPopup
     {
         [Header("Content")]
-        [SerializeField] private TMP_Text messageText;
+        [SerializeField] private OneTextLabel messageText;
         [SerializeField] private LobbyFailureTextDataSO failureTextData;
         [SerializeField] private Button confirmButton;
 

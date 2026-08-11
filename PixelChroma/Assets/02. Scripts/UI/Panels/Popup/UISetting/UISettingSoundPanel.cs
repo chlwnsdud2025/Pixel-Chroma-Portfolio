@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,15 +13,15 @@ namespace PixelChroma.UI
 
         [Header("Master")]
         [SerializeField] private Slider masterSlider;
-        [SerializeField] private TMP_InputField masterInput;
+        [SerializeField] private OneTextInputField masterInput;
 
         [Header("BGM")]
         [SerializeField] private Slider bgmSlider;
-        [SerializeField] private TMP_InputField bgmInput;
+        [SerializeField] private OneTextInputField bgmInput;
 
         [Header("SFX")]
         [SerializeField] private Slider sfxSlider;
-        [SerializeField] private TMP_InputField sfxInput;
+        [SerializeField] private OneTextInputField sfxInput;
 
         public void Initialize()
         {
@@ -38,7 +38,7 @@ namespace PixelChroma.UI
             RefreshChannel(sfxSlider, sfxInput, AudioChannel.Sfx);
         }
 
-        private void SetupChannel(Slider slider, TMP_InputField input, AudioChannel channel)
+        private void SetupChannel(Slider slider, OneTextInputField input, AudioChannel channel)
         {
             if (slider != null)
             {
@@ -50,20 +50,20 @@ namespace PixelChroma.UI
 
             if (input != null)
             {
-                input.contentType = TMP_InputField.ContentType.IntegerNumber;
+                //input.contentType = OneTextInputField.ContentType.IntegerNumber;
                 input.onEndEdit.AddListener(text => OnInputEndEdit(slider, input, channel, text));
             }
         }
 
         // 슬라이더 조작: SoundManager에 반영하고 입력창 텍스트를 맞춘다.
-        private void OnSliderChanged(TMP_InputField input, AudioChannel channel, float value)
+        private void OnSliderChanged(OneTextInputField input, AudioChannel channel, float value)
         {
             ApplyVolume(channel, value);
             SetInputText(input, value);
         }
 
         // 직접 입력: 숫자면 clamp 후 반영, 아니면 이전 값으로 되돌린다(재표시).
-        private void OnInputEndEdit(Slider slider, TMP_InputField input, AudioChannel channel, string text)
+        private void OnInputEndEdit(Slider slider, OneTextInputField input, AudioChannel channel, string text)
         {
             if (int.TryParse(text, out int parsed))
                 SetVolume(slider, input, channel, parsed);
@@ -72,7 +72,7 @@ namespace PixelChroma.UI
         }
 
         // 슬라이더와 InputField가 같은 clamp 규칙을 공유하도록 값 설정을 한곳에 모은다.
-        private void SetVolume(Slider slider, TMP_InputField input, AudioChannel channel, float value)
+        private void SetVolume(Slider slider, OneTextInputField input, AudioChannel channel, float value)
         {
             value = Mathf.Clamp(Mathf.Round(value), MinVolume, MaxVolume);
             if (slider != null) slider.SetValueWithoutNotify(value);
@@ -80,7 +80,7 @@ namespace PixelChroma.UI
             SetInputText(input, value);
         }
 
-        private void RefreshChannel(Slider slider, TMP_InputField input, AudioChannel channel)
+        private void RefreshChannel(Slider slider, OneTextInputField input, AudioChannel channel)
         {
             float value = Mathf.Round(GetVolume01(channel) * 100f);
             if (slider != null) slider.SetValueWithoutNotify(value);
@@ -98,7 +98,7 @@ namespace PixelChroma.UI
         }
 
         // InputField 텍스트를 값으로 맞춘다(onEndEdit만 구독하므로 재입력 루프는 생기지 않는다).
-        private static void SetInputText(TMP_InputField input, float value0to100)
+        private static void SetInputText(OneTextInputField input, float value0to100)
         {
             if (input == null) return;
 

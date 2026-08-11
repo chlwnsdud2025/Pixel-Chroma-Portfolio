@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,24 +11,24 @@ namespace PixelChroma.UI
         [Header("Max Players")]
         [SerializeField] private Button maxPlayersMinusButton;
         [SerializeField] private Button maxPlayersPlusButton;
-        [SerializeField] private TMP_InputField maxPlayersInput;
+        [SerializeField] private OneTextInputField maxPlayersInput;
 
         [Header("Seeker Count")]
         [SerializeField] private Button seekerCountMinusButton;
         [SerializeField] private Button seekerCountPlusButton;
-        [SerializeField] private TMP_InputField seekerCountInput;
+        [SerializeField] private OneTextInputField seekerCountInput;
 
         [Header("Hide Time")]
         [SerializeField] private Slider hideTimeSlider;
-        [SerializeField] private TMP_InputField hideTimeInput;
+        [SerializeField] private OneTextInputField hideTimeInput;
 
         [Header("Seek Time")]
         [SerializeField] private Slider seekTimeSlider;
-        [SerializeField] private TMP_InputField seekTimeInput;
+        [SerializeField] private OneTextInputField seekTimeInput;
 
         [Header("Check Time")]
         [SerializeField] private Slider checkTimeSlider;
-        [SerializeField] private TMP_InputField checkTimeInput;
+        [SerializeField] private OneTextInputField checkTimeInput;
 
         [Header("Forced Expose")]
         [SerializeField] private Button forcedExposeButton;            // on/off 토글
@@ -36,7 +36,7 @@ namespace PixelChroma.UI
         [SerializeField] private GameObject forcedExposeActivePanel;    // 실제 작동(슬라이더/입력) 패널
         [SerializeField] private GameObject forcedExposeDisabledPanel;  // 회색 비활성 표시용 패널
         [SerializeField] private Slider forcedExposeIntervalSlider;
-        [SerializeField] private TMP_InputField forcedExposeIntervalInput;
+        [SerializeField] private OneTextInputField forcedExposeIntervalInput;
 
         private RoomOption _option;
 
@@ -253,7 +253,7 @@ namespace PixelChroma.UI
             if (forcedExposeIntervalInput != null) ForceSetText(forcedExposeIntervalInput, _option.forcedExposeInterval.ToString("0"));
         }
 
-        private static void ForceSetText(TMP_InputField input, string value)
+        private static void ForceSetText(OneTextInputField input, string value)
         {
             input.text = value;
 

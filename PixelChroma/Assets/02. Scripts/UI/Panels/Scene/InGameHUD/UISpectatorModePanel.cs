@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
+using OneText.UGUI;
 
 namespace PixelChroma.UI
 {
@@ -11,7 +11,7 @@ namespace PixelChroma.UI
         [SerializeField] private Image freeButton;
         [SerializeField] private Sprite buttonNormal;
         [SerializeField] private Sprite buttonSelected;
-        [SerializeField] private TMP_Text targetNameText;
+        [SerializeField] private OneTextLabel targetNameText;
         [SerializeField] private Color selfTargetNameColor = Color.yellow;
 
         [Header("Like Guide")]

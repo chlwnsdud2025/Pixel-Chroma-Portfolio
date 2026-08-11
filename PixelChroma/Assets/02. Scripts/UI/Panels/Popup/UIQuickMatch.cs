@@ -1,6 +1,6 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,7 +9,7 @@ namespace PixelChroma.UI
     public class UIQuickMatch : UIPopup
     {
         [Header("Status")]
-        [SerializeField] private TMP_Text statusText;
+        [SerializeField] private OneTextLabel statusText;
         [SerializeField] private UIWarningText warningText;
         [SerializeField] private Animator loadingIcon;
         [SerializeField] private GameObject warningIcon;

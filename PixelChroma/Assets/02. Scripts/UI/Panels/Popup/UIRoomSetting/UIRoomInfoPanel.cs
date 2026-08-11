@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.Localization;
 
@@ -9,9 +9,9 @@ namespace PixelChroma.UI
     public class UIRoomInfoPanel : MonoBehaviour
     {
         [Header("Room Name")]
-        [SerializeField] private TMP_InputField roomNameInput;
-        [SerializeField] private TMP_Text roomNameStatusText;
-        [SerializeField] private TMP_Text roomNameCountText;
+        [SerializeField] private OneTextInputField roomNameInput;
+        [SerializeField] private OneTextLabel roomNameStatusText;
+        [SerializeField] private OneTextLabel roomNameCountText;
 
         [Header("Banned Words (비속어 필터링)")]
         [SerializeField] private BannedWordsSO bannedWords;
@@ -24,7 +24,7 @@ namespace PixelChroma.UI
         [SerializeField] private UIFocusButton basicModeButton;
         [SerializeField] private UIFocusButton infectionModeButton;
         [SerializeField] private GameModeRegistrySO gameModeRegistry;
-        [SerializeField] private TMP_Text gameModeDescriptionText;
+        [SerializeField] private OneTextLabel gameModeDescriptionText;
 
         [Header("Localization")]
         [SerializeField] private RoomSettingTextDataSO textData;
@@ -150,7 +150,7 @@ namespace PixelChroma.UI
 
         private void UpdateRoomNamePlaceholder()
         {
-            if (roomNameInput == null || roomNameInput.placeholder is not TMP_Text placeholderText) return;
+            if (roomNameInput == null || roomNameInput.placeholder is not OneTextLabel placeholderText) return;
 
             placeholderText.text = textData.defaultRoomName.GetLocalizedString(NicknameService.LoadOrDefault());
         }
@@ -165,13 +165,13 @@ namespace PixelChroma.UI
             };
         }
 
-        private static void SetStatusMessage(TMP_Text target, string message)
+        private static void SetStatusMessage(OneTextLabel target, string message)
         {
             if (target != null)
                 target.text = message;
         }
 
-        private static void SetCountMessage(TMP_Text target, int length, int maxLength)
+        private static void SetCountMessage(OneTextLabel target, int length, int maxLength)
         {
             if (target != null)
                 target.text = $"{length}/{maxLength}";

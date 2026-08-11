@@ -1,5 +1,5 @@
 using System;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -30,7 +30,7 @@ namespace PixelChroma.UI
 
         [Header("Preview")]
         [SerializeField] private Image colorPreview;
-        [SerializeField] private TMP_Text hexLabel;
+        [SerializeField] private OneTextLabel hexLabel;
 
         [Header("Tools")]
         [SerializeField] private ToolSlot[] toolSlots;
@@ -41,7 +41,7 @@ namespace PixelChroma.UI
 
         [Header("Brush Size")]
         [SerializeField] private Slider brushSizeSlider;
-        [SerializeField] private TMP_Text brushSizeLabel;
+        [SerializeField] private OneTextLabel brushSizeLabel;
 
         private Texture2D _svTexture;
         private float _hue;

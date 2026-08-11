@@ -1,5 +1,5 @@
 using Mirror;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 
 namespace PixelChroma
@@ -7,12 +7,12 @@ namespace PixelChroma
     public class PlayerNicknameDisplay
     {
         private readonly PlayerBase _owner;
-        private readonly TMP_Text _text;
+        private readonly OneTextLabel _text;
         private readonly GameObject _root;
-        private readonly TMP_Text _likeCountText;
+        private readonly OneTextLabel _likeCountText;
 
-        public PlayerNicknameDisplay(PlayerBase owner, TMP_Text text, GameObject root,
-            TMP_Text likeCountText)
+        public PlayerNicknameDisplay(PlayerBase owner, OneTextLabel text, GameObject root,
+            OneTextLabel likeCountText)
         {
             _owner = owner;
             _text = text;

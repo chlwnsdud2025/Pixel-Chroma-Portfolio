@@ -1,5 +1,5 @@
 using UnityEngine;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
@@ -8,7 +8,7 @@ namespace PixelChroma.UI
     {
         [Header("Runner Expose Skill UI Only")]
         [SerializeField] private Image exposeSkillCooldownOverlay;
-        [SerializeField] private TMP_Text exposeSkillCooldownText;
+        [SerializeField] private OneTextLabel exposeSkillCooldownText;
 
         [Header("Runner Indicator")]
         [SerializeField] private TeammateIndicatorPanel runnerIndicatorPanel;

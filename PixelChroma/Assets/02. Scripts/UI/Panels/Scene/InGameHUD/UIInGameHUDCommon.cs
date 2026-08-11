@@ -1,6 +1,6 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,20 +18,20 @@ namespace PixelChroma.UI
         [SerializeField] private UIColorPicker colorPicker;
 
         [Header("Game State UI (Common)")]
-        [SerializeField] private TMP_Text stateText;
+        [SerializeField] private OneTextLabel stateText;
         [SerializeField] private UIPunchText timerText;
-        [SerializeField] private TMP_Text forcedExposeTimerText;
+        [SerializeField] private OneTextLabel forcedExposeTimerText;
 
         [Header("Result UI")]
         [SerializeField] private CanvasGroup resultOverlayGroup;
-        [SerializeField] private TMP_Text gameResultOverlayText;
+        [SerializeField] private OneTextLabel gameResultOverlayText;
         [SerializeField] private float resultAppearDuration = 0.5f;
         [SerializeField] private float resultRiseOffset = 40f;
         [SerializeField] private float resultAppearStartScale = 0.8f;
         [SerializeField] private float resultHoldDuration = 2f;
 
         [Header("Game Mode UI")]
-        [SerializeField] private TMP_Text modeText;
+        [SerializeField] private OneTextLabel modeText;
         [SerializeField] private GameModeRegistrySO gameModeRegistry;
 
         [Header("Player Count UI")]

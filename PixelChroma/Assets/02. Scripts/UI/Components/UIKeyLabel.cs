@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -20,7 +20,7 @@ namespace PixelChroma.UI
         [SerializeField] private int bindingIndex;
 
         [Tooltip("비워두면 같은 오브젝트의 TMP_Text를 사용합니다.")]
-        [SerializeField] private TMP_Text label;
+        [SerializeField] private OneTextLabel label;
 
         private void OnEnable() => Refresh();
 
@@ -29,7 +29,7 @@ namespace PixelChroma.UI
         /// </summary>
         public void Refresh()
         {
-            if (label == null) label = GetComponent<TMP_Text>();
+            if (label == null) label = GetComponent<OneTextLabel>();
             if (label == null) return;
 
             InputAction target = action != null ? action.action : null;

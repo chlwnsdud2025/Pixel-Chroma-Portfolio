@@ -1,5 +1,5 @@
 using DG.Tweening;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 
 namespace PixelChroma.UI
@@ -7,11 +7,11 @@ namespace PixelChroma.UI
     /// <summary>
     /// 경고/에러 메시지를 표시하고 흔들어 주는 위젯.
     /// </summary>
-    [RequireComponent(typeof(TMP_Text))]
+    [RequireComponent(typeof(OneTextLabel))]
     public class UIWarningText : MonoBehaviour
     {
         [Header("Text")]
-        [SerializeField] private TMP_Text text;
+        [SerializeField] private OneTextLabel text;
 
         [Header("Shake Settings")]
         [SerializeField] private float duration = 0.2f;
@@ -36,7 +36,7 @@ namespace PixelChroma.UI
         private void Awake()
         {
             if (text == null)
-                text = GetComponent<TMP_Text>();
+                text = GetComponent<OneTextLabel>();
 
             if (text == null)
                 Debug.LogError($"[{nameof(UIWarningText)}] TMP_Text를 찾을 수 없습니다.", this);

@@ -1,4 +1,4 @@
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
@@ -7,7 +7,7 @@ namespace PixelChroma.UI
 {
     public class UIMemberSlot : MonoBehaviour
     {
-        [SerializeField] private TMP_Text nameText;
+        [SerializeField] private OneTextLabel nameText;
         [SerializeField] private GameObject readyIcon;
         [SerializeField] private GameObject hostIcon;
         [SerializeField] private Button kickButton;
