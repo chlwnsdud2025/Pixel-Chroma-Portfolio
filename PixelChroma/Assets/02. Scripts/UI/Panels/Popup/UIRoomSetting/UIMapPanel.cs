@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,7 +15,10 @@ namespace PixelChroma.UI
         private MapRegistrySO _registry;
         private int _selectedIndex = -1;
 
-        public event Action<MapDataSO> OnMapSelected;
+        private int _builtInCount;
+        private readonly List<WorkshopMapEntry> _workshopEntries = new();
+
+        public event Action<string> OnMapSelected;
 
         public void Initialize(MapRegistrySO registry)
         {
@@ -44,17 +47,33 @@ namespace PixelChroma.UI
             _registry = registry;
             RebuildList();
 
-            if (_registry == null || _registry.Maps.Count == 0) return;
+            if (_pool.Count == 0) return;
 
             int idx = 0;
             if (!string.IsNullOrEmpty(currentMapName))
             {
-                for (int i = 0; i < _registry.Maps.Count; i++)
+                for (int i = 0; i < _pool.Count; i++)
                 {
-                    if (_registry.Maps[i] != null && _registry.Maps[i].name == currentMapName)
+                    if (!_pool[i].gameObject.activeSelf) continue;
+
+                    if (i < _builtInCount)
                     {
-                        idx = i;
-                        break;
+                        if (i < _registry.Maps.Count && _registry.Maps[i] != null
+                            && _registry.Maps[i].name == currentMapName)
+                        {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        int wsIdx = i - _builtInCount;
+                        if (wsIdx < _workshopEntries.Count
+                            && _workshopEntries[wsIdx].NetworkId == currentMapName)
+                        {
+                            idx = i;
+                            break;
+                        }
                     }
                 }
             }
@@ -64,18 +83,36 @@ namespace PixelChroma.UI
 
         private void Select(int index)
         {
-            if (_registry == null || index < 0 || index >= _registry.Maps.Count) return;
-
-            var map = _registry.Maps[index];
-            if (map == null) return;
+            if (index < 0 || index >= _pool.Count || !_pool[index].gameObject.activeSelf)
+                return;
 
             _selectedIndex = index;
 
-            if (previewImage != null && map.previewSprite != null)
-                previewImage.sprite = map.previewSprite;
+            if (index < _builtInCount)
+            {
+                if (_registry == null || index >= _registry.Maps.Count) return;
+                var map = _registry.Maps[index];
+                if (map == null) return;
+
+                if (previewImage != null && map.previewSprite != null)
+                    previewImage.sprite = map.previewSprite;
+
+                OnMapSelected?.Invoke(map.name);
+            }
+            else
+            {
+                int wsIdx = index - _builtInCount;
+                if (wsIdx >= _workshopEntries.Count) return;
+
+                var entry = _workshopEntries[wsIdx];
+
+                if (previewImage != null && entry.Preview != null)
+                    previewImage.sprite = entry.Preview;
+
+                OnMapSelected?.Invoke(entry.NetworkId);
+            }
 
             RefreshHighlight();
-            OnMapSelected?.Invoke(map);
         }
 
         private void RebuildList()
@@ -83,16 +120,56 @@ namespace PixelChroma.UI
             for (int i = 0; i < _pool.Count; i++)
                 _pool[i].gameObject.SetActive(false);
 
-            if (_registry == null) return;
+            _builtInCount = 0;
+            _workshopEntries.Clear();
 
-            for (int i = 0; i < _registry.Maps.Count; i++)
+            // ── 내장맵 ──
+            if (_registry != null)
             {
-                var map = _registry.Maps[i];
-                if (map == null) continue;
+                for (int i = 0; i < _registry.Maps.Count; i++)
+                {
+                    var map = _registry.Maps[i];
+                    if (map == null) continue;
 
-                UIMapItem item = GetOrCreateItem(i);
-                item.Setup(i, map.GetDisplayName());
-                item.gameObject.SetActive(true);
+                    UIMapItem item = GetOrCreateItem(_builtInCount);
+                    item.Setup(_builtInCount, map.GetDisplayName());
+                    item.SetWorkshopBadge(false);
+                    item.gameObject.SetActive(true);
+                    _builtInCount++;
+                }
+            }
+
+            // ── 창작마당 맵 ──
+            Debug.Log($"[UIMapPanel] SteamActive={GameManager.SteamActive}, SteamInitialized={GameManager.SteamInitialized}");
+
+            if (GameManager.SteamActive)
+            {
+                var subscribedMaps = WorkshopSubscriptionService.GetSubscribedMaps();
+                Debug.Log($"[UIMapPanel] 구독된 맵 수: {subscribedMaps.Count}");
+
+                foreach (var entry in subscribedMaps)
+                {
+                    Debug.Log($"[UIMapPanel] 맵 fileId={entry.publishedFileId}, installed={entry.isInstalled}, path={entry.installPath}");
+
+                    if (!entry.isInstalled)
+                    {
+                        // 구독됐지만 미설치 → 다운로드 요청
+                        WorkshopSubscriptionService.RequestDownload(entry.publishedFileId);
+                        continue;
+                    }
+
+
+                    entry.LoadMetadata();
+                    _workshopEntries.Add(entry);
+
+                    int globalIdx = _builtInCount + _workshopEntries.Count - 1;
+                    UIMapItem item = GetOrCreateItem(globalIdx);
+
+                    string displayName = string.IsNullOrEmpty(entry.Title) ? "???" : entry.Title;
+                    item.Setup(globalIdx, displayName);
+                    item.SetWorkshopBadge(true);
+                    item.gameObject.SetActive(true);
+                }
             }
         }
 

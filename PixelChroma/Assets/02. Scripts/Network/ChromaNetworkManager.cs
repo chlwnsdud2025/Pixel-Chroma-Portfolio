@@ -310,27 +310,28 @@ namespace PixelChroma
 
         private void LoadSelectedMap()
         {
-            if (MapLoader.Instance == null)
-            {
-                Debug.LogError("[ChromaNetworkManager] MapLoader 인스턴스가 없습니다.");
-                return;
-            }
-
             var roomOption = GameRoundManager.Instance?.CurrentRoomOption;
-            if (roomOption == null || MapRegistry == null) return;
+            if (roomOption == null) return;
 
-            var mapData = MapRegistry.FindById(roomOption.mapName);
-            if (mapData == null)
+            string mapName = roomOption.mapName;
+
+            // Workshop 맵 분기
+            if (mapName.StartsWith("workshop:"))
             {
-                Debug.LogWarning($"[ChromaNetworkManager] 맵을 찾을 수 없습니다: {roomOption.mapName}");
+                ulong fileId = ulong.Parse(mapName.Substring(9));
+                string path = WorkshopSubscriptionService.GetInstallPath(fileId);
+
+                if (!string.IsNullOrEmpty(path))
+                    MapLoader.Instance.LoadWorkshopMap(path);
+                else
+                    Debug.LogError("Workshop 맵 미설치: " + fileId);
                 return;
             }
-            if (mapData.mapPrefab == null)
-            {
-                Debug.LogWarning($"[ChromaNetworkManager] 맵 프리팹이 없습니다: {roomOption.mapName}");
-                return;
-            }
-            MapLoader.Instance.LoadBuiltInMap(mapData);
+
+            // 기존 내장 맵 로딩 (변경 없음)
+            var mapData = MapRegistry?.FindById(mapName);
+            if (mapData?.mapPrefab != null)
+                MapLoader.Instance.LoadBuiltInMap(mapData);
         }
     }
 }

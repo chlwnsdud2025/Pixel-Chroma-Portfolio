@@ -282,6 +282,33 @@ namespace PixelChroma.UI
 
         private void HandleJoinRoom(RoomListEntry entry)
         {
+            // ── 창작마당 맵 구독 체크 ──
+            if (entry.IsWorkshopMap && GameManager.SteamActive)
+            {
+                ulong fileId = entry.WorkshopFileId;
+
+                if (!WorkshopSubscriptionService.IsInstalled(fileId))
+                {
+                    // 미설치 → 구독 팝업 표시
+                    ShowWorkshopSubscribePopup(entry);
+                    return;
+                }
+            }
+
+            ProceedJoinRoom(entry);
+        }
+
+        private void ShowWorkshopSubscribePopup(RoomListEntry entry)
+        {
+            UIManager.Instance.ShowPopup<UIWorkshopSubscribePopup>(popup =>
+            {
+                popup.Setup(entry.WorkshopFileId);
+                popup.OnSubscribeCompleted += () => ProceedJoinRoom(entry);
+            }).Forget();
+        }
+
+        private void ProceedJoinRoom(RoomListEntry entry)
+        {
             StopAutoRefresh();
 
             foreach (var item in _items)
