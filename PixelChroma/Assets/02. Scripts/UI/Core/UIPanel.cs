@@ -1,5 +1,5 @@
 using Cysharp.Threading.Tasks;
-using TMPro;
+using OneText.UGUI;
 using UnityEngine;
 
 namespace PixelChroma.UI
@@ -10,15 +10,12 @@ namespace PixelChroma.UI
 
         public virtual void RegisterLocalizedTexts()
         {
-            foreach (var text in GetComponentsInChildren<TMP_Text>(true))
+            foreach (var label in GetComponentsInChildren<OneTextLabel>(true))
             {
-                if (text.GetComponentInParent<LocalizedFontIgnore>(true) != null)
+                if (label.GetComponentInParent<LocalizedFontIgnore>(true) != null)
                     continue;
 
-                if (text.GetComponent<DynamicFontText>() != null)
-                    continue;
-
-                LocalizationManager.Register(text);
+                LocalizationManager.Register(label);
             }
         }
 

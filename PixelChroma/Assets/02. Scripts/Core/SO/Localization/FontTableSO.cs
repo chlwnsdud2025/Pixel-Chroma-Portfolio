@@ -1,5 +1,5 @@
 using System;
-using TMPro;
+using OneText;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Localization;
@@ -14,43 +14,29 @@ namespace PixelChroma
         public struct Entry
         {
             public LocaleIdentifier[] locales;
+
+            // OneText 도입으로 Static/Dynamic 폰트 구분이 사라져 로케일당 폰트 하나로 통합.
+            // 기존 staticFont 슬롯을 이어받되, 타입이 TMP_FontAsset → OneFontAsset으로 바뀌었으므로
+            // 인스펙터에서 OneFontAsset을 다시 지정해야 한다(GUID는 남지만 대상 타입이 다름).
+            [FormerlySerializedAs("staticFont")]
             [FormerlySerializedAs("font")]
-            public AssetReferenceT<TMP_FontAsset> staticFont;
-            public AssetReferenceT<TMP_FontAsset> dynamicFont;
+            public AssetReferenceT<OneFontAsset> font;
         }
 
         [SerializeField] private Entry[] entries;
 
+        [FormerlySerializedAs("staticFallback")]
         [FormerlySerializedAs("fallbackFont")]
-        [SerializeField] private AssetReferenceT<TMP_FontAsset> staticFallback;
-        [SerializeField] private AssetReferenceT<TMP_FontAsset> dynamicFallback;
+        [SerializeField] private AssetReferenceT<OneFontAsset> fallback;
 
-        public AssetReferenceT<TMP_FontAsset> Resolve(LocaleIdentifier identifier)
+        public AssetReferenceT<OneFontAsset> Resolve(LocaleIdentifier identifier)
         {
             foreach (var entry in entries)
                 foreach (var locale in entry.locales)
                     if (locale == identifier)
-                        return entry.staticFont;
+                        return entry.font;
 
-            return staticFallback;
-        }
-
-        public AssetReferenceT<TMP_FontAsset> ResolveDynamic(LocaleIdentifier identifier)
-        {
-            foreach (var entry in entries)
-            {
-                foreach (var locale in entry.locales)
-                {
-                    if (locale == identifier)
-                    {
-                        if (entry.dynamicFont != null && entry.dynamicFont.RuntimeKeyIsValid())
-                            return entry.dynamicFont;
-                        return dynamicFallback;
-                    }
-                }
-            }
-
-            return dynamicFallback;
+            return fallback;
         }
     }
 }
