@@ -164,6 +164,7 @@ namespace PixelChroma
                 GameRoundManager.Instance.BeginRound();
             else if (IsLobbyScene(scene))
             {
+                InGameManager.Instance?.ResetState();
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
                 LikeManager.ClearRecords();
             }
