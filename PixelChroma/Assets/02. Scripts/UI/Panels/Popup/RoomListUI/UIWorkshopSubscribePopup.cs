@@ -20,6 +20,9 @@ namespace PixelChroma.UI
         [SerializeField] private OneTextLabel confirmButtonText;
         [SerializeField] private Button cancelButton;
 
+        [Header("Localization")]
+        [SerializeField] private WorkshopSubscribeTextDataSO textData;
+
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
         [SerializeField] private float animationDuration = 0.25f;
@@ -56,8 +59,11 @@ namespace PixelChroma.UI
 
             _processing = false;
 
-            if (messageText != null)
-                messageText.text = "이 방은 창작마당 맵을 사용합니다.\n구독 후 참가하시겠습니까?";
+            if (messageText != null && textData != null)
+                messageText.text = textData.message.GetLocalizedString();
+
+            if (confirmButtonText != null && textData != null)
+                confirmButtonText.text = textData.confirmButton.GetLocalizedString();
 
             if (statusText != null)
                 statusText.gameObject.SetActive(false);
@@ -110,14 +116,14 @@ namespace PixelChroma.UI
             try
             {
                 // 1. 구독 요청
-                SetStatus("구독 중...");
+                SetStatus(textData != null ? textData.statusSubscribing.GetLocalizedString() : "Subscribing...");
                 WorkshopSubscriptionService.SubscribeItem(_fileId);
 
                 // Steam 구독 반영 대기
                 await UniTask.Delay(1000, cancellationToken: token);
 
                 // 2. 다운로드 시작
-                SetStatus("다운로드 중...");
+                SetStatus(textData != null ? textData.statusDownloading.GetLocalizedString() : "Downloading...");
                 WorkshopSubscriptionService.RequestDownload(_fileId);
 
                 // 3. 설치 완료까지 폴링 (최대 60초)
@@ -133,7 +139,7 @@ namespace PixelChroma.UI
                     elapsed += pollInterval;
                     if (elapsed >= timeout)
                     {
-                        SetStatus("다운로드 시간 초과");
+                        SetStatus(textData != null ? textData.statusTimeout.GetLocalizedString() : "Download timed out");
                         _processing = false;
                         SetButtonsInteractable(true);
                         return;
@@ -147,7 +153,7 @@ namespace PixelChroma.UI
                 if (token.IsCancellationRequested) return;
 
                 // 4. 완료 → 팝업 닫고 입장 진행
-                SetStatus("완료!");
+                SetStatus(textData != null ? textData.statusComplete.GetLocalizedString() : "Complete!");
                 OnSubscribeCompleted?.Invoke();
                 await UIManager.Instance.HidePopup();
             }
@@ -155,7 +161,7 @@ namespace PixelChroma.UI
             catch (Exception e)
             {
                 Debug.LogError("[WorkshopSubscribe] 구독 실패: " + e.Message);
-                SetStatus("구독에 실패했습니다.");
+                SetStatus(textData != null ? textData.statusFailed.GetLocalizedString() : "Failed to subscribe.");
                 _processing = false;
                 SetButtonsInteractable(true);
             }

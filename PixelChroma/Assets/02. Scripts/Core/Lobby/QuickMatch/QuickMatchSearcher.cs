@@ -191,6 +191,19 @@ namespace PixelChroma
 
                 if (memberCount >= memberLimit) continue;
 
+                string mapId = SteamMatchmaking.GetLobbyData(lobbyId, LobbyManager.MapIdKey);
+                if (!string.IsNullOrEmpty(mapId) && mapId.StartsWith("workshop:"))
+                {
+                    if (ulong.TryParse(mapId.Substring("workshop:".Length), out ulong fileId))
+                    {
+                        if (!WorkshopSubscriptionService.IsInstalled(fileId))
+                        {
+                            Debug.Log($"[QuickMatch] 미설치 창작마당 맵 방 건너뜀: {mapId}");
+                            continue;
+                        }
+                    }
+                }
+
                 if (memberCount > bestMemberCount)
                 {
                     bestMemberCount = memberCount;

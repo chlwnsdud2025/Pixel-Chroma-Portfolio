@@ -30,6 +30,9 @@ namespace PixelChroma
         private const string HostAddressKey = "HostAddress";
         private const string CodeKey = "RoomCode";
 
+        //창작마당
+        public event Action<CSteamID, ulong> OnWorkshopSubscriptionRequired;
+
         [Header("Map List")]
         [SerializeField] private MapRegistrySO mapRegistry;
 
@@ -54,6 +57,8 @@ namespace PixelChroma
 
         public bool IsHost => NetworkServer.active;
         public MapRegistrySO MapRegistry => mapRegistry;
+
+
 
         protected override void Awake()
         {
@@ -327,27 +332,42 @@ namespace PixelChroma
         }
 
         private void OnLobbyMatchList(LobbyMatchList_t result, bool ioFailure)
+{
+    if (ioFailure || result.m_nLobbiesMatching == 0)
+    {
+        Debug.LogWarning("[LobbyManager] 조건에 맞는 방을 찾지 못했습니다.");
+        OnLobbyFailed?.Invoke(LobbyFailureReason.CodeRoomNotFound);
+        return;
+    }
+
+    CSteamID matchedLobbyID = SteamMatchmaking.GetLobbyByIndex(0);
+
+    // 코드가 일치해도 이미 게임 진행 중인 방이면 입장을 막고 안내한다.
+    string status = SteamMatchmaking.GetLobbyData(matchedLobbyID, RoomStatusKey);
+    if (status == StatusInGame)
+    {
+        Debug.LogWarning("[LobbyManager] 코드에 해당하는 방이 이미 게임 진행 중입니다.");
+        OnLobbyFailed?.Invoke(LobbyFailureReason.RoomInGame);
+        return;
+    }
+
+    // ── 창작마당 맵 구독 체크 ──
+    string mapId = SteamMatchmaking.GetLobbyData(matchedLobbyID, MapIdKey);
+    if (!string.IsNullOrEmpty(mapId) && mapId.StartsWith("workshop:"))
+    {
+        if (ulong.TryParse(mapId.Substring("workshop:".Length), out ulong fileId))
         {
-            if (ioFailure || result.m_nLobbiesMatching == 0)
+            if (!WorkshopSubscriptionService.IsInstalled(fileId))
             {
-                Debug.LogWarning("[LobbyManager] 조건에 맞는 방을 찾지 못했습니다.");
-                OnLobbyFailed?.Invoke(LobbyFailureReason.CodeRoomNotFound);
+                Debug.Log($"[LobbyManager] 코드 참가: 창작마당 맵 미설치 ({mapId}), 구독 팝업 요청");
+                OnWorkshopSubscriptionRequired?.Invoke(matchedLobbyID, fileId);
                 return;
             }
-
-            CSteamID matchedLobbyID = SteamMatchmaking.GetLobbyByIndex(0);
-
-            // 코드가 일치해도 이미 게임 진행 중인 방이면 입장을 막고 안내한다.
-            string status = SteamMatchmaking.GetLobbyData(matchedLobbyID, RoomStatusKey);
-            if (status == StatusInGame)
-            {
-                Debug.LogWarning("[LobbyManager] 코드에 해당하는 방이 이미 게임 진행 중입니다.");
-                OnLobbyFailed?.Invoke(LobbyFailureReason.RoomInGame);
-                return;
-            }
-
-            SteamMatchmaking.JoinLobby(matchedLobbyID);
         }
+    }
+
+    SteamMatchmaking.JoinLobby(matchedLobbyID);
+}
 
         private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t result) { SteamMatchmaking.JoinLobby(result.m_steamIDLobby); }
 
@@ -402,6 +422,11 @@ namespace PixelChroma
                 NetworkManager.singleton.StopHost();
             else 
                 NetworkManager.singleton.StopClient();
+        }
+
+        public void JoinLobbyDirect(CSteamID lobbyId)
+        {
+            SteamMatchmaking.JoinLobby(lobbyId);
         }
 
         // ── 유틸 ───────────────────────────────────────────────
