@@ -89,6 +89,8 @@ namespace PixelChroma.UI
             PlayerBase.OnAnyPlayerNameChanged += RefreshMemberList;
             GameRoundManager.OnTimeStateChanged += OnTimeStateChanged;
             GameRoundManager.OnTimerTick += OnTimerTick;
+
+            if (roomOptionPanel != null) roomOptionPanel.Subscribe();
         }
 
         /// <summary>
@@ -105,6 +107,8 @@ namespace PixelChroma.UI
             PlayerBase.OnAnyPlayerNameChanged -= RefreshMemberList;
             GameRoundManager.OnTimeStateChanged -= OnTimeStateChanged;
             GameRoundManager.OnTimerTick -= OnTimerTick;
+
+            if (roomOptionPanel != null) roomOptionPanel.Unsubscribe();
         }
 
         protected override UniTask OnShow()

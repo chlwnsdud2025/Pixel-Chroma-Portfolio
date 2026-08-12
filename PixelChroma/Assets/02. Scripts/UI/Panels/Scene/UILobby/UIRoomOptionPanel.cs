@@ -1,6 +1,7 @@
 using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.Localization;
+using UnityEngine.Localization.Settings;
 using UnityEngine.UI;
 
 namespace PixelChroma.UI
@@ -26,9 +27,23 @@ namespace PixelChroma.UI
         [SerializeField] private OneTextLabel forcedExposeIntervalText;
         [SerializeField] private LocalizedString offLabel;
 
+        private RoomOption _currentOption;
+
+        public void Subscribe()
+        {
+            LocalizationSettings.SelectedLocaleChanged += OnLocaleChanged;
+        }
+
+        public void Unsubscribe()
+        {
+            LocalizationSettings.SelectedLocaleChanged -= OnLocaleChanged;
+        }
+
         public void Refresh(RoomOption option)
         {
             if (option == null) return;
+
+            _currentOption = option;
 
             RefreshGameMode(option);
             RefreshMapName(option);
@@ -81,6 +96,11 @@ namespace PixelChroma.UI
                 forcedExposeIntervalText.text = option.forcedExposeEnabled
                     ? option.forcedExposeInterval.ToString("0")
                     : offLabel.GetLocalizedString();
+        }
+
+        private void OnLocaleChanged(Locale locale)
+        {
+            Refresh(_currentOption);
         }
     }
 }
