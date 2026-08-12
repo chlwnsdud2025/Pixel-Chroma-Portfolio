@@ -2,8 +2,10 @@ using UnityEngine;
 using Mirror;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using PixelChroma.UI;
 using System.Collections;
+using System.Collections.Generic;
 using Unity.Cinemachine;
 
 namespace PixelChroma
@@ -72,6 +74,9 @@ namespace PixelChroma
         private Quaternion _weaponRestLocalRot;
         private CinemachineImpulseSource _impulseSource;
 
+        // UI 발사 차단 판정용 재사용 버퍼(좌클릭 프레임에만 RaycastAll 수행)
+        private static readonly List<RaycastResult> _uiHits = new List<RaycastResult>();
+
         public float FireCooldownDuration => fireCooldown;
 
         // HUD 쿨타임 오버레이용: 발사 직후 1 → 쿨타임이 끝나면 0.
@@ -124,12 +129,10 @@ namespace PixelChroma
             if (_mainCam == null || Mouse.current == null || weaponPivot == null) return;
 
             if (isPaintMode)
-            {
-                if (CursorManager.Instance != null)
-                    CursorManager.Instance.overrideScreenPosition = null;
                 return;
-            }
 
+            // 크로스헤어는 실제 마우스 위치를 그대로 따라간다(사거리 클램프 없음).
+            // 사거리 제한은 발사 판정(Physics2D.Raycast fireRange)에서만 적용된다.
             Vector2 mouseScreenPos = Mouse.current.position.ReadValue();
             Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(mouseScreenPos);
             mouseWorldPos.z = 0;
@@ -138,28 +141,6 @@ namespace PixelChroma
             Vector2 pivotPos = weaponPivot.position;
             Vector2 aimDirection = ((Vector2)mouseWorldPos - pivotPos).normalized;
             _aimDirection = aimDirection;
-
-            // firePoint는 회전해도 pivot으로부터 항상 이 거리만큼 떨어져 있음 (로컬 좌표라 회전/반전에 영향 안 받음)
-            float muzzleOffset = firePoint != null ? firePoint.localPosition.magnitude : 0f;
-            float effectiveRange = fireRange + muzzleOffset;   // pivot 기준으로 봤을 때의 실제 최대 사거리
-
-            float distanceToTarget = Vector2.Distance(pivotPos, mouseWorldPos);
-
-            if (distanceToTarget > effectiveRange)
-            {
-                Vector2 clampedWorldPos = pivotPos + aimDirection * effectiveRange;
-                Vector2 clampedScreenPos = _mainCam.WorldToScreenPoint(clampedWorldPos);
-
-                if (CursorManager.Instance != null)
-                    CursorManager.Instance.overrideScreenPosition = clampedScreenPos;
-
-                Mouse.current.WarpCursorPosition(clampedScreenPos);
-            }
-            else
-            {
-                if (CursorManager.Instance != null)
-                    CursorManager.Instance.overrideScreenPosition = null;
-            }
 
             float angle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
             ApplyAimRotation(angle);
@@ -247,7 +228,7 @@ namespace PixelChroma
         {
             if (_mainCam == null || Mouse.current == null) return;
             if (isPaintMode || !Mouse.current.leftButton.wasPressedThisFrame) return;
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+            if (IsPointerOverInteractiveUI()) return;
             if (!CanFireLocally) return;
 
             _lastFireTime = Time.time;
@@ -264,6 +245,28 @@ namespace PixelChroma
                 Vector2 recoilDir = -_aimDirection.normalized * impulseStrength;
                 _impulseSource.GenerateImpulse(new Vector3(recoilDir.x, recoilDir.y, 0f));
             }
+        }
+
+        // 포인터 아래 UI 중 '상호작용 컨트롤(Selectable)'이 있을 때만 발사를 막는다.
+        // 읽기전용 패널(스크롤만 받는 채팅 등)은 Raycast Target이 켜져 있어도 발사가 통과한다.
+        private bool IsPointerOverInteractiveUI()
+        {
+            if (EventSystem.current == null || Mouse.current == null) return false;
+
+            var ped = new PointerEventData(EventSystem.current)
+            {
+                position = Mouse.current.position.ReadValue()
+            };
+
+            _uiHits.Clear();
+            EventSystem.current.RaycastAll(ped, _uiHits);
+
+            for (int i = 0; i < _uiHits.Count; i++)
+            {
+                if (_uiHits[i].gameObject.GetComponentInParent<Selectable>() != null)
+                    return true;   // 버튼·스크롤바 등 진짜 컨트롤 위 → 발사 취소
+            }
+            return false;          // 읽기전용 UI(또는 UI 없음) → 통과
         }
         //----------------------------------------테스트--------------------------------------------------
 #if UNITY_EDITOR
