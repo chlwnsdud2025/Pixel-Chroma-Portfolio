@@ -6,16 +6,15 @@ namespace PixelChroma.UI
     /// <summary>
     /// 이 <see cref="OneTextLabel"/>이 로컬라이즈 폰트를 따라가도록 폰트 풀에 직접 등록한다.
     ///
-    /// UIPanel 스캔이 닿지 않거나(월드 공간 닉네임 등) 스캔 시점 이후에 생성되는
-    /// (채팅 풀 등) 라벨에 붙인다. UIPanel 아래에 있어 이미 스캔되는 라벨에 중복으로
-    /// 붙어도 무방하다(등록은 HashSet이라 중복을 흡수).
-    ///
-    /// OneText 도입으로 Static/Dynamic 폰트 구분과 런타임 아틀라스 프레임 드랍이 사라지면서,
-    /// 기존 StaticFontText/DynamicFontText 두 마커를 이 하나로 통합했다.
+    /// <see cref="role"/>로 UI/디스플레이용과 채팅/본문용 폰트를 구분해 등록한다.
+    /// 채팅 라벨(입력창·메시지 프리팹)은 Chat으로 지정해 가독성 폰트를 따라가게 한다.
     /// </summary>
     [RequireComponent(typeof(OneTextLabel))]
     public class LocalizedFontText : MonoBehaviour
     {
+        [Tooltip("이 라벨이 따라갈 폰트 역할. 채팅 입력창·메시지 라벨은 Chat으로 지정한다.")]
+        [SerializeField] private FontRole role = FontRole.Ui;
+
         private OneTextLabel _label;
 
         public OneTextLabel Label => _label != null ? _label : (_label = GetComponent<OneTextLabel>());
@@ -23,7 +22,7 @@ namespace PixelChroma.UI
         private void Awake()
         {
             _label = GetComponent<OneTextLabel>();
-            LocalizationManager.Register(_label);
+            LocalizationManager.Register(_label, role);
         }
 
         private void OnDestroy()

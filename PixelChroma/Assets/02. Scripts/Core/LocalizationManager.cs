@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using OneText;
@@ -11,18 +12,35 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace PixelChroma
 {
+    // 로컬라이즈 폰트의 용도(역할)
+    public enum FontRole { Ui, Chat }
+
     public static class LocalizationManager
     {
         private const string PrefsKey = "SelectedLocaleCode";
 
-        // OneText 도입으로 Static/Dynamic 폰트 풀 구분이 사라져 라벨 풀 하나로 통합.
-        private static readonly HashSet<OneTextLabel> _labels = new();
-        private static AsyncOperationHandle<OneFontAsset> _handle;
-        private static object _currentRuntimeKey;
+        // 역할별 폰트 채널. 등록 라벨 풀 + 현재 폰트 + Addressables 핸들을 함께 관리한다.
+        private sealed class FontChannel
+        {
+            public readonly HashSet<OneTextLabel> Labels = new();
+            public readonly Func<FontTableSO, LocaleIdentifier, AssetReferenceT<OneFontAsset>> Resolve;
+
+            public OneFontAsset CurrentFont;
+            public AsyncOperationHandle<OneFontAsset> Handle;
+            public object CurrentRuntimeKey;
+
+            public FontChannel(Func<FontTableSO, LocaleIdentifier, AssetReferenceT<OneFontAsset>> resolve)
+            {
+                Resolve = resolve;
+            }
+        }
+
+        private static readonly FontChannel _ui = new((table, id) => table.Resolve(id));
+        private static readonly FontChannel _chat = new((table, id) => table.ResolveChat(id));
 
         private static FontTableSO _fontTable;
 
-        public static OneFontAsset CurrentFont { get; private set; }
+        public static OneFontAsset CurrentFont => _ui.CurrentFont;
 
         public static void Initialize(FontTableSO fontTable)
         {
@@ -31,20 +49,30 @@ namespace PixelChroma
 
         // ── Register ────────────────────────────────────────────────────
 
-        public static void Register(OneTextLabel label)
+        public static void Register(OneTextLabel label, FontRole role = FontRole.Ui)
         {
-            if (label == null || !_labels.Add(label))
+            if (label == null)
                 return;
 
-            if (CurrentFont != null)
-                label.Font = CurrentFont;
+            var channel = Channel(role);
+            if (!channel.Labels.Add(label))
+                return;
+
+            if (channel.CurrentFont != null)
+                label.Font = channel.CurrentFont;
         }
 
         public static void Unregister(OneTextLabel label)
         {
-            if (label != null)
-                _labels.Remove(label);
+            if (label == null)
+                return;
+
+            // 어느 역할로 등록됐는지 몰라도 되도록 양쪽 풀에서 제거한다(라벨은 한쪽에만 있음).
+            _ui.Labels.Remove(label);
+            _chat.Labels.Remove(label);
         }
+
+        private static FontChannel Channel(FontRole role) => role == FontRole.Chat ? _chat : _ui;
 
         // ── Locale ──────────────────────────────────────────────────────
 
@@ -87,14 +115,20 @@ namespace PixelChroma
         // ── Cleanup ─────────────────────────────────────────────────────
         public static void Release()
         {
-            _labels.Clear();
-            CurrentFont = null;
-            _currentRuntimeKey = null;
+            ReleaseChannel(_ui);
+            ReleaseChannel(_chat);
+        }
 
-            if (_handle.IsValid())
+        private static void ReleaseChannel(FontChannel channel)
+        {
+            channel.Labels.Clear();
+            channel.CurrentFont = null;
+            channel.CurrentRuntimeKey = null;
+
+            if (channel.Handle.IsValid())
             {
-                Addressables.Release(_handle);
-                _handle = default;
+                Addressables.Release(channel.Handle);
+                channel.Handle = default;
             }
         }
 
@@ -107,26 +141,34 @@ namespace PixelChroma
                 return;
             }
 
-            var reference = _fontTable.Resolve(locale.Identifier);
+            // UI/채팅 폰트를 동시에 로드·적용한다.
+            await UniTask.WhenAll(
+                ApplyChannelAsync(_ui, locale, "UI"),
+                ApplyChannelAsync(_chat, locale, "Chat"));
+        }
+
+        private static async UniTask ApplyChannelAsync(FontChannel channel, Locale locale, string roleName)
+        {
+            var reference = channel.Resolve(_fontTable, locale.Identifier);
             if (reference == null || !reference.RuntimeKeyIsValid())
             {
-                Debug.LogWarning($"[LocalizationManager] locale '{locale.Identifier.Code}'에 대한 폰트가 없습니다.");
+                Debug.LogWarning($"[LocalizationManager] locale '{locale.Identifier.Code}'의 {roleName} 폰트가 없습니다.");
                 return;
             }
 
-            if (_currentRuntimeKey != null && _currentRuntimeKey.Equals(reference.RuntimeKey))
+            if (channel.CurrentRuntimeKey != null && channel.CurrentRuntimeKey.Equals(reference.RuntimeKey))
                 return;
 
             var newHandle = Addressables.LoadAssetAsync<OneFontAsset>(reference.RuntimeKey);
             var newFont = await newHandle.ToUniTask();
-            var oldHandle = _handle;
+            var oldHandle = channel.Handle;
 
-            CurrentFont = newFont;
-            _handle = newHandle;
-            _currentRuntimeKey = reference.RuntimeKey;
+            channel.CurrentFont = newFont;
+            channel.Handle = newHandle;
+            channel.CurrentRuntimeKey = reference.RuntimeKey;
 
-            _labels.RemoveWhere(l => l == null);
-            foreach (var label in _labels)
+            channel.Labels.RemoveWhere(l => l == null);
+            foreach (var label in channel.Labels)
                 label.Font = newFont;
 
             // 새 폰트를 모든 라벨에 반영한 뒤에 이전 핸들을 해제한다.
