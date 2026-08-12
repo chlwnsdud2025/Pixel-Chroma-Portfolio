@@ -104,14 +104,12 @@ namespace PixelChroma
         public override void OnServerConnect(NetworkConnectionToClient conn)
         {
             base.OnServerConnect(conn);
-            LikeManager.Register(conn.connectionId);
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
         {
             base.OnServerDisconnect(conn);
             NicknameRegistry.Unregister(conn.connectionId);
-            LikeManager.Unregister(conn.connectionId);
 
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.RemovePlayer(conn.connectionId);

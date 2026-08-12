@@ -145,7 +145,6 @@ namespace PixelChroma
             if (connectionToClient != null)
             {
                 _ownerConnectionId = connectionToClient.connectionId;
-                _likeCount = LikeManager.GetLikeCount(connectionToClient.connectionId);
 
             }
         }
@@ -195,7 +194,7 @@ namespace PixelChroma
 
             string mySavedName = NicknameService.LoadOrDefault();
             CmdRegisterMyNameWithManager(mySavedName);
-
+            CmdRegisterMyLikeCount(LikeService.Load());// 로컬에 누적된 좋아요 카운트를 서버에 전달하여 SyncVar를 초기화한다.
             // 이미 칠해둔 다른 플레이어들의 현재 페인트 상태를 요청(late-join 동기화).
             CmdRequestPaintSnapshots();
 
@@ -461,12 +460,18 @@ namespace PixelChroma
             var senderPlayer = sender.identity?.GetComponent<PlayerBase>();
             if (senderPlayer == this) return;
 
-            // 클라이언트가 자체 판정으로 중복을 걸러주지만, 그건 UI 편의일 뿐이라
-            // 카운트 정확성은 서버 장부(LikeManager)로만 보장합니다.
-            if (!LikeManager.AddLike(sender.connectionId, _ownerConnectionId))
+            // 변경: AddLike → TryAddRecord (중복 검사만)
+            if (!LikeManager.TryAddRecord(sender.connectionId, _ownerConnectionId))
                 return;
 
-            _likeCount = LikeManager.GetLikeCount(_ownerConnectionId);
+            // 변경: GetLikeCount 대신 직접 증가
+            _likeCount++;
+        }
+
+        [Command]
+        private void CmdRegisterMyLikeCount(int savedCount)
+        {
+            _likeCount = Mathf.Max(0, savedCount);
         }
 
         private void SetupCinemachineFollow()
@@ -567,6 +572,9 @@ namespace PixelChroma
             if (newVal <= oldVal) return;
 
             Common.PlayLikeRise(newVal - oldVal);
+
+            if (isLocalPlayer)
+                LikeService.Save(newVal);
         }
 
         private void HandleChatToggled(bool isActive)
