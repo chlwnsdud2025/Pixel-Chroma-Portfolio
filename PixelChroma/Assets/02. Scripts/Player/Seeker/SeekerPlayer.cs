@@ -67,9 +67,6 @@ namespace PixelChroma
             PaintController.OnPaintModeChanged -= HandleLocalPaintModeChanged;
 
             CleanupSpectator();
-
-            if (CursorManager.Instance != null)
-                CursorManager.Instance.overrideScreenPosition = null;
         }
 
         // Seeker의 관전은 체크타임 잠금 전용 → ESC로 종료하지 않는다.
