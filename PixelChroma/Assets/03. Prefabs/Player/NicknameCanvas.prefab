@@ -85,7 +85,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!114 &3088370655331550004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -442,6 +442,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontText
+  role: 1
 --- !u!114 &3245457818836443697
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -465,7 +466,7 @@ MonoBehaviour:
   _style: {fileID: 0}
   _namedStyles: []
   _decoration:
-    Set: 1
+    Set: 9
     OutlineColor:
       serializedVersion: 2
       rgba: 4278190080
@@ -481,7 +482,7 @@ MonoBehaviour:
       rgba: 4294967295
     GlowRadius: 0.75
     GlowInner: 0
-    FaceDilate: 0
+    FaceDilate: 0.05
   _namedFonts: []
   _sprites: {fileID: 0}
   _language: 
