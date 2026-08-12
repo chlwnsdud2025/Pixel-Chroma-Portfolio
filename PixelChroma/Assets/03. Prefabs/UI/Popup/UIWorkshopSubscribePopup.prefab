@@ -65,7 +65,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 5316718702655591193, guid: 5f81fab21ad472445bae24ec6678d91a, type: 3}
+  m_Sprite: {fileID: -301324026128010770, guid: 4391771900528c44c924260c8360bc40, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -610,6 +610,7 @@ GameObject:
   - component: {fileID: 5715855681847562598}
   - component: {fileID: 8373723369026475749}
   - component: {fileID: 3074938087651212433}
+  - component: {fileID: 8551772294467717725}
   m_Layer: 5
   m_Name: WarningText
   m_TagString: Untagged
@@ -657,7 +658,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: OneText.UGUI::OneText.UGUI.OneTextLabel
   m_Material: {fileID: 0}
-  m_Color: {r: 0.99215686, g: 0.41568628, b: 0.41568628, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -725,6 +726,46 @@ MonoBehaviour:
   _revealComplete:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &8551772294467717725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4754472161375551357}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 56eb0353ae6e5124bb35b17aff880f16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Localization::UnityEngine.Localization.Components.LocalizeStringEvent
+  m_StringReference:
+    m_TableReference:
+      m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
+    m_TableEntryReference:
+      m_KeyId: 12602546089111552
+      m_Key: 
+    m_FallbackState: 0
+    m_WaitForCompletion: 0
+    m_LocalVariables: []
+  m_FormatArguments: []
+  m_UpdateString:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 3074938087651212433}
+        m_TargetAssemblyTypeName: OneText.UGUI.OneTextLabel, OneText.UGUI
+        m_MethodName: set_text
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  references:
+    version: 2
+    RefIds: []
 --- !u!1 &5329392341595147186
 GameObject:
   m_ObjectHideFlags: 0
@@ -919,7 +960,7 @@ MonoBehaviour:
     m_TableReference:
       m_TableCollectionName: GUID:20afa889f5a4f934d88f45ef292dab56
     m_TableEntryReference:
-      m_KeyId: 13350614872064
+      m_KeyId: 12602113782198272
       m_Key: 
     m_FallbackState: 0
     m_WaitForCompletion: 0
@@ -1258,7 +1299,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 1319018206826565807, guid: 444bf7b6bb90a9a4ea8dcf8b5f10a854, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 0a6ddb390d6e74d4ab8736a06da682f6, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1

@@ -15,19 +15,17 @@ namespace PixelChroma
         {
             public LocaleIdentifier[] locales;
 
-            // OneText 도입으로 Static/Dynamic 폰트 구분이 사라져 로케일당 폰트 하나로 통합.
-            // 기존 staticFont 슬롯을 이어받되, 타입이 TMP_FontAsset → OneFontAsset으로 바뀌었으므로
-            // 인스펙터에서 OneFontAsset을 다시 지정해야 한다(GUID는 남지만 대상 타입이 다름).
-            [FormerlySerializedAs("staticFont")]
-            [FormerlySerializedAs("font")]
+            // UI/디스플레이용 폰트. 게임 분위기용 디스플레이 폰트(픽셀·둥근 폰트 등)를 쓴다.
             public AssetReferenceT<OneFontAsset> font;
+
+            // 채팅/본문용 폰트. 가독성 위주(Noto Sans 계열 등)로 지정한다.
+            public AssetReferenceT<OneFontAsset> chatFont;
         }
 
         [SerializeField] private Entry[] entries;
 
-        [FormerlySerializedAs("staticFallback")]
-        [FormerlySerializedAs("fallbackFont")]
         [SerializeField] private AssetReferenceT<OneFontAsset> fallback;
+        [SerializeField] private AssetReferenceT<OneFontAsset> chatFallback;
 
         public AssetReferenceT<OneFontAsset> Resolve(LocaleIdentifier identifier)
         {
@@ -38,5 +36,30 @@ namespace PixelChroma
 
             return fallback;
         }
+
+        // 채팅/본문용 폰트 해석. chatFont가 없으면 chatFallback으로, 그마저 없으면
+        // UI 폰트(entry.font/fallback)로 우아하게 대체해 아직 미설정 상태에서도 채팅이 렌더된다.
+        public AssetReferenceT<OneFontAsset> ResolveChat(LocaleIdentifier identifier)
+        {
+            foreach (var entry in entries)
+                foreach (var locale in entry.locales)
+                    if (locale == identifier)
+                        return Pick(entry.chatFont, chatFallback, entry.font);
+
+            return Pick(null, chatFallback, fallback);
+        }
+
+        private static AssetReferenceT<OneFontAsset> Pick(
+            AssetReferenceT<OneFontAsset> primary,
+            AssetReferenceT<OneFontAsset> secondary,
+            AssetReferenceT<OneFontAsset> tertiary)
+        {
+            if (IsValid(primary)) return primary;
+            if (IsValid(secondary)) return secondary;
+            return tertiary;
+        }
+
+        private static bool IsValid(AssetReferenceT<OneFontAsset> reference) =>
+            reference != null && reference.RuntimeKeyIsValid();
     }
 }

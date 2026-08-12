@@ -15,6 +15,9 @@ namespace PixelChroma.UI
                 if (label.GetComponentInParent<LocalizedFontIgnore>(true) != null)
                     continue;
 
+                if (label.GetComponent<LocalizedFontText>() != null)
+                    continue;
+
                 LocalizationManager.Register(label);
             }
         }
