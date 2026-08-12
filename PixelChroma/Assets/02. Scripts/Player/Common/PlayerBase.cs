@@ -52,7 +52,6 @@ namespace PixelChroma
         private SpectatorController _spectator;
         private bool _isChatActive;
         private bool _wasPopupOpen;
-        private bool _likeEffectsReady;
         private bool _likedByLocal;
         private int _ownerConnectionId = -1;
 
@@ -90,6 +89,9 @@ namespace PixelChroma
 
         protected virtual void OnDestroy()
         {
+            // OnStopLocalPlayer가 안 불린 채 파괴돼도 좀비 구독이 남지 않도록 백스톱 해제.
+            UIChat.OnChatToggled -= HandleChatToggled;
+            GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
         }
 
         protected virtual void Update()
@@ -161,8 +163,6 @@ namespace PixelChroma
 
             Common.InitializeNickname(this);
             NicknameVisibilityChanged += Common.UpdateNicknameVisibility;
-
-            _likeEffectsReady = true;
         }
 
         public override void OnStopClient()
@@ -211,8 +211,11 @@ namespace PixelChroma
 
         public override void OnStopLocalPlayer()
         {
-            _input?.DisableAll();
+            // 아래 정리 중 예외가 나도 구독이 남지 않도록 static 이벤트 해제를 최우선 처리.
             UIChat.OnChatToggled -= HandleChatToggled;
+            GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
+
+            _input?.DisableAll();
 
             if (UIManager.Instance != null && ReferenceEquals(UIManager.Instance.GameplayEscapeHandler, this))
                 UIManager.Instance.GameplayEscapeHandler = null;
@@ -220,12 +223,14 @@ namespace PixelChroma
             if (_paintController != null)
             {
                 _paintController.OnPaintModeChanged -= HandlePaintModeChangedForZoom;
-                _paintController.OnPaintModeChanged -= Common.HandlePaintModeChanged;
+
+                // 파괴 타이밍에 Common(GetComponent)이 null일 수 있어 가드.
+                var common = Common;
+                if (common != null)
+                    _paintController.OnPaintModeChanged -= common.HandlePaintModeChanged;
             }
 
             _paintController?.Dispose();
-
-            GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
 
             OnLocalPlayerStopped();
         }
@@ -386,7 +391,8 @@ namespace PixelChroma
 
         private void HandleCheckTimeSpectator(TimeState state, int remainingSeconds) // CheckTime 전용
         {
-            if (_spectator == null) return;
+            // 좀비 호출 방어: 네트워크 핸들러 안이라 예외가 나면 Mirror가 커넥션을 끊는다.
+            if (this == null || _spectator == null) return;
 
             if (state == TimeState.CheckTime)
             {
@@ -481,8 +487,17 @@ namespace PixelChroma
             if (!LikeManager.TryAddRecord(sender.connectionId, _ownerConnectionId))
                 return;
 
-            // 변경: GetLikeCount 대신 직접 증가
             _likeCount++;
+
+            // 실제 좋아요가 성사된 경우에만 연출을 재생시킵니다.
+            RpcPlayLikeRise();
+        }
+
+        // CmdAddLike가 성사됐을 때만 서버가 관측자(관전자 포함) 전원에게 연출을 재생시킵니다.
+        [ClientRpc]
+        private void RpcPlayLikeRise()
+        {
+            Common.PlayLikeRise(1);
         }
 
         [Command]
@@ -585,17 +600,14 @@ namespace PixelChroma
         {
             Common.RefreshLikeCount();
 
-            if (!_likeEffectsReady) return;   // 스폰 시 초기 동기화는 값만 반영하고 연출은 생략
-            if (newVal <= oldVal) return;
-
-            Common.PlayLikeRise(newVal - oldVal);
-
-            if (isLocalPlayer)
+            if (isLocalPlayer && newVal > oldVal)
                 LikeService.Save(newVal);
         }
 
         private void HandleChatToggled(bool isActive)
         {
+            if (this == null) return;   // 좀비 호출 방어
+
             _isChatActive = isActive;
 
             if (_isChatActive)

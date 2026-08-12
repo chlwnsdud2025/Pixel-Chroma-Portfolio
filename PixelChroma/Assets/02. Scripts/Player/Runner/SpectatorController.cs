@@ -102,6 +102,8 @@ namespace PixelChroma
             _mode = SpectateMode.None;
             _targetIndex = -1;
 
+            if (_owner == null) return;   // 파괴된 소유자면 transform 접근 시 NRE
+
             SetTarget(null, _owner.transform);   // 기본 damping으로 복귀
         }
 
