@@ -13,7 +13,9 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 namespace PixelChroma
 {
     // 로컬라이즈 폰트의 용도(역할)
-    public enum FontRole { Ui, Chat }
+    // Ui      : 우리가 관리하는 로컬라이즈 문자열용(디스플레이 폰트).
+    // Content : 유저가 입력한 임의 언어 텍스트용(채팅·닉네임·방 제목 등, 가독성 폰트).
+    public enum FontRole { Ui, Content }
 
     public static class LocalizationManager
     {
@@ -36,7 +38,7 @@ namespace PixelChroma
         }
 
         private static readonly FontChannel _ui = new((table, id) => table.Resolve(id));
-        private static readonly FontChannel _chat = new((table, id) => table.ResolveChat(id));
+        private static readonly FontChannel _content = new((table, id) => table.ResolveContent(id));
 
         private static FontTableSO _fontTable;
 
@@ -69,10 +71,10 @@ namespace PixelChroma
 
             // 어느 역할로 등록됐는지 몰라도 되도록 양쪽 풀에서 제거한다(라벨은 한쪽에만 있음).
             _ui.Labels.Remove(label);
-            _chat.Labels.Remove(label);
+            _content.Labels.Remove(label);
         }
 
-        private static FontChannel Channel(FontRole role) => role == FontRole.Chat ? _chat : _ui;
+        private static FontChannel Channel(FontRole role) => role == FontRole.Content ? _content : _ui;
 
         // ── Locale ──────────────────────────────────────────────────────
 
@@ -116,7 +118,7 @@ namespace PixelChroma
         public static void Release()
         {
             ReleaseChannel(_ui);
-            ReleaseChannel(_chat);
+            ReleaseChannel(_content);
         }
 
         private static void ReleaseChannel(FontChannel channel)
@@ -141,10 +143,10 @@ namespace PixelChroma
                 return;
             }
 
-            // UI/채팅 폰트를 동시에 로드·적용한다.
+            // UI/콘텐츠 폰트를 동시에 로드·적용한다.
             await UniTask.WhenAll(
                 ApplyChannelAsync(_ui, locale, "UI"),
-                ApplyChannelAsync(_chat, locale, "Chat"));
+                ApplyChannelAsync(_content, locale, "Content"));
         }
 
         private static async UniTask ApplyChannelAsync(FontChannel channel, Locale locale, string roleName)
