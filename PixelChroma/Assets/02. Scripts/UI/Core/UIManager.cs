@@ -22,6 +22,9 @@ namespace PixelChroma.UI
 
         private UIScene _currentScene;
 
+        // 팝업 Show/Hide 애니메이션이 진행 중인지.
+        private bool _isTransitioning;
+
         public UIScene CurrentScene => _currentScene;
         public UIPopup CurrentPopup => _popupStack.Count > 0 ? _popupStack.Peek() : null;
         public bool IsPopupOpen => _popupStack.Count > 0;
@@ -89,32 +92,76 @@ namespace PixelChroma.UI
         // 팝업이 그려지기 전에 필요한 값을 주입할 수 있게 한다.
         public async UniTask<T> ShowPopup<T>(Action<T> configure) where T : UIPopup
         {
+            if (_isTransitioning) return null;
+
             if (!TryGetPanel<T>(out var target)) return null;
 
             if (_popupStack.Contains(target)) return target;
 
-            configure?.Invoke(target);
+            _isTransitioning = true;
+            try
+            {
+                configure?.Invoke(target);
 
-            target.OnBeforeShow();
-            await target.Show();
-            _popupStack.Push(target);
+                _popupStack.Push(target);
+                target.OnBeforeShow();
+                await target.Show();
+            }
+            catch
+            {
+                // Show 실패 시 스택을 원상복구한다.
+                if (_popupStack.Count > 0 && _popupStack.Peek() == target)
+                    _popupStack.Pop();
+                throw;
+            }
+            finally
+            {
+                _isTransitioning = false;
+            }
 
             return target;
         }
 
         public async UniTask HidePopup(bool instant = false)
         {
+            if (_isTransitioning) return;
+
             if (_popupStack.Count == 0) return;
 
-            var popup = _popupStack.Pop();
-            await popup.Hide(instant);
-            popup.OnAfterHide();
+            _isTransitioning = true;
+            try
+            {
+                await HidePopupInternal(instant);
+            }
+            finally
+            {
+                _isTransitioning = false;
+            }
         }
 
         public async UniTask HideAllPopups(bool instant = true)
         {
-            while (_popupStack.Count > 0)
-                await HidePopup(instant);
+            // 진행 중인 단일 전환이 끝날 때까지 기다린 뒤 한 번에 모두 닫는다.
+            await UniTask.WaitUntil(() => !_isTransitioning);
+
+            _isTransitioning = true;
+            try
+            {
+                while (_popupStack.Count > 0)
+                    await HidePopupInternal(instant);
+            }
+            finally
+            {
+                _isTransitioning = false;
+            }
+        }
+
+        private async UniTask HidePopupInternal(bool instant)
+        {
+            var popup = _popupStack.Peek();
+            await popup.Hide(instant);
+            _popupStack.Pop();
+            popup.OnAfterHide();
         }
 
         public T GetPanel<T>() where T : UIPanel
