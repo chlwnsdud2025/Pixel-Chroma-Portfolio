@@ -505,7 +505,6 @@ GameObject:
   - component: {fileID: 8927356113065546979}
   - component: {fileID: 277231141452203141}
   - component: {fileID: 6433831082431722881}
-  - component: {fileID: 5291551165481119678}
   - component: {fileID: 8567503103377164699}
   m_Layer: 5
   m_Name: Placeholder
@@ -601,18 +600,6 @@ MonoBehaviour:
   references:
     version: 2
     RefIds: []
---- !u!114 &5291551165481119678
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2027060402725722194}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontText
 --- !u!114 &8567503103377164699
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -942,6 +929,7 @@ MonoBehaviour:
   _textComponent: {fileID: 1911925699789994426}
   _placeholder: {fileID: 8567503103377164699}
   _caret: {fileID: 0}
+  _textViewport: {fileID: 675632417864420600}
   _text: 
   _multiline: 0
   _readOnly: 0
@@ -950,6 +938,10 @@ MonoBehaviour:
   _caretColor: {r: 1, g: 1, b: 1, a: 1}
   _caretWidth: 1
   _caretBlinkRate: 0.85
+  _selectionColor: {r: 0.65882355, g: 0.80784315, b: 1, a: 0.7529412}
+  _compositionColor: {r: 1, g: 1, b: 1, a: 0.7}
+  _clauseColor: {r: 0.24, g: 0.5, b: 0.87, a: 0.35}
+  _onFocusSelectAll: 1
   _onValueChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -1342,8 +1334,8 @@ GameObject:
   m_Component:
   - component: {fileID: 9128326360805949466}
   - component: {fileID: 1892363456030238320}
-  - component: {fileID: 4800011292183692160}
   - component: {fileID: 1911925699789994426}
+  - component: {fileID: 4091903640144984324}
   m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
@@ -1378,18 +1370,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5178003299924204195}
   m_CullTransparentMesh: 1
---- !u!114 &4800011292183692160
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5178003299924204195}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontText
 --- !u!114 &1911925699789994426
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1471,6 +1451,19 @@ MonoBehaviour:
   _revealComplete:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4091903640144984324
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5178003299924204195}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontText
+  role: 1
 --- !u!1 &6236232724262580537
 GameObject:
   m_ObjectHideFlags: 0
