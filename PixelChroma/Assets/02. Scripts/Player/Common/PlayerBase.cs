@@ -90,6 +90,9 @@ namespace PixelChroma
 
         protected virtual void OnDestroy()
         {
+            // OnStopLocalPlayer가 안 불린 채 파괴돼도 좀비 구독이 남지 않도록 백스톱 해제.
+            UIChat.OnChatToggled -= HandleChatToggled;
+            GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
         }
 
         protected virtual void Update()
@@ -211,8 +214,11 @@ namespace PixelChroma
 
         public override void OnStopLocalPlayer()
         {
-            _input?.DisableAll();
+            // 아래 정리 중 예외가 나도 구독이 남지 않도록 static 이벤트 해제를 최우선 처리.
             UIChat.OnChatToggled -= HandleChatToggled;
+            GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
+
+            _input?.DisableAll();
 
             if (UIManager.Instance != null && ReferenceEquals(UIManager.Instance.GameplayEscapeHandler, this))
                 UIManager.Instance.GameplayEscapeHandler = null;
@@ -220,12 +226,14 @@ namespace PixelChroma
             if (_paintController != null)
             {
                 _paintController.OnPaintModeChanged -= HandlePaintModeChangedForZoom;
-                _paintController.OnPaintModeChanged -= Common.HandlePaintModeChanged;
+
+                // 파괴 타이밍에 Common(GetComponent)이 null일 수 있어 가드.
+                var common = Common;
+                if (common != null)
+                    _paintController.OnPaintModeChanged -= common.HandlePaintModeChanged;
             }
 
             _paintController?.Dispose();
-
-            GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
 
             OnLocalPlayerStopped();
         }
@@ -386,7 +394,8 @@ namespace PixelChroma
 
         private void HandleCheckTimeSpectator(TimeState state, int remainingSeconds) // CheckTime 전용
         {
-            if (_spectator == null) return;
+            // 좀비 호출 방어: 네트워크 핸들러 안이라 예외가 나면 Mirror가 커넥션을 끊는다.
+            if (this == null || _spectator == null) return;
 
             if (state == TimeState.CheckTime)
             {
@@ -596,6 +605,8 @@ namespace PixelChroma
 
         private void HandleChatToggled(bool isActive)
         {
+            if (this == null) return;   // 좀비 호출 방어
+
             _isChatActive = isActive;
 
             if (_isChatActive)

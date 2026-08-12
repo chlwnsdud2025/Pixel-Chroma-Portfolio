@@ -91,6 +91,14 @@ namespace PixelChroma
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChangedForVisibility;
             base.OnStopClient();
         }
+
+        protected override void OnDestroy()
+        {
+            // OnStopClient가 안 불린 채 파괴돼도 좀비 구독이 남지 않도록 백스톱 해제.
+            NicknameVisibilityChanged -= RefreshVisualVisibilityForLocalViewer;
+            GameRoundManager.OnTimeStateChanged -= HandleTimeStateChangedForVisibility;
+            base.OnDestroy();
+        }
         protected override void UpdateAnimation()
         {
             if (_isDead) return;   
@@ -294,6 +302,9 @@ namespace PixelChroma
         //GameRoundManager.OnTimeStateChanged 구독용 콜백.시간대가 바뀔 때마다 닉네임 몸 다 
         private void HandleTimeStateChangedForVisibility(TimeState state, int remainingSeconds)
         {
+            // 좀비 호출 방어: 네트워크 핸들러 안이라 예외가 나면 Mirror가 커넥션을 끊는다.
+            if (this == null) return;
+
             if (state == TimeState.CheckTime && _isDead)
             {
                 _isVisuallyDead = false;
