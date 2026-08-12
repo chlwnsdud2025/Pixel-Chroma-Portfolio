@@ -1,6 +1,8 @@
 using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
+
 
 namespace PixelChroma
 {
@@ -21,6 +23,7 @@ namespace PixelChroma
         [Header("Nickname / Like UI")]
         [SerializeField] private GameObject nicknameRoot;
         [SerializeField] private OneTextLabel nicknameText;
+        [SerializeField] private RawImage nicknameImage;
         [SerializeField] private OneTextLabel likeCountText;
         [SerializeField] private LikeRiseEffect likeRiseEffect;
 
@@ -62,18 +65,24 @@ namespace PixelChroma
         {
             if (paintCanvas != null)
                 paintCanvas.OnFormTopYChanged -= AdjustNicknamePosition;
+            _nicknameDisplay?.Cleanup();
         }
 
         // ── 닉네임/좋아요 뷰 (PlayerBase가 네트워크 라이프사이클·SyncVar 훅에서 구동) ──────────────
         // PlayerBase.OnStartClient에서 호출. owner의 네트워크 상태(playerName/role/LikeCount)를 읽어 초기 표시합니다.
         public void InitializeNickname(PlayerBase owner)
         {
-            _nicknameDisplay ??= new PlayerNicknameDisplay(owner, nicknameText, nicknameRoot, likeCountText);
+            _nicknameDisplay ??= new PlayerNicknameDisplay(
+                owner, nicknameText, nicknameRoot, likeCountText, nicknameImage); 
             _nicknameDisplay.Refresh();
             _nicknameDisplay.UpdateVisibility();
+
+            if (owner.pixelNicknamePng != null && owner.pixelNicknamePng.Length > 0)
+                _nicknameDisplay.RefreshPixelNickname(owner.pixelNicknamePng);
         }
 
         public void RefreshNickname() => _nicknameDisplay?.Refresh();
+        public void RefreshPixelNickname(byte[] pngData) => _nicknameDisplay?.RefreshPixelNickname(pngData);
         public void RefreshLikeCount() => _nicknameDisplay?.RefreshLikeCount();
         public void UpdateNicknameVisibility() => _nicknameDisplay?.UpdateVisibility();
         public void HandlePaintModeChanged(bool isPaintMode) => _nicknameDisplay?.HandlePaintModeChanged(isPaintMode);

@@ -36,6 +36,9 @@ namespace PixelChroma
         [SyncVar(hook = nameof(OnPlayerNameChanged))]
         public string playerName = "Player";
 
+        [SyncVar(hook = nameof(OnPixelNicknameChanged))]
+        public byte[] pixelNicknamePng;
+
         [SyncVar(hook = nameof(OnRoleChanged))]
         public PlayerRole role = PlayerRole.None;
 
@@ -194,6 +197,12 @@ namespace PixelChroma
 
             string mySavedName = NicknameService.LoadOrDefault();
             CmdRegisterMyNameWithManager(mySavedName);
+
+            byte[] pixelPng = NicknameService.LoadPixelNickname();
+            if (pixelPng != null && pixelPng.Length > 0)
+                CmdRegisterPixelNickname(pixelPng);
+
+
             CmdRegisterMyLikeCount(LikeService.Load());// 로컬에 누적된 좋아요 카운트를 서버에 전달하여 SyncVar를 초기화한다.
             // 이미 칠해둔 다른 플레이어들의 현재 페인트 상태를 요청(late-join 동기화).
             CmdRequestPaintSnapshots();
@@ -450,6 +459,14 @@ namespace PixelChroma
             playerName = trimmed;
         }
 
+        [Command]
+        private void CmdRegisterPixelNickname(byte[] pngData)
+        {
+            if (pngData == null || pngData.Length == 0) return;
+            NicknameRegistry.RegisterPixel(connectionToClient.connectionId, pngData);
+            pixelNicknamePng = pngData;
+        }
+
         [Command(requiresAuthority = false)]
         public void CmdAddLike(NetworkConnectionToClient sender = null)
         {
@@ -558,6 +575,12 @@ namespace PixelChroma
             Common.RefreshNickname();
             OnAnyPlayerNameChanged?.Invoke();
         }
+
+        private void OnPixelNicknameChanged(byte[] oldPng, byte[] newPng)
+        {
+            Common.RefreshPixelNickname(newPng);
+        }
+
 
         private void OnRoleChanged(PlayerRole oldRole, PlayerRole newRole)
         {
