@@ -51,6 +51,7 @@ namespace PixelChroma
         private Tween _zoomTween;
         private SpectatorController _spectator;
         private bool _isChatActive;
+        private bool _wasPopupOpen;
         private bool _likeEffectsReady;
         private bool _likedByLocal;
         private int _ownerConnectionId = -1;
@@ -82,8 +83,6 @@ namespace PixelChroma
             GameRoundManager.Instance != null
             && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
 
-
-
         protected virtual void Awake()
         {
             Rb = GetComponent<Rigidbody2D>();
@@ -96,6 +95,9 @@ namespace PixelChroma
         protected virtual void Update()
         {
             if (!isLocalPlayer) return;
+
+            UpdatePopupCursor();
+
             if (_isChatActive) return;
 
             if (CanUseFormWheel && formWheel != null
@@ -300,6 +302,21 @@ namespace PixelChroma
             }
 
             return false;
+        }
+
+        // 팝업(설정창 등) 열림/닫힘 전환 시 커서를 전환한다..
+        private void UpdatePopupCursor()
+        {
+            bool popupOpen = IsPopupOpen;
+            if (popupOpen == _wasPopupOpen) return;
+            _wasPopupOpen = popupOpen;
+
+            if (CursorManager.Instance == null) return;
+
+            if (popupOpen)
+                CursorManager.Instance.SetCursorType(CursorType.Default);
+            else
+                ApplyDefaultCursor();
         }
 
         // ── 관전 공용 ──────────────────────────────────────────────────
@@ -601,9 +618,5 @@ namespace PixelChroma
                     formWheel.ForceClose();
             }
         }
-
-
-
     }
-
 }
