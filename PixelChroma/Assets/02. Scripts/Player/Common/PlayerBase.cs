@@ -52,7 +52,6 @@ namespace PixelChroma
         private SpectatorController _spectator;
         private bool _isChatActive;
         private bool _wasPopupOpen;
-        private bool _likeEffectsReady;
         private bool _likedByLocal;
         private int _ownerConnectionId = -1;
 
@@ -164,8 +163,6 @@ namespace PixelChroma
 
             Common.InitializeNickname(this);
             NicknameVisibilityChanged += Common.UpdateNicknameVisibility;
-
-            _likeEffectsReady = true;
         }
 
         public override void OnStopClient()
@@ -490,8 +487,17 @@ namespace PixelChroma
             if (!LikeManager.TryAddRecord(sender.connectionId, _ownerConnectionId))
                 return;
 
-            // 변경: GetLikeCount 대신 직접 증가
             _likeCount++;
+
+            // 실제 좋아요가 성사된 경우에만 연출을 재생시킵니다.
+            RpcPlayLikeRise();
+        }
+
+        // CmdAddLike가 성사됐을 때만 서버가 관측자(관전자 포함) 전원에게 연출을 재생시킵니다.
+        [ClientRpc]
+        private void RpcPlayLikeRise()
+        {
+            Common.PlayLikeRise(1);
         }
 
         [Command]
@@ -594,12 +600,7 @@ namespace PixelChroma
         {
             Common.RefreshLikeCount();
 
-            if (!_likeEffectsReady) return;   // 스폰 시 초기 동기화는 값만 반영하고 연출은 생략
-            if (newVal <= oldVal) return;
-
-            Common.PlayLikeRise(newVal - oldVal);
-
-            if (isLocalPlayer)
+            if (isLocalPlayer && newVal > oldVal)
                 LikeService.Save(newVal);
         }
 
