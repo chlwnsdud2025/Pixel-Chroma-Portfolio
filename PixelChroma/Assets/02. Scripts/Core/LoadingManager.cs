@@ -27,7 +27,7 @@ namespace PixelChroma
             if (IsShowing) return;
 
             if (SoundManager.Instance != null)
-                SoundManager.Instance.StopBgm(fade: 0.1f).Forget();
+                SoundManager.Instance.StopBgm().Forget();
 
             // 로딩창을 띄우기 전에 열려 있던 팝업을 모두 닫는다.
             await UIManager.Instance.HideAllPopups();
