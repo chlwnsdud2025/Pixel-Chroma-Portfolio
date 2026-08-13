@@ -83,7 +83,7 @@ namespace PixelChroma.UI
                 btn.Setup(name, locale == current);
 
                 Locale captured = locale;
-                btn.Button.AddClickListener(() => OnLanguageSelected(captured));
+                btn.FocusButton.OnClicked += () => OnLanguageSelected(captured);
             }
         }
 
