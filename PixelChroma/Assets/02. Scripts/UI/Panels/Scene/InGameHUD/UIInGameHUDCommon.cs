@@ -54,6 +54,8 @@ namespace PixelChroma.UI
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
         private Vector2 resultBaseAnchoredPos;
+        private PlayerBase _currentSpectateTarget; 
+        private bool _currentSpectateIsSelf;
 
         public void Initialize()
         {
@@ -75,6 +77,7 @@ namespace PixelChroma.UI
             GameRoundManager.OnTimerTick += HandleTimerTick;
             GameRoundManager.OnWinnerDecided += HandleWinnerDecided;
             InGameManager.OnPlayerCountChanged += HandlePlayerCountChanged;
+            GameSettings.Changed += OnSettingsChanged;
         }
 
         public void UnsubscribeEvents()
@@ -83,6 +86,7 @@ namespace PixelChroma.UI
             GameRoundManager.OnTimerTick -= HandleTimerTick;
             GameRoundManager.OnWinnerDecided -= HandleWinnerDecided;
             InGameManager.OnPlayerCountChanged -= HandlePlayerCountChanged;
+            GameSettings.Changed -= OnSettingsChanged;
         }
 
         public void SetPaintMode(bool active)
@@ -114,6 +118,9 @@ namespace PixelChroma.UI
 
         public void SetSpectateTarget(PlayerBase target, bool isSelf)
         {
+            _currentSpectateTarget = target;
+            _currentSpectateIsSelf = isSelf;
+
             if (spectatorPanel == null) return;
 
             // 대상이 없으면 자유 시점입니다. 표시 문구는 HUD 텍스트 데이터가 가지고 있습니다.
@@ -240,6 +247,11 @@ namespace PixelChroma.UI
         private void HandleWinnerDecided(PlayerRole winner)
         {
             ShowWinnerOverlay(winner);
+        }
+        private void OnSettingsChanged()
+        {
+            if (spectatorPanel != null && spectatorPanel.gameObject.activeInHierarchy)
+                SetSpectateTarget(_currentSpectateTarget, _currentSpectateIsSelf);
         }
 
         // --------------------- 클릭 이벤트-----------------------------------
