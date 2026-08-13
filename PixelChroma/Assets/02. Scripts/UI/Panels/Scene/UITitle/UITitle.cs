@@ -25,6 +25,16 @@ namespace PixelChroma.UI
         [Header("System Buttons")]
         [SerializeField] private Button exitGameButton;
 
+        [Header("External Links Button")]
+        [SerializeField] private Button discordButton;
+        [SerializeField] private Button snsButton;
+        [SerializeField] private Button workshopButton;
+
+        [Header("External Link URLs")]
+        [SerializeField] private string discordUrl = "https://discord.gg/여기에초대코드";
+        [SerializeField] private string snsUrl = "https://x.com/여기에계정";
+        [SerializeField] private string workshopUrl = "https://steamcommunity.com/app/5023800/workshop/";
+
         public override void Initialize()
         {
             base.Initialize();
@@ -37,6 +47,10 @@ namespace PixelChroma.UI
             if (languageSettingButton != null) languageSettingButton.AddClickListener(OnClickLanguageButton);
             if (settingButton != null) settingButton.AddClickListener(OnClickSetting);
             if (exitGameButton != null) exitGameButton.AddClickListener(OnClickExitGame);
+
+            if (discordButton != null) discordButton.AddClickListener(() => OpenUrl(discordUrl));
+            if (snsButton != null) snsButton.AddClickListener(() => OpenUrl(snsUrl));
+            if (workshopButton != null) workshopButton.AddClickListener(() => OpenUrl(workshopUrl));
         }
 
         public override void OnCancel() => OnClickSetting();
@@ -93,5 +107,20 @@ namespace PixelChroma.UI
             Application.Quit();
 #endif
         }
+
+        private static void OpenUrl(string url)
+        {
+            // Steam 초기화 상태면 Overlay 브라우저 사용 (게임을 나가지 않음)
+            if (GameManager.SteamInitialized)
+            {
+                Steamworks.SteamFriends.ActivateGameOverlayToWebPage(url);
+                return;
+            }
+
+            // Steam 없으면 시스템 브라우저로 fallback
+            Application.OpenURL(url);
+        }
+
+
     }
 }
