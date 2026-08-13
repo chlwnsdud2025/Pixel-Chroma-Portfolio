@@ -122,7 +122,7 @@ namespace PixelChroma.UI
                 : (textData != null ? textData.spectateFreeView.GetLocalizedString() : string.Empty);
 
             byte[] pixelPng = PixelNicknameHelper.GetPixelData(target);
-            spectatorPanel.SetTargetName(displayName, isSelf);
+            spectatorPanel.SetTargetName(displayName, isSelf, pixelPng);
         }
 
         public void SetLikeGuide(bool canLike)
