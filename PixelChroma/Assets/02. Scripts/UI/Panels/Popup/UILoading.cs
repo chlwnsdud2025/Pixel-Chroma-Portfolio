@@ -16,6 +16,8 @@ namespace PixelChroma.UI
         [SerializeField] private float tooltipInterval = 5f;
 
         private CancellationTokenSource _tooltipCts;
+        private List<int> _indices;
+        private int _cursor;
 
         protected override UniTask OnShow()
         {
@@ -27,6 +29,17 @@ namespace PixelChroma.UI
         {
             StopTooltipCycle();
             return UniTask.CompletedTask;
+        }
+
+        private void EnsureIndices()
+        {
+            if (_indices != null) return;
+
+            _indices = new List<int>();
+            for (int i = 0; i < textData.tooltips.Length; i++)
+                _indices.Add(i);
+            Shuffle(_indices);
+            _cursor = 0;
         }
 
         private void StartTooltipCycle()
@@ -51,26 +64,18 @@ namespace PixelChroma.UI
 
         private async UniTaskVoid RunTooltipCycle(CancellationToken token)
         {
-            // 셔플 인덱스 목록을 만들어 중복 없이 순회
-            var indices = new List<int>();
-            for (int i = 0; i < textData.tooltips.Length; i++)
-                indices.Add(i);
-            Shuffle(indices);
+            EnsureIndices();
 
-            int cursor = 0;
-
+            // Show 될 때마다 바로 다음 문구를 보여준다
             while (!token.IsCancellationRequested)
             {
-                // 현재 인덱스의 로컬라이즈 문자열 표시
-                var localized = textData.tooltips[indices[cursor]];
-                tooltipLabel.text = localized.GetLocalizedString();
+                tooltipLabel.text = textData.tooltips[_indices[_cursor]].GetLocalizedString();
 
-                cursor++;
-                if (cursor >= indices.Count)
+                _cursor++;
+                if (_cursor >= _indices.Count)
                 {
-                    // 한 바퀴 다 돌면 다시 셔플
-                    cursor = 0;
-                    Shuffle(indices);
+                    _cursor = 0;
+                    Shuffle(_indices);
                 }
 
                 try
