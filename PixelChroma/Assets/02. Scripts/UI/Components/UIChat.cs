@@ -52,10 +52,8 @@ namespace PixelChroma.UI
         // InputField 활성/비활성 이벤트 (PlayerBase의 입력 차단용)
         public static event Action<bool> OnChatToggled;
 
-        // 활성 메시지 큐 (화면에 표시 중)
-        private readonly Queue<ChatEntry> _activeMessages = new();
-        // 비활성 풀 (재사용 대기)
-        private readonly Queue<OneTextLabel> _inactivePool = new();
+        private readonly Queue<ChatMessage> _activeMessages = new();
+        private readonly Queue<UIChatEntry> _inactivePool = new();
 
         // InputField가 현재 포커스 중인지
         private bool _isInputActive;
@@ -65,12 +63,11 @@ namespace PixelChroma.UI
         private float _lastMessageTime = -100f;
         private float _bgBaseAlpha;
         // ── 메시지 항목: TMP_Text + 타이머 정보를 묶어서 관리 ──
-        private struct ChatEntry
+        private struct ChatMessage
         {
-            public OneTextLabel text;
-            public CanvasGroup canvasGroup;  // 개별 메시지 페이드용
-            public float spawnTime;          // 생성 시각
-            public bool isFading;            // 페이드 진행 중 여부
+            public UIChatEntry entry;
+            public float spawnTime;
+            public bool isFading;
         }
 
         private void OnEnable()
@@ -174,53 +171,45 @@ namespace PixelChroma.UI
         private void UpdateMessageFade()
         {
             float now = Time.time;
-            var tempList = new List<ChatEntry>();
 
-            // 큐를 순회하면서 시간이 지난 메시지를 페이드 처리
             while (_activeMessages.Count > 0)
             {
-                var entry = _activeMessages.Peek();
+                var msg = _activeMessages.Peek();
 
-                float elapsed = now - entry.spawnTime;
+                float elapsed = now - msg.spawnTime;
                 float fadeStart = messageDisplayDuration;
                 float fadeEnd = messageDisplayDuration + messageFadeDuration;
 
                 if (elapsed >= fadeEnd)
                 {
-                    // 페이드 완료 → 풀로 반환
                     _activeMessages.Dequeue();
-                    entry.text.gameObject.SetActive(false);
-                    if (entry.canvasGroup != null) entry.canvasGroup.alpha = 1f;
-                    _inactivePool.Enqueue(entry.text);
+                    msg.entry.gameObject.SetActive(false);
+                    msg.entry.ResetAlpha();
+                    _inactivePool.Enqueue(msg.entry);
                 }
                 else
                 {
-                    // 아직 사라질 시간이 안 됨 → 나머지도 더 이전이므로 중단
-                    // (큐는 시간순이라 앞이 안 됐으면 뒤도 안 됨)
-                    if (elapsed >= fadeStart && entry.canvasGroup != null)
+                    if (elapsed >= fadeStart)
                     {
                         float t = (elapsed - fadeStart) / messageFadeDuration;
-                        entry.canvasGroup.alpha = 1f - t;
+                        msg.entry.CanvasGroup.alpha = 1f - t;
                     }
                     break;
                 }
             }
 
-            // 큐 중간 항목들도 페이드 체크 (Peek/Dequeue만으론 중간 접근 불가하므로 배열 변환)
+            // 큐 중간 항목 페이드
             var array = _activeMessages.ToArray();
             for (int i = 0; i < array.Length; i++)
             {
                 float elapsed = now - array[i].spawnTime;
-                float fadeStart = messageDisplayDuration;
-
-                if (elapsed >= fadeStart && array[i].canvasGroup != null)
+                if (elapsed >= messageDisplayDuration)
                 {
-                    float t = Mathf.Clamp01((elapsed - fadeStart) / messageFadeDuration);
-                    array[i].canvasGroup.alpha = 1f - t;
+                    float t = Mathf.Clamp01((elapsed - messageDisplayDuration) / messageFadeDuration);
+                    array[i].entry.CanvasGroup.alpha = 1f - t;
                 }
             }
         }
-
         // ── 채팅창 전체 투명도 제어 ──
         private void UpdateChatVisibility()
         {
@@ -289,68 +278,59 @@ namespace PixelChroma.UI
         // InputField 열릴 때 모든 메시지를 불투명하게 복원
         private void RefreshAllMessageAlpha()
         {
-            foreach (var entry in _activeMessages)
+            foreach (var msg in _activeMessages)
             {
-                if (entry.canvasGroup != null)
-                    entry.canvasGroup.alpha = 1f;
+                msg.entry.ResetAlpha();
             }
         }
 
         // ── 새 메시지 수신 ──
         private void HandleNewMessage(uint senderNetId, string sender, string message)
         {
-            OneTextLabel chatText;
-            CanvasGroup cg;
+            UIChatEntry chatEntry;
 
             // 풀에서 가져오거나 새로 생성
             if (_activeMessages.Count >= maxMessages)
             {
                 var oldest = _activeMessages.Dequeue();
-                chatText = oldest.text;
-                cg = oldest.canvasGroup;
+                chatEntry = oldest.entry;
             }
             else if (_inactivePool.Count > 0)
             {
-                chatText = _inactivePool.Dequeue();
-                cg = chatText.GetComponent<CanvasGroup>();
+                chatEntry = _inactivePool.Dequeue();
             }
             else
             {
                 GameObject newChat = Instantiate(chatTextPrefab, chatContentParent);
-                chatText = newChat.GetComponent<OneTextLabel>();
-                // CanvasGroup이 없으면 추가 (개별 메시지 페이드용)
-                cg = newChat.GetComponent<CanvasGroup>();
-                if (cg == null) cg = newChat.AddComponent<CanvasGroup>();
+                chatEntry = newChat.GetComponent<UIChatEntry>();
             }
 
-            chatText.gameObject.SetActive(true);
-            chatText.transform.SetAsLastSibling();
+            chatEntry.gameObject.SetActive(true);
+            chatEntry.transform.SetAsLastSibling();
 
-            // 본인 여부 판별 → 색상 적용
+            // 본인 여부 판별 → 색상
             bool isMine = NetworkClient.localPlayer != null
                           && NetworkClient.localPlayer.netId == senderNetId;
-
             string colorHex = ColorUtility.ToHtmlStringRGB(isMine ? myMessageColor : otherMessageColor);
-            chatText.text = $"<color=#{colorHex}>[{sender}]: {message}</color>";
 
-            // CanvasGroup 초기화 (불투명)
-            if (cg != null) cg.alpha = 1f;
+            // ★ 픽셀 닉네임 데이터 조회
+            var senderPlayer = PixelNicknameHelper.FindPlayer(senderNetId);
+            byte[] pixelPng = PixelNicknameHelper.GetPixelData(senderPlayer);
+
+            chatEntry.Setup(sender, message, colorHex, pixelPng);
+            chatEntry.ResetAlpha();
 
             // 활성 큐에 등록
-            _activeMessages.Enqueue(new ChatEntry
+            _activeMessages.Enqueue(new ChatMessage
             {
-                text = chatText,
-                canvasGroup = cg,
+                entry = chatEntry,
                 spawnTime = Time.time,
                 isFading = false,
             });
 
             _lastMessageTime = Time.time;
-
-            // 패널 배경 즉시 보이게
             SetBgAlpha(0.7f);
 
-            // 스크롤 맨 아래로
             if (scrollRect != null)
             {
                 Canvas.ForceUpdateCanvases();
@@ -384,10 +364,10 @@ namespace PixelChroma.UI
         {
             while (_activeMessages.Count > 0)
             {
-                var entry = _activeMessages.Dequeue();
-                entry.text.gameObject.SetActive(false);
-                if (entry.canvasGroup != null) entry.canvasGroup.alpha = 1f;
-                _inactivePool.Enqueue(entry.text);
+                var msg = _activeMessages.Dequeue();
+                msg.entry.gameObject.SetActive(false);
+                msg.entry.ResetAlpha();
+                _inactivePool.Enqueue(msg.entry);
             }
 
             if (chatInputField != null) chatInputField.text = string.Empty;
