@@ -30,10 +30,32 @@ namespace PixelChroma.UI
         [SerializeField] private Button snsButton;
         [SerializeField] private Button workshopButton;
 
+        [Header("SNS Panel")]
+        [SerializeField] private RectTransform snsPanel;
+        [SerializeField] private CanvasGroup snsPanelCanvasGroup;
+        [SerializeField] private float snsSlideDuration = 0.3f;
+        [SerializeField] private float snsSlideDistance = 200f;
+
+
+        [Header("SNS Link Buttons")]
+        [SerializeField] private Button youtubeButton;
+        [SerializeField] private Button twitterButton;
+        [SerializeField] private Button tiktokButton;
+        [SerializeField] private Button instagramButton;
+
+
         [Header("External Link URLs")]
         [SerializeField] private string discordUrl = "https://discord.gg/여기에초대코드";
-        [SerializeField] private string snsUrl = "https://x.com/여기에계정";
         [SerializeField] private string workshopUrl = "https://steamcommunity.com/app/5023800/workshop/";
+        [SerializeField] private string youtubeUrl = "https://www.youtube.com/@여기에채널";
+        [SerializeField] private string twitterUrl = "https://x.com/여기에계정";
+        [SerializeField] private string tiktokUrl = "https://www.tiktok.com/@여기에계정";
+        [SerializeField] private string instagramUrl = "https://www.instagram.com/여기에계정";
+
+        private Vector2 _snsPanelRestPos;
+        private bool _snsPanelCaptured;
+        private bool _snsPanelOpen;
+        private Sequence _snsPanelSeq;
 
         public override void Initialize()
         {
@@ -49,8 +71,16 @@ namespace PixelChroma.UI
             if (exitGameButton != null) exitGameButton.AddClickListener(OnClickExitGame);
 
             if (discordButton != null) discordButton.AddClickListener(() => OpenUrl(discordUrl));
-            if (snsButton != null) snsButton.AddClickListener(() => OpenUrl(snsUrl));
             if (workshopButton != null) workshopButton.AddClickListener(() => OpenUrl(workshopUrl));
+            if (snsButton != null) snsButton.AddClickListener(ToggleSnsPanel);
+
+            if (snsPanel != null)
+                snsPanel.gameObject.SetActive(false);
+
+            if (youtubeButton != null) youtubeButton.AddClickListener(() => OpenUrl(youtubeUrl));
+            if (twitterButton != null) twitterButton.AddClickListener(() => OpenUrl(twitterUrl));
+            if (tiktokButton != null) tiktokButton.AddClickListener(() => OpenUrl(tiktokUrl));
+            if (instagramButton != null) instagramButton.AddClickListener(() => OpenUrl(instagramUrl));
         }
 
         public override void OnCancel() => OnClickSetting();
@@ -121,6 +151,60 @@ namespace PixelChroma.UI
             Application.OpenURL(url);
         }
 
+
+        //----------------------SNS 패널---------------------------------------
+
+        private void ToggleSnsPanel()
+        {
+            if (snsPanel == null) return;
+
+            if (_snsPanelOpen)
+                CloseSnsPanel();
+            else
+                OpenSnsPanel();
+        }
+
+        private void OpenSnsPanel()
+        {
+            _snsPanelSeq?.Kill();
+
+            if (!_snsPanelCaptured)
+            {
+                _snsPanelRestPos = snsPanel.anchoredPosition;
+                _snsPanelCaptured = true;
+            }
+
+            snsPanel.gameObject.SetActive(true);
+
+            // 시작 상태: 오른쪽으로 밀려난 위치 + 투명
+            snsPanel.anchoredPosition = _snsPanelRestPos + new Vector2(snsSlideDistance, 0f);
+            snsPanelCanvasGroup.alpha = 0f;
+
+            // UIPanelSlideIntro와 동일한 패턴
+            _snsPanelSeq = DOTween.Sequence().SetLink(snsPanel.gameObject);
+            _snsPanelSeq.Insert(0f, snsPanel.DOAnchorPos(_snsPanelRestPos, snsSlideDuration).SetEase(Ease.OutCubic));
+            _snsPanelSeq.Insert(0f, snsPanelCanvasGroup.DOFade(1f, snsSlideDuration).SetEase(Ease.OutQuad));
+
+            _snsPanelOpen = true;
+        }
+
+        private void CloseSnsPanel()
+        {
+            _snsPanelSeq?.Kill();
+
+            var hidePos = _snsPanelRestPos + new Vector2(snsSlideDistance, 0f);
+
+            _snsPanelSeq = DOTween.Sequence().SetLink(snsPanel.gameObject);
+            _snsPanelSeq.Insert(0f, snsPanel.DOAnchorPos(hidePos, snsSlideDuration).SetEase(Ease.InCubic));
+            _snsPanelSeq.Insert(0f, snsPanelCanvasGroup.DOFade(0f, snsSlideDuration).SetEase(Ease.InQuad));
+            _snsPanelSeq.OnComplete(() =>
+            {
+                snsPanel.gameObject.SetActive(false);
+                _snsPanelOpen = false;
+            });
+
+            _snsPanelOpen = false;
+        }
 
     }
 }
