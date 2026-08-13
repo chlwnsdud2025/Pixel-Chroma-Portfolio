@@ -15,6 +15,7 @@ namespace PixelChroma
     public static class NicknameService
     {
         public const string PrefsKey = "CustomPlayerNickname";
+        private const string PixelPrefsKey = "PixelNickname";
         public const int MaxLength = 10;
 
         // 접두사(6자) + 임의 번호(4자)가 MaxLength에 딱 맞는다. 셋 중 하나를 바꾸려면 함께 맞출 것.
@@ -88,6 +89,26 @@ namespace PixelChroma
                 maxLength--;
 
             return value.Substring(0, maxLength);
+        }
+
+        public static void SavePixelNickname(byte[] pngData)
+        {
+            if (pngData == null || pngData.Length == 0)
+            {
+                PlayerPrefs.DeleteKey(PixelPrefsKey);
+                PlayerPrefs.Save();
+                return;
+            }
+            PlayerPrefs.SetString(PixelPrefsKey, System.Convert.ToBase64String(pngData));
+            PlayerPrefs.Save();
+        }
+
+        public static byte[] LoadPixelNickname()
+        {
+            string base64 = PlayerPrefs.GetString(PixelPrefsKey, "");
+            if (string.IsNullOrEmpty(base64)) return null;
+            try { return System.Convert.FromBase64String(base64); }
+            catch { return null; }
         }
     }
 }

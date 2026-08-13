@@ -8,18 +8,32 @@ namespace PixelChroma
     public static class NicknameRegistry
     {
         private static readonly Dictionary<int, string> _names = new();
-
+        private static readonly Dictionary<int, byte[]> _pixelData = new();
         public static void Register(int connId, string nickname)
         {
             _names[connId] = nickname;
             Debug.Log($"[NicknameRegistry] 닉네임 등록 완료 - ConnID: {connId}, Name: {nickname}");
         }
 
-        public static void Unregister(int connId) => _names.Remove(connId);
+        public static void RegisterPixel(int connId, byte[] pngData)
+    => _pixelData[connId] = pngData;
+
+        public static bool TryGetPixel(int connId, out byte[] pngData)
+    => _pixelData.TryGetValue(connId, out pngData);
+
+        public static void Unregister(int connId)
+        {
+            _names.Remove(connId);
+            _pixelData.Remove(connId);
+        }
 
         public static bool TryGet(int connId, out string nickname) => _names.TryGetValue(connId, out nickname);
 
         // 서버 종료 시 전체 초기화. (다음 호스트 세션으로의 stale 캐리오버 방지)
-        public static void Clear() => _names.Clear();
+        public static void Clear()
+        {
+            _names.Clear();
+            _pixelData.Clear();
+        }
     }
 }

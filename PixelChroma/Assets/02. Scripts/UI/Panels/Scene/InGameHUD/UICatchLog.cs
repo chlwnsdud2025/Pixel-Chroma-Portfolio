@@ -49,13 +49,13 @@ namespace PixelChroma.UI
             RunnerPlayer.OnPlayerCaught -= HandlePlayerCaught;
         }
 
-        private void HandlePlayerCaught(string catcherName, string caughtName)
+        private void HandlePlayerCaught(string catcherName, string caughtName, uint catcherNetId, uint caughtNetId)
         {
             if (_activeEntries.Count >= maxVisible)
                 ReturnToPool(0);
 
             LogEntry entry = GetEntry();
-            entry.view.Setup(catcherName, caughtName);
+            entry.view.Setup(catcherName, caughtName, catcherNetId, caughtNetId);
 
             var cg = entry.view.CanvasGroup;
             var rt = (RectTransform)entry.view.transform;

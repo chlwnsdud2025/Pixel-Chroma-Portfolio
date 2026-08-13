@@ -214,6 +214,14 @@ namespace PixelChroma
                     playerBase.playerName = savedName;
             }
 
+            if (NicknameRegistry.TryGetPixel(conn.connectionId, out var savedPixelPng))
+            {
+                var playerBase = playerInstance.GetComponent<PlayerBase>();
+                if (playerBase != null)
+                    playerBase.pixelNicknamePng = savedPixelPng;
+            }
+
+
             NetworkServer.AddPlayerForConnection(conn, playerInstance);
         }
 
@@ -277,6 +285,7 @@ namespace PixelChroma
             {
                 seekerBase.role = PlayerRole.Seeker;
                 seekerBase.playerName = runner.playerName;
+                seekerBase.pixelNicknamePng = runner.pixelNicknamePng;
             }
 
             NetworkServer.ReplacePlayerForConnection(conn, seekerInstance, ReplacePlayerOptions.KeepActive);

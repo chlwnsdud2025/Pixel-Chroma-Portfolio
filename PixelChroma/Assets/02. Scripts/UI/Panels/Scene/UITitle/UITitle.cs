@@ -116,7 +116,8 @@ namespace PixelChroma.UI
         }
         private void OnClickNicknameSetting()
         {
-            UIManager.Instance.ShowPopup<UINickNameSetting>().Forget();
+            //UIManager.Instance.ShowPopup<UINickNameSetting>().Forget();
+            UIManager.Instance.ShowPopup<UIPixelNicknameSetting>().Forget();
         }
 
         public void OnClickLanguageButton()
