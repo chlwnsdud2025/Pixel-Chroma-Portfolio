@@ -121,10 +121,12 @@ namespace PixelChroma
             }
             catch (OperationCanceledException)
             {
-                // 준비 중이던 새 트랙을 원상복구하고 로드한 핸들을 해제한다.
-                _idleBgm.Stop();
-                _idleBgm.clip = null;
-                if (hasNew) Addressables.Release(newHandle);
+                if (hasNew)
+                {
+                    _idleBgm.Stop();
+                    _idleBgm.clip = null;
+                    Addressables.Release(newHandle);
+                }
                 throw;
             }
 
