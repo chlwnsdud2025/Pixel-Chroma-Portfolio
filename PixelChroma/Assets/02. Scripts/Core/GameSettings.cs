@@ -19,6 +19,8 @@ namespace PixelChroma
         private const string KeyVSync = PrefPrefix + "VSync";
         private const string KeyScreenShake = PrefPrefix + "ScreenShake";
 
+        private const string KeyShowPixelNickname = PrefPrefix + "ShowPixelNickname";
+
         // 게임 로직이 매 발사마다 조회하므로 PlayerPrefs 접근 없이 캐시된 값으로 노출한다.
         public static bool ScreenShakeEnabled { get; private set; } = true;
         public static bool VSyncEnabled { get; private set; } = true;
@@ -26,6 +28,8 @@ namespace PixelChroma
         public static bool Fullscreen { get; private set; } = true;
         public static int ResolutionWidth { get; private set; }
         public static int ResolutionHeight { get; private set; }
+        public static bool ShowPixelNickname { get; private set; } = true;// true = 그림 닉네임 표시, false = 텍스트 닉네임으로 표시
+
 
         // 옵션 값이 바뀔 때마다 발생. 열려 있는 UI가 표시를 갱신하는 데 사용한다.
         public static event Action Changed;
@@ -39,6 +43,7 @@ namespace PixelChroma
             _loaded = true;
 
             ScreenShakeEnabled = PlayerPrefs.GetInt(KeyScreenShake, 1) == 1;
+            ShowPixelNickname = PlayerPrefs.GetInt(KeyShowPixelNickname, 1) == 1;
             VSyncEnabled = PlayerPrefs.GetInt(KeyVSync, 1) == 1;
 
             Fullscreen = PlayerPrefs.GetInt(KeyFullscreen, 1) == 1;
@@ -83,6 +88,13 @@ namespace PixelChroma
         {
             ScreenShakeEnabled = enabled;
             PlayerPrefs.SetInt(KeyScreenShake, enabled ? 1 : 0);
+            Changed?.Invoke();
+        }
+
+        public static void SetShowPixelNickname(bool enabled)
+        {
+            ShowPixelNickname = enabled;
+            PlayerPrefs.SetInt(KeyShowPixelNickname, enabled ? 1 : 0);
             Changed?.Invoke();
         }
 

@@ -12,12 +12,14 @@ namespace PixelChroma.UI
         [SerializeField] private Sprite buttonNormal;
         [SerializeField] private Sprite buttonSelected;
         [SerializeField] private OneTextLabel targetNameText;
+        [SerializeField] private RawImage targetNameImage;
         [SerializeField] private Color selfTargetNameColor = Color.yellow;
 
         [Header("Like Guide")]
         [SerializeField] private GameObject likeGuideRoot;
 
         private Color _defaultTargetNameColor = Color.white;
+        private Texture2D _cachedTexture;
 
         private void Awake()
         {
@@ -26,6 +28,12 @@ namespace PixelChroma.UI
 
             if (likeGuideRoot != null)
                 likeGuideRoot.SetActive(false);
+        }
+
+        private void OnDestroy()                               
+        {
+            if (_cachedTexture != null)
+                Object.Destroy(_cachedTexture);
         }
 
         public void Show()
@@ -48,12 +56,26 @@ namespace PixelChroma.UI
                 freeButton.sprite = mode == SpectateMode.Free ? buttonSelected : buttonNormal;
         }
 
-        public void SetTargetName(string displayName, bool isSelf)
+        public void SetTargetName(string displayName, bool isSelf, byte[] pixelPng = null)
         {
-            if (targetNameText == null) return;
+            bool showPixel = PixelNicknameHelper.ShouldShowPixel(pixelPng);
 
-            targetNameText.text = displayName;
-            targetNameText.color = isSelf ? selfTargetNameColor : _defaultTargetNameColor;
+            if (showPixel && targetNameImage != null)
+            {
+                _cachedTexture = PixelNicknameHelper.ApplyPng(targetNameImage, pixelPng, _cachedTexture);
+                targetNameImage.gameObject.SetActive(true);
+                if (targetNameText != null) targetNameText.gameObject.SetActive(false);
+            }
+            else
+            {
+                if (targetNameImage != null) targetNameImage.gameObject.SetActive(false);
+                if (targetNameText != null)
+                {
+                    targetNameText.gameObject.SetActive(true);
+                    targetNameText.text = displayName;
+                    targetNameText.color = isSelf ? selfTargetNameColor : _defaultTargetNameColor;
+                }
+            }
         }
 
         /// <summary>

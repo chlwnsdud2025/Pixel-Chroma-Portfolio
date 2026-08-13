@@ -15,6 +15,7 @@ namespace PixelChroma.UI
         [SerializeField] private Toggle fullscreenToggle;   // On = 테두리 없는 전체화면, Off = 창모드
         [SerializeField] private Toggle vSyncToggle;
         [SerializeField] private Toggle screenShakeToggle;
+        [SerializeField] private Toggle pixelNicknameToggle;
 
         private readonly List<Vector2Int> _resolutions = new();
 
@@ -30,6 +31,8 @@ namespace PixelChroma.UI
                 vSyncToggle.onValueChanged.AddListener(GameSettings.SetVSync);
             if (screenShakeToggle != null)
                 screenShakeToggle.onValueChanged.AddListener(GameSettings.SetScreenShake);
+            if (pixelNicknameToggle != null)
+                pixelNicknameToggle.onValueChanged.AddListener(GameSettings.SetShowPixelNickname);
         }
 
         public void Refresh()
@@ -46,6 +49,8 @@ namespace PixelChroma.UI
                 vSyncToggle.SetIsOnWithoutNotify(GameSettings.VSyncEnabled);
             if (screenShakeToggle != null)
                 screenShakeToggle.SetIsOnWithoutNotify(GameSettings.ScreenShakeEnabled);
+            if (pixelNicknameToggle != null)
+                pixelNicknameToggle.SetIsOnWithoutNotify(GameSettings.ShowPixelNickname);
         }
 
         private void OnFullscreenChanged(bool isFullscreen)

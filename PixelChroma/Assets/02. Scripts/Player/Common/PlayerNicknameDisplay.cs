@@ -29,7 +29,8 @@ namespace PixelChroma
         {
             // 픽셀 닉네임이 있으면 이미지 표시, 없으면 텍스트 표시
             bool hasPixel = _owner.pixelNicknamePng != null
-                            && _owner.pixelNicknamePng.Length > 0;
+                            && _owner.pixelNicknamePng.Length > 0
+                            && GameSettings.ShowPixelNickname;
 
             if (_text != null)
                 _text.gameObject.SetActive(!hasPixel);
@@ -58,6 +59,7 @@ namespace PixelChroma
                 return;
             }
 
+            // 텍스처는 설정과 무관하게 항상 로드/캐시
             if (_cachedTexture == null)
             {
                 _cachedTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false)
@@ -68,12 +70,17 @@ namespace PixelChroma
             }
             _cachedTexture.LoadImage(pngData);
             _cachedTexture.filterMode = FilterMode.Point;
-
             _nicknameImage.texture = _cachedTexture;
-            _nicknameImage.gameObject.SetActive(true);
+
+            // 표시 여부는 설정에 따라
+            bool show = GameSettings.ShowPixelNickname;       
+            _nicknameImage.gameObject.SetActive(show);        
 
             if (_text != null)
-                _text.gameObject.SetActive(false);
+            {
+                _text.gameObject.SetActive(!show);             
+                if (!show) _text.text = _owner.playerName;    
+            }
 
             RefreshLikeCount();
         }

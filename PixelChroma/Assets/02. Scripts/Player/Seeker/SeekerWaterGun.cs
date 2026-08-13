@@ -343,6 +343,7 @@ namespace PixelChroma
 
                     runner.ServerNotifyCaught(
                         _seeker.playerName,
+                        _seeker.netId,
                         knockbackDir,
                         knockbackImpulse,
                         knockbackDrag,

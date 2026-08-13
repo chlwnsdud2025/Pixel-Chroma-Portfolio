@@ -59,12 +59,16 @@ namespace PixelChroma
             // 폼 상단 Y가 바뀔 때 닉네임 위치를 맞춥니다. 참조(paintCanvas/nicknameRoot)를 이 컴포넌트가 소유하므로 여기서 관리합니다.
             if (paintCanvas != null)
                 paintCanvas.OnFormTopYChanged += AdjustNicknamePosition;
+
+            GameSettings.Changed += OnSettingsChanged;
         }
 
         private void OnDestroy()
         {
             if (paintCanvas != null)
                 paintCanvas.OnFormTopYChanged -= AdjustNicknamePosition;
+
+            GameSettings.Changed -= OnSettingsChanged;
             _nicknameDisplay?.Cleanup();
         }
 
@@ -96,6 +100,11 @@ namespace PixelChroma
             Vector3 pos = nicknameRoot.transform.localPosition;
             pos.y = formTopY + nicknameYPadding;
             nicknameRoot.transform.localPosition = pos;
+        }
+
+        private void OnSettingsChanged()
+        {
+            _nicknameDisplay?.Refresh();
         }
     }
 }

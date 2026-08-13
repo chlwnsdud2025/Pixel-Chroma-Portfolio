@@ -58,7 +58,7 @@ namespace PixelChroma
         public bool IsKnockedBack => _deathEffects != null && _deathEffects.IsKnockedBack;
         protected override bool CanEnterCheckTimeSpectator => !_isDead;
 
-        public static event Action<string, string> OnPlayerCaught;
+        public static event Action<string, string, uint, uint> OnPlayerCaught;
 
         protected override void Awake()
         {
@@ -139,22 +139,22 @@ namespace PixelChroma
 
         //--------------------------------------사망시 로직(모드따라 다름)------------------------------------------
         [Server]
-        public void ServerNotifyCaught(string catcherName, Vector2 knockbackDir = default,
-            float impulse = 0f, float drag = 5f, float rotSpeed = 720f)
+        public void ServerNotifyCaught(string catcherName, uint catcherNetId,  
+            Vector2 knockbackDir = default, float impulse = 0f, float drag = 5f, float rotSpeed = 720f)
         {
             if (_isDead) return;
-            _isDead = true;                       
+            _isDead = true;
             _pendingKnockback = new KnockbackInfo { dir = knockbackDir, impulse = impulse, drag = drag, rotSpeed = rotSpeed };
             _deathSnapshot.Capture(transform, paintCanvas);
-            RpcNotifyCaught(catcherName, playerName);
-            GameRoundManager.Instance?.NotifyRunnerDead();         
+            RpcNotifyCaught(catcherName, playerName, catcherNetId, netId);
+            GameRoundManager.Instance?.NotifyRunnerDead();
             GameRoundManager.Instance?.CurrentRule?.OnRunnerCaught(this);
         }
 
         [ClientRpc]
-        private void RpcNotifyCaught(string catcherName, string caughtName)
+        private void RpcNotifyCaught(string catcherName, string caughtName, uint catcherNetId, uint caughtNetId)
         {
-            OnPlayerCaught?.Invoke(catcherName, caughtName);
+            OnPlayerCaught?.Invoke(catcherName, caughtName, catcherNetId, caughtNetId);
         }
 
         [Server]

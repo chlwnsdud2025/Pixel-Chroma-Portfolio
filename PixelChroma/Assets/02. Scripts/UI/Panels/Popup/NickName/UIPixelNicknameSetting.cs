@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
+using OneText.UGUI;
 
 namespace PixelChroma.UI
 {
@@ -22,6 +23,13 @@ namespace PixelChroma.UI
 
         [Header("Color Picker")]
         [SerializeField] private UIColorPicker colorPicker;
+
+        [Header("Text Nickname")]
+        [SerializeField] private OneTextInputField nicknameInputField;
+        [SerializeField] private int maxNicknameLength = 10;
+        [SerializeField] private BannedWordsSO bannedWords;
+        [SerializeField] private UIWarningText warningText;
+        [SerializeField] private NicknameSettingTextDataSO textData;
 
         [Header("Tools")]
         [SerializeField] private Button clearButton;
@@ -86,6 +94,9 @@ namespace PixelChroma.UI
             if (saveButton != null) saveButton.AddClickListener(OnClickSave);
             if (closeButton != null) closeButton.AddClickListener(OnClickBack);
 
+            if (nicknameInputField != null)
+                nicknameInputField.characterLimit = maxNicknameLength;
+
             SetupCanvasDrag();
         }
 
@@ -94,6 +105,12 @@ namespace PixelChroma.UI
             base.OnBeforeShow();
             _input?.EnableAll();
             InitializeCanvas();
+
+            if (nicknameInputField != null)
+                nicknameInputField.text = NicknameService.LoadOrDefault();
+
+            SetWarningMessage(string.Empty);
+
             _brushMode = BrushMode.Brush;
             _brushSize = 1;
 
@@ -152,6 +169,17 @@ namespace PixelChroma.UI
             HandleKeyboardShortcuts();
             HandleBrushSizeScroll();
         }
+
+        //---------------------------Text 닉네임----------------------------------------------
+        private void SetWarningMessage(string message)
+        {
+            if (warningText != null) warningText.Show(message);
+
+            if (!string.IsNullOrEmpty(message) && nicknameInputField != null)
+                nicknameInputField.ActivateInputField();
+        }
+
+
 
         // ────────────────────── 캔버스 초기화 ──────────────────────
 
@@ -323,6 +351,8 @@ namespace PixelChroma.UI
         {
             if (_input == null) return;
 
+            // 텍스트 입력 중에는 단축키 비활성화 (1→붓, Z→undo 등 충돌 방지)
+            if (nicknameInputField != null && nicknameInputField.isFocused) return;
             // 드래그 중에는 Undo/Redo/도구전환 막음
             if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
 
@@ -344,6 +374,8 @@ namespace PixelChroma.UI
 
         private void HandleBrushSizeScroll()
         {
+            if (nicknameInputField != null && nicknameInputField.isFocused) return;
+
             if (_input?.BrushSizeModifier == null) return;
             if (!_input.BrushSizeModifier.IsPressed()) return;
             if (Mouse.current == null) return;
@@ -639,10 +671,38 @@ namespace PixelChroma.UI
 
         private void OnClickSave()
         {
-            if (_editTexture == null) return;
+            // ── 텍스트 닉네임 검증 ──
+            if (nicknameInputField != null)
+            {
+                string enteredName = nicknameInputField.text.Trim();
 
-            byte[] png = _editTexture.EncodeToPNG();
-            NicknameService.SavePixelNickname(png);
+                switch (NicknameService.Validate(enteredName, bannedWords, maxNicknameLength))
+                {
+                    case NameValidation.TooLong:
+                        SetWarningMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
+                        return;
+                    case NameValidation.Banned:
+                        SetWarningMessage(textData.warningBanned.GetLocalizedString());
+                        return;
+                    case NameValidation.Unsupported:
+                        if (!textData.warningUnsupported.IsEmpty)
+                            SetWarningMessage(textData.warningUnsupported.GetLocalizedString());
+                        return;
+                }
+
+                if (string.IsNullOrEmpty(enteredName))
+                    enteredName = NicknameService.GetDefaultSteamName();
+
+                NicknameService.Save(enteredName);
+            }
+
+            // ── 픽셀 닉네임 저장 ──
+            if (_editTexture != null)
+            {
+                byte[] png = _editTexture.EncodeToPNG();
+                NicknameService.SavePixelNickname(png);
+            }
+
             OnClickBack();
         }
     }
