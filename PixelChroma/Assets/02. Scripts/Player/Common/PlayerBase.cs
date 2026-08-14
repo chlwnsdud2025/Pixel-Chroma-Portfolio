@@ -56,7 +56,7 @@ namespace PixelChroma
         private bool _isChatActive;
         private bool _wasPopupOpen;
         private bool _likedByLocal;
-        private int _ownerConnectionId = -1;
+        [SyncVar] private int _ownerConnectionId = -1;
 
         protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
