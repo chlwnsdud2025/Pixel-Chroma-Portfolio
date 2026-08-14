@@ -373,7 +373,7 @@ namespace PixelChroma
             if (!IsLikeAllowedNow) return;   // 좋아요는 CheckTime에만 가능합니다.
 
             var target = _spectator.CurrentTarget;
-            if (target == null || target == this) return;
+            if (target == null || IsSameOwner(target)) return;
             if (!target.CanReceiveLike) return;    // 시커 관전 중에는 좋아요를 줄 수 없습니다.
             if (target.LikedByLocal) return;       // 이미 준 대상이면 서버까지 갈 필요가 없습니다.
 
@@ -381,6 +381,14 @@ namespace PixelChroma
             target._likedByLocal = true;   // 기록은 대상 오브젝트와 수명을 같이 합니다.
 
             RefreshLikeGuide();
+        }
+
+        private bool IsSameOwner(PlayerBase other)
+        {
+            if (other == this) return true;
+            return _ownerConnectionId >= 0
+                && other._ownerConnectionId >= 0
+                && _ownerConnectionId == other._ownerConnectionId;
         }
 
         // 좋아요 안내는 "지금 보고 있는 대상 한 명"에 대한 것이라 로컬 플레이어 HUD에서만 판정합니다.
@@ -393,7 +401,7 @@ namespace PixelChroma
             InGameHUD?.SetLikeGuide(
                 IsLikeAllowedNow
                 && target != null
-                && target != this
+                && !IsSameOwner(target)
                 && target.CanReceiveLike
                 && !target.LikedByLocal);
         }
@@ -499,6 +507,7 @@ namespace PixelChroma
             if (_ownerConnectionId < 0) return;
             var senderPlayer = sender.identity?.GetComponent<PlayerBase>();
             if (senderPlayer == this) return;
+            if (sender.connectionId == _ownerConnectionId) return;
 
             // 변경: AddLike → TryAddRecord (중복 검사만)
             if (!LikeManager.TryAddRecord(sender.connectionId, _ownerConnectionId))
