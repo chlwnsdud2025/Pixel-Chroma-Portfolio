@@ -4,20 +4,10 @@ using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
-    // 인원 수 / 시간 설정을 담당한다.
+    // 시간 / 강제 노출 설정을 담당한다. (인원 수는 UIRoomInfoPanel로 이동)
     // RoomOption의 소유권은 UIRoomSetting에 있고, 여기서는 Bind로 받은 참조에 값만 반영한다.
     public class UIGameSettingPanel : MonoBehaviour
     {
-        [Header("Max Players")]
-        [SerializeField] private Button maxPlayersMinusButton;
-        [SerializeField] private Button maxPlayersPlusButton;
-        [SerializeField] private OneTextInputField maxPlayersInput;
-
-        [Header("Seeker Count")]
-        [SerializeField] private Button seekerCountMinusButton;
-        [SerializeField] private Button seekerCountPlusButton;
-        [SerializeField] private OneTextInputField seekerCountInput;
-
         [Header("Hide Time")]
         [SerializeField] private Slider hideTimeSlider;
         [SerializeField] private OneTextInputField hideTimeInput;
@@ -37,18 +27,13 @@ namespace PixelChroma.UI
         [SerializeField] private Slider forcedExposeIntervalSlider;
         [SerializeField] private OneTextInputField forcedExposeIntervalInput;
 
+        [Header("Emboss")]
+        [SerializeField] private UIEmbossSection embossSection;         // 하이라이트/쉐도우 하위 섹션
+
         private RoomOption _option;
 
         public void Initialize()
         {
-            if (maxPlayersMinusButton != null) maxPlayersMinusButton.onClick.AddListener(() => AdjustMaxPlayers(-1));
-            if (maxPlayersPlusButton != null) maxPlayersPlusButton.onClick.AddListener(() => AdjustMaxPlayers(1));
-
-            if (seekerCountMinusButton != null) seekerCountMinusButton.onClick.AddListener(() => AdjustSeekerCount(-1));
-            if (seekerCountPlusButton != null) seekerCountPlusButton.onClick.AddListener(() => AdjustSeekerCount(1));
-
-            if (maxPlayersInput != null) maxPlayersInput.onEndEdit.AddListener(OnMaxPlayersInput);
-            if (seekerCountInput != null) seekerCountInput.onEndEdit.AddListener(OnSeekerCountInput);
             if (hideTimeInput != null) hideTimeInput.onEndEdit.AddListener(OnHideTimeInput);
             if (seekTimeInput != null) seekTimeInput.onEndEdit.AddListener(OnSeekTimeInput);
             if (checkTimeInput != null) checkTimeInput.onEndEdit.AddListener(OnCheckTimeInput);
@@ -59,50 +44,17 @@ namespace PixelChroma.UI
             SetupSlider(seekTimeSlider, RoomOption.MinSeekTime, RoomOption.MaxSeekTime, OnSeekTimeChanged);
             SetupSlider(checkTimeSlider, RoomOption.MinCheckTime, RoomOption.MaxCheckTime, OnCheckTimeChanged);
             SetupSlider(forcedExposeIntervalSlider, RoomOption.MinForcedExposeInterval, RoomOption.MaxForcedExposeInterval, OnForcedExposeIntervalChanged);
+
+            if (embossSection != null) embossSection.Initialize();
         }
 
         public void Bind(RoomOption option)
         {
             _option = option;
             RefreshAll();
-        }
 
-        private void AdjustMaxPlayers(int delta)
-        {
-            if (_option == null) return;
-            SetMaxPlayers(_option.maxPlayers + delta);
-        }
-
-        private void AdjustSeekerCount(int delta)
-        {
-            if (_option == null) return;
-            SetSeekerCount(_option.seekerCount + delta);
-        }
-
-        // 버튼(+/-)과 InputField 직접 입력이 동일한 clamp 규칙을 공유하도록 값 설정을 한곳에 모은다.
-        private void SetMaxPlayers(int value)
-        {
-            _option.maxPlayers = Mathf.Clamp(
-                value,
-                RoomOption.MinPlayers,
-                RoomOption.MaxPlayersLimit);
-
-            int maxSeeker = _option.maxPlayers - 1;
-            if (_option.seekerCount > maxSeeker)
-                _option.seekerCount = Mathf.Max(RoomOption.MinSeekerCount, maxSeeker);
-
-            RefreshPlayerCountUI();
-        }
-
-        private void SetSeekerCount(int value)
-        {
-            int maxSeeker = Mathf.Min(RoomOption.MaxSeekerCount, _option.maxPlayers - 1);
-            _option.seekerCount = Mathf.Clamp(
-                value,
-                RoomOption.MinSeekerCount,
-                maxSeeker);
-
-            RefreshPlayerCountUI();
+            // 엠보스 섹션은 같은 RoomOption 참조를 물려받아 자기 필드만 갱신한다.
+            if (embossSection != null) embossSection.Bind(option);
         }
 
         // 슬라이더와 InputField가 같은 clamp 규칙을 공유하도록 시간 값 설정을 한곳에 모은다.
@@ -163,20 +115,6 @@ namespace PixelChroma.UI
         }
 
         // InputField 직접 입력 처리: 숫자면 clamp 후 반영, 아니면 이전 값으로 되돌린다(재표시).
-        private void OnMaxPlayersInput(string text)
-        {
-            if (_option == null) return;
-            if (int.TryParse(text, out int value)) SetMaxPlayers(value);
-            else RefreshPlayerCountUI();
-        }
-
-        private void OnSeekerCountInput(string text)
-        {
-            if (_option == null) return;
-            if (int.TryParse(text, out int value)) SetSeekerCount(value);
-            else RefreshPlayerCountUI();
-        }
-
         private void OnHideTimeInput(string text)
         {
             if (_option == null) return;
@@ -229,7 +167,6 @@ namespace PixelChroma.UI
         {
             if (_option == null) return;
 
-            RefreshPlayerCountUI();
             RefreshTimeUI();
 
             if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
@@ -237,12 +174,6 @@ namespace PixelChroma.UI
             if (checkTimeSlider != null) checkTimeSlider.SetValueWithoutNotify(_option.checkTime);
             if (forcedExposeIntervalSlider != null) forcedExposeIntervalSlider.SetValueWithoutNotify(_option.forcedExposeInterval);
             RefreshForcedExposeUI();
-        }
-
-        private void RefreshPlayerCountUI()
-        {
-            if (maxPlayersInput != null) ForceSetText(maxPlayersInput, _option.maxPlayers.ToString());
-            if (seekerCountInput != null) ForceSetText(seekerCountInput, _option.seekerCount.ToString());
         }
 
         private void RefreshTimeUI()

@@ -18,6 +18,8 @@ namespace PixelChroma
         public const float DefaultSeekTime = 300f;
         public const float DefaultCheckTime = 30f;
         public const float DefaultForcedExposeInterval = 40f;
+        public const float DefaultEdgeHighlight = 0.1f;
+        public const float DefaultEdgeShadow = 0.1f;
 
         public const int MinPlayers = 2;
         public const int MaxPlayersLimit = 12;
@@ -31,6 +33,9 @@ namespace PixelChroma
         public const float MaxCheckTime = 100f;
         public const float MinForcedExposeInterval = 0f;
         public const float MaxForcedExposeInterval = 120f;
+        // 외곽선 엠보스(하이라이트/쉐도우)는 0~1 비율. PlayerPaintCanvas.Recomposite()가 소비한다.
+        public const float MinEmboss = 0f;
+        public const float MaxEmboss = 1f;
 
 
 
@@ -46,6 +51,8 @@ namespace PixelChroma
         public float checkTime = DefaultCheckTime;
         public bool forcedExposeEnabled = true;
         public float forcedExposeInterval = DefaultForcedExposeInterval;
+        public float edgeHighlight = DefaultEdgeHighlight;
+        public float edgeShadow = DefaultEdgeShadow;
 
         public string roomName = "";
         public string mapName = "";
@@ -65,6 +72,8 @@ namespace PixelChroma
                 checkTime = checkTime,
                 forcedExposeEnabled = forcedExposeEnabled,
                 forcedExposeInterval = forcedExposeInterval,
+                edgeHighlight = edgeHighlight,
+                edgeShadow = edgeShadow,
                 roomName = roomName,
                 mapName = mapName,
                 roomCode = roomCode,
@@ -85,6 +94,8 @@ namespace PixelChroma
                 checkTime = checkTime,
                 forcedExposeEnabled = forcedExposeEnabled,
                 forcedExposeInterval = forcedExposeInterval,
+                edgeHighlight = edgeHighlight,
+                edgeShadow = edgeShadow,
                 roomName = roomName,
                 mapName = mapName,
                 roomCode = roomCode,
@@ -105,6 +116,8 @@ namespace PixelChroma
                 checkTime = data.checkTime,
                 forcedExposeEnabled = data.forcedExposeEnabled,
                 forcedExposeInterval = data.forcedExposeInterval,
+                edgeHighlight = data.edgeHighlight,
+                edgeShadow = data.edgeShadow,
                 roomName = data.roomName,
                 mapName = data.mapName,
                 roomCode = data.roomCode,
@@ -124,6 +137,8 @@ namespace PixelChroma
         public float checkTime;
         public bool forcedExposeEnabled;
         public float forcedExposeInterval;
+        public float edgeHighlight;
+        public float edgeShadow;
         public string roomName;
         public string mapName;
         public string roomCode;

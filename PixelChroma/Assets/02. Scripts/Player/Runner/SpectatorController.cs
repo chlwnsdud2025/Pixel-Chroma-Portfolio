@@ -1,6 +1,7 @@
 using System;
-using UnityEngine;
+using System.Collections.Generic;
 using Unity.Cinemachine;
+using UnityEngine;
 namespace PixelChroma
 {
     public enum SpectateMode
@@ -13,6 +14,7 @@ namespace PixelChroma
 
     public class SpectatorController
     {
+
         private const float SpectateTransitionTime = 5f;  // 관전 대상 전환 시 카메라 도달 목표 시간(초). 거리와 무관하게 균일.
         private const float ArriveThreshold = 0.05f;
 
@@ -36,6 +38,9 @@ namespace PixelChroma
         public SpectateMode Mode => _mode;
         public bool IsSpectating => _mode != SpectateMode.None;
         public PlayerBase CurrentTarget => _currentTarget;
+
+        private int _savedRunnerIndex = -1;
+        private int _savedSeekerIndex = -1;
 
         public SpectatorController(PlayerBase owner, CinemachineCamera camera, float freeCamSpeed)
         {
@@ -86,6 +91,33 @@ namespace PixelChroma
         public void EnterRunnerMode()
         {
             _mode = SpectateMode.Runner;
+
+            // 저장된 인덱스가 있으면 복원 시도
+            if (_savedRunnerIndex >= 0)
+            {
+                var runners = GetSpectatableRunnerList();
+                if (runners != null && _savedRunnerIndex < runners.Count)
+                {
+                    var saved = runners[_savedRunnerIndex];
+                    bool isCheckTime = GameRoundManager.Instance != null
+                        && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
+
+                    if (saved != null && (!saved.IsDead || isCheckTime))
+                    {
+                        // 저장된 대상이 생존 → 그대로 복원
+                        _targetIndex = _savedRunnerIndex;
+                        SetTarget(saved, saved.transform);
+                        return;
+                    }
+                }
+
+                // 저장된 대상이 사망 또는 범위 초과 → 인덱스 초기화 후 본인 관전
+                _savedRunnerIndex = -1;
+                if (TrySetTargetToOwner(GetSpectatableRunnerList()))
+                    return;
+            }
+
+            // 저장된 인덱스 없음 (첫 진입) → 기존 동작
             _targetIndex = -1;
             CycleTarget(1);
         }
@@ -93,6 +125,28 @@ namespace PixelChroma
         public void EnterSeekerMode()
         {
             _mode = SpectateMode.Seeker;
+
+            // 저장된 인덱스가 있으면 복원 시도
+            if (_savedSeekerIndex >= 0)
+            {
+                var seekers = InGameManager.Instance?.Seekers;
+                if (seekers != null && _savedSeekerIndex < seekers.Count)
+                {
+                    var saved = seekers[_savedSeekerIndex];
+                    if (saved != null)
+                    {
+                        _targetIndex = _savedSeekerIndex;
+                        SetTarget(saved, saved.transform);
+                        return;
+                    }
+                }
+
+                // 복원 실패 → 인덱스 초기화 후 본인 관전
+                _savedSeekerIndex = -1;
+                if (TrySetTargetToOwner(InGameManager.Instance?.Seekers))
+                    return;
+            }
+
             _targetIndex = -1;
             CycleTarget(1);
         }
@@ -121,15 +175,19 @@ namespace PixelChroma
             if (_freeCamTarget != null)
                 _freeCamTarget.transform.position += (Vector3)input * _freeCamSpeed * Time.fixedDeltaTime;
         }
+        private IReadOnlyList<RunnerPlayer> GetSpectatableRunnerList()
+        {
+            return (_owner is RunnerPlayer runnerOwner
+                    ? GameRoundManager.Instance?.CurrentRule?.GetSpectatableRunners(runnerOwner)
+                    : null)
+                ?? InGameManager.Instance?.Runners;
+        }
 
         private void CycleRunner(int direction)
         {
             // 러너가 관전할 때만 모드 규칙의 관전 대상 필터를 적용하고,
             // 그 외(시커 관전 등)에는 전체 러너 명부를 사용합니다.
-            var runners = (_owner is RunnerPlayer runnerOwner
-                    ? GameRoundManager.Instance?.CurrentRule?.GetSpectatableRunners(runnerOwner)
-                    : null)
-                ?? InGameManager.Instance?.Runners;
+            var runners = GetSpectatableRunnerList();
 
             if (runners == null || runners.Count == 0) return;
 
@@ -145,6 +203,7 @@ namespace PixelChroma
                 if (target != null && (!target.IsDead || isCheckTime))
                 {
                     SetTarget(target, target.transform);
+                    _savedRunnerIndex = _targetIndex;
                     return;
                 }
                 attemptCount++;
@@ -165,6 +224,7 @@ namespace PixelChroma
                 if (target != null)
                 {
                     SetTarget(target, target.transform);
+                    _savedSeekerIndex = _targetIndex;
                     return;
                 }
                 attemptCount++;
@@ -187,6 +247,23 @@ namespace PixelChroma
 
             _currentTarget = target;
             OnTargetChanged?.Invoke(target);
+        }
+
+        private bool TrySetTargetToOwner<T>(IReadOnlyList<T> list) where T : PlayerBase
+        {
+            if (list == null) return false;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] == _owner)
+                {
+                    _targetIndex = i;
+                    SetTarget(_owner, _owner.transform);
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void ApplyDistanceBasedDamping(Transform followTarget)

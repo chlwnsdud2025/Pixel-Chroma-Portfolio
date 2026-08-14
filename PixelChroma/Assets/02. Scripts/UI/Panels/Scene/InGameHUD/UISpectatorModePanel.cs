@@ -62,6 +62,7 @@ namespace PixelChroma.UI
 
             if (showPixel && targetNameImage != null)
             {
+                // Todo: 본인일 경우에 닉네임에 Outline등 추가? 필요하면 하기
                 _cachedTexture = PixelNicknameHelper.ApplyPng(targetNameImage, pixelPng, _cachedTexture);
                 targetNameImage.gameObject.SetActive(true);
                 if (targetNameText != null) targetNameText.gameObject.SetActive(false);

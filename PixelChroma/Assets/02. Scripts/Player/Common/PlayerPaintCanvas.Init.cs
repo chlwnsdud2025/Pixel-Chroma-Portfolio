@@ -31,6 +31,9 @@ namespace PixelChroma
                 _formLookup[forms[i].formType] = forms[i];
             }
 
+            // 방 옵션(엠보스 하이라이트/쉐도우)을 최초 합성 전에 반영해 둔다.
+            PullEmbossFromRoomOption();
+
             ActivateForm(PaintFormType.Default);
             Recomposite();
         }
@@ -172,43 +175,11 @@ namespace PixelChroma
         private static Vector2[][] BuildEdgeNormals(Color[][] originalPixels, int texWidth, int texHeight)
         {
             int count = originalPixels.Length;
-            int pixelCount = texWidth * texHeight;
             var edgeNormals = new Vector2[count][];
 
+            // 프레임별 법선은 프리뷰와 공유하는 PaintEmboss.BuildEdgeNormals로 계산한다.
             for (int i = 0; i < count; i++)
-            {
-                var pixels = originalPixels[i];
-                var normals = new Vector2[pixelCount];
-                edgeNormals[i] = normals;
-
-                for (int y = 0; y < texHeight; y++)
-                {
-                    for (int x = 0; x < texWidth; x++)
-                    {
-                        int idx = y * texWidth + x;
-                        if (pixels[idx].a < 0.01f) continue;
-
-                        float nx = 0f, ny = 0f;
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            for (int dy = -1; dy <= 1; dy++)
-                            {
-                                if (dx == 0 && dy == 0) continue;
-                                if (IsTransparentAt(pixels, x + dx, y + dy, texWidth, texHeight))
-                                {
-                                    nx += dx;
-                                    ny += dy;
-                                }
-                            }
-                        }
-
-                        float len = Mathf.Sqrt(nx * nx + ny * ny);
-                        if (len < 0.001f) continue;
-
-                        normals[idx] = new Vector2(nx / len, ny / len);
-                    }
-                }
-            }
+                edgeNormals[i] = PaintEmboss.BuildEdgeNormals(originalPixels[i], texWidth, texHeight);
 
             return edgeNormals;
         }
@@ -230,12 +201,6 @@ namespace PixelChroma
                 pixels[i] = new Color32(r, g, (byte)(isEdge ? 255 : 0), 255);
             }
             return pixels;
-        }
-
-        private static bool IsTransparentAt(Color[] pixels, int x, int y, int texWidth, int texHeight)
-        {
-            if (x < 0 || x >= texWidth || y < 0 || y >= texHeight) return true;
-            return pixels[y * texWidth + x].a < 0.01f;
         }
     }
 }
