@@ -611,6 +611,7 @@ namespace PixelChroma
         private void OnPixelNicknameChanged(byte[] oldPng, byte[] newPng)
         {
             Common.RefreshPixelNickname(newPng);
+            OnAnyPlayerNameChanged?.Invoke();
         }
 
 

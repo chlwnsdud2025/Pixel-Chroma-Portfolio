@@ -61,7 +61,7 @@ namespace PixelChroma.UI
                 btn.Setup(name, locale == current);
 
                 Locale captured = locale;   // 클로저 캡처용 지역 복사
-                btn.Button.AddClickListener(() => OnLanguageSelected(captured));
+                btn.FocusButton.OnClicked += () => OnLanguageSelected(captured);
             }
 
             _built = true;
