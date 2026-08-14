@@ -27,6 +27,9 @@ namespace PixelChroma.UI
         [SerializeField] private Slider forcedExposeIntervalSlider;
         [SerializeField] private OneTextInputField forcedExposeIntervalInput;
 
+        [Header("Emboss")]
+        [SerializeField] private UIEmbossSection embossSection;         // 하이라이트/쉐도우 하위 섹션
+
         private RoomOption _option;
 
         public void Initialize()
@@ -41,12 +44,17 @@ namespace PixelChroma.UI
             SetupSlider(seekTimeSlider, RoomOption.MinSeekTime, RoomOption.MaxSeekTime, OnSeekTimeChanged);
             SetupSlider(checkTimeSlider, RoomOption.MinCheckTime, RoomOption.MaxCheckTime, OnCheckTimeChanged);
             SetupSlider(forcedExposeIntervalSlider, RoomOption.MinForcedExposeInterval, RoomOption.MaxForcedExposeInterval, OnForcedExposeIntervalChanged);
+
+            if (embossSection != null) embossSection.Initialize();
         }
 
         public void Bind(RoomOption option)
         {
             _option = option;
             RefreshAll();
+
+            // 엠보스 섹션은 같은 RoomOption 참조를 물려받아 자기 필드만 갱신한다.
+            if (embossSection != null) embossSection.Bind(option);
         }
 
         // 슬라이더와 InputField가 같은 clamp 규칙을 공유하도록 시간 값 설정을 한곳에 모은다.

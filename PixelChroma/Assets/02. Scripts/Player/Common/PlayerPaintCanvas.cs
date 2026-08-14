@@ -128,6 +128,25 @@ namespace PixelChroma
             InitializeAllForms();
         }
 
+        // 로비/라운드에서 방 옵션(엠보스)이 갱신되면 즉시 반영하기 위해 구독한다.
+        // static 이벤트 누수→좀비 핸들러 방지를 위해 OnEnable/OnDisable 짝으로만 다룬다.
+        private void OnEnable()
+        {
+            LobbyPlayerState.OnRoomOptionSynced += HandleRoomOptionSynced;
+        }
+
+        private void OnDisable()
+        {
+            LobbyPlayerState.OnRoomOptionSynced -= HandleRoomOptionSynced;
+        }
+
+        // 방장이 로비에서 옵션을 바꾸면 모든 클라의 PlayerPaintCanvas가 이 핸들러로 즉시 재합성한다.
+        private void HandleRoomOptionSynced(RoomOption option)
+        {
+            if (option == null) return;
+            ApplyEmboss(option.edgeHighlight, option.edgeShadow);
+        }
+
         void LateUpdate()
         {
             var form = _activeForm;
@@ -640,8 +659,7 @@ namespace PixelChroma
         {
             if (lightAngle != _cachedLightAngle)
             {
-                float rad = lightAngle * Mathf.Deg2Rad;
-                _cachedLightDir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+                _cachedLightDir = PaintEmboss.LightDir(lightAngle);
                 _cachedLightAngle = lightAngle;
             }
             return _cachedLightDir;
@@ -651,6 +669,39 @@ namespace PixelChroma
         /// CPU에서 originalPixels + maskPixels + edgeNormals을 합성하여
         /// compositedTexture에 업로드한다. UV 변환 없이 pixel 인덱스로 직접 접근.
         /// </summary>
+        // ── 엠보스(외곽선 하이라이트/쉐도우) 외부 제어 ──────────────────────────
+        // 방 옵션이나 미리보기 UI가 값을 밀어넣을 때 사용. 값 반영 후 즉시 재합성한다.
+        public void ApplyEmboss(float highlight, float shadow)
+        {
+            edgeHighlight = Mathf.Clamp01(highlight);
+            edgeShadow = Mathf.Clamp01(shadow);
+            if (_activeForm != null) Recomposite();
+        }
+
+        // 현재 유효한 RoomOption에서 엠보스 값을 읽어 반영한다.
+        // (동기화된 옵션이 없으면 인스펙터 기본값을 유지)
+        private void PullEmbossFromRoomOption()
+        {
+            var option = ActiveRoomOption();
+            if (option == null) return;
+
+            edgeHighlight = Mathf.Clamp01(option.edgeHighlight);
+            edgeShadow = Mathf.Clamp01(option.edgeShadow);
+        }
+
+        // 인게임이면 라운드 옵션(GameRoundManager), 로비면 로비 옵션(LobbyManager)을 우선 사용한다.
+        private static RoomOption ActiveRoomOption()
+        {
+            var round = GameRoundManager.Instance != null
+                ? GameRoundManager.Instance.CurrentRoomOption
+                : null;
+            if (round != null) return round;
+
+            return LobbyManager.Instance != null
+                ? LobbyManager.Instance.CurrentRoomOption
+                : null;
+        }
+
         private void Recomposite()
         {
             var form = _activeForm;
@@ -676,18 +727,9 @@ namespace PixelChroma
                     float pg = mask[i].g / 255f;
                     float pb = mask[i].b / 255f;
 
-                    // 엠보스: 법선 · 빛방향 (셰이더와 동일한 계산)
-                    Vector2 n = normals[i];
-                    bool isEdge = n.x != 0f || n.y != 0f;
-                    if (isEdge)
-                    {
-                        float edge = Vector2.Dot(n, ld);
-                        float hi = Mathf.Max(0f, edge) * edgeHighlight * shadingStrength;
-                        float sh = Mathf.Max(0f, -edge) * edgeShadow * shadingStrength;
-                        pr = Mathf.Lerp(Mathf.Lerp(pr, 0f, sh), 1f, hi);
-                        pg = Mathf.Lerp(Mathf.Lerp(pg, 0f, sh), 1f, hi);
-                        pb = Mathf.Lerp(Mathf.Lerp(pb, 0f, sh), 1f, hi);
-                    }
+                    // 엠보스: 법선 · 빛방향 (프리뷰와 공유하는 PaintEmboss.Shade)
+                    PaintEmboss.Shade(ref pr, ref pg, ref pb, normals[i], ld,
+                        edgeHighlight, edgeShadow, shadingStrength);
 
                     output[i] = new Color32(
                         (byte)Mathf.RoundToInt(pr * 255f),
