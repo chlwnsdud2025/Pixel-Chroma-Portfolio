@@ -129,10 +129,18 @@ namespace PixelChroma.UI
             if (_isDownloading) return;
             _isDownloading = true;
 
+            // Workshop 페이지 열기
+            string url = $"https://steamcommunity.com/sharedfiles/filedetails/?id={_fileId}";
+            if (GameManager.SteamInitialized)
+                Steamworks.SteamFriends.ActivateGameOverlayToWebPage(url);
+            else
+                Application.OpenURL(url);
+
+            // 버튼은 유지하되 비활성화 (다시 누르기 방지)
             if (downloadButton != null)
                 downloadButton.interactable = false;
 
-            DownloadAndWaitAsync().Forget();
+            WaitForSubscriptionAsync().Forget();
         }
 
         private async UniTaskVoid DownloadAndWaitAsync()
@@ -249,6 +257,100 @@ namespace PixelChroma.UI
                 {
                     _activeSlots[i].gameObject.SetActive(false);
                 }
+            }
+        }
+
+        private async UniTaskVoid WaitForSubscriptionAsync()
+        {
+            CancelDownload();
+            _downloadCts = new CancellationTokenSource();
+            var token = _downloadCts.Token;
+
+            try
+            {
+                // 1. 구독 대기 (유저가 Workshop 페이지에서 구독할 때까지)
+                SetStatus(textData != null
+                    ? textData.statusSubscribing.GetLocalizedString()
+                    : "Subscribing...");
+
+                float elapsed = 0f;
+                const float subscribeTimeout = 120f;
+                const float pollInterval = 1f;
+
+                while (!token.IsCancellationRequested)
+                {
+                    if (WorkshopSubscriptionService.IsSubscribed(_fileId))
+                        break;
+
+                    elapsed += pollInterval;
+                    if (elapsed >= subscribeTimeout)
+                    {
+                        SetStatus(textData != null
+                            ? textData.statusTimeout.GetLocalizedString()
+                            : "Download timed out.");
+                        _isDownloading = false;
+                        if (downloadButton != null) downloadButton.interactable = true;
+                        return;
+                    }
+
+                    await UniTask.Delay((int)(pollInterval * 1000), cancellationToken: token);
+                }
+
+                if (token.IsCancellationRequested) return;
+
+                // 2. 구독 확인 → 다운로드 자동 시작
+                SetStatus(textData != null
+                    ? textData.statusDownloading.GetLocalizedString()
+                    : "Downloading...");
+                WorkshopSubscriptionService.RequestDownload(_fileId);
+
+                // 3. 설치 완료 대기 (최대 60초)
+                elapsed = 0f;
+                const float downloadTimeout = 60f;
+                const float downloadPoll = 0.5f;
+
+                while (!token.IsCancellationRequested)
+                {
+                    if (WorkshopSubscriptionService.IsInstalled(_fileId))
+                        break;
+
+                    elapsed += downloadPoll;
+                    if (elapsed >= downloadTimeout)
+                    {
+                        SetStatus(textData != null
+                            ? textData.statusTimeout.GetLocalizedString()
+                            : "Download timed out.");
+                        _isDownloading = false;
+                        if (downloadButton != null) downloadButton.interactable = true;
+                        return;
+                    }
+
+                    await UniTask.Delay((int)(downloadPoll * 1000), cancellationToken: token);
+                }
+
+                if (token.IsCancellationRequested) return;
+
+                // 4. 완료 → 서버에 통보
+                SetStatus(textData != null
+                    ? textData.statusComplete.GetLocalizedString()
+                    : "Download complete!");
+                if (downloadButton != null)
+                    downloadButton.gameObject.SetActive(false);
+
+                Mirror.NetworkClient.Send(new WorkshopMapDownloadComplete
+                {
+                    fileId = _fileId
+                });
+            }
+            catch (System.OperationCanceledException) { }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[UIWorkshopMapCheck] 처리 실패: {e.Message}");
+                SetStatus(textData != null
+                    ? textData.statusFailed.GetLocalizedString()
+                    : "Download failed.");
+                _isDownloading = false;
+                if (downloadButton != null) downloadButton.interactable = true;
             }
         }
         private void SetStatus(string text)

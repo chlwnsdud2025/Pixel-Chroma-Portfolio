@@ -364,22 +364,28 @@ namespace PixelChroma.UI
 
             string mapName = option.mapName;
 
-            // 창작마당 맵이면 → 전원 보유 확인 후 시작
+            Debug.Log($"[UILobby] OnClickStartGame | SteamActive={GameManager.SteamActive}, mapName=\"{mapName}\"");
+
             if (GameManager.SteamActive
                 && !string.IsNullOrEmpty(mapName)
                 && mapName.StartsWith("workshop:"))
             {
                 if (ulong.TryParse(mapName.Substring("workshop:".Length), out ulong fileId))
                 {
+                    Debug.Log($"[UILobby] Workshop 맵 감지 → RequestCheck 호출 | fileId={fileId}");
                     if (startGameButton != null)
                         startGameButton.SetInteractable(false);
 
                     WorkshopMapChecker.RequestCheck(fileId);
                     return;
                 }
+                else
+                {
+                    Debug.LogError($"[UILobby] fileId 파싱 실패! mapName=\"{mapName}\"");
+                }
             }
 
-            // 일반 맵 → 바로 시작
+            Debug.Log("[UILobby] 일반 맵 → ProceedStartGame 직행");
             ProceedStartGame();
         }
 

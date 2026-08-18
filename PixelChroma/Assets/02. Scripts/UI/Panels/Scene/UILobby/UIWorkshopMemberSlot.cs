@@ -12,6 +12,8 @@ namespace PixelChroma.UI
 
         [Header("Status")]
         [SerializeField] private OneTextLabel statusText;
+        [SerializeField] private Color installedColor = Color.green;
+        [SerializeField] private Color notInstalledColor = Color.red;
 
         [Header("Kick")]
         [SerializeField] private Button kickButton;
@@ -70,7 +72,10 @@ namespace PixelChroma.UI
 
             // ── 2. 설치 상태 텍스트 ──
             if (statusText != null)
+            {
                 statusText.text = status.isInstalled ? installedLabel : notInstalledLabel;
+                statusText.color = status.isInstalled ? installedColor : notInstalledColor;
+            }
 
             // ── 3. 강퇴 버튼 (호스트만, 자기 자신 제외) ──
             if (kickButton != null)
