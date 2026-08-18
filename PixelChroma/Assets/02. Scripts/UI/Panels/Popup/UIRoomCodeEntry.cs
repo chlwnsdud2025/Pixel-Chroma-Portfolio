@@ -3,7 +3,7 @@ using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using Steamworks;
+
 
 namespace PixelChroma.UI
 {
@@ -89,7 +89,6 @@ namespace PixelChroma.UI
         protected override UniTask OnShow()
         {
             LobbyManager.Instance.OnLobbyFailed += HandleLobbyFailed;
-            LobbyManager.Instance.OnWorkshopSubscriptionRequired += HandleWorkshopRequired;
             return UniTask.CompletedTask;
         }
 
@@ -98,7 +97,6 @@ namespace PixelChroma.UI
             if (LobbyManager.Instance != null)
             {
                 LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;
-                LobbyManager.Instance.OnWorkshopSubscriptionRequired -= HandleWorkshopRequired;
             }
 
             Input.imeCompositionMode = IMECompositionMode.Auto;
@@ -186,23 +184,6 @@ namespace PixelChroma.UI
 
             SetStatusVisible(false);
             LobbyManager.Instance.JoinLobbyByCode(code);
-        }
-
-
-        private void HandleWorkshopRequired(CSteamID lobbyId, ulong fileId)
-        {
-            // 구독 팝업이 뜨므로 입력 버튼 다시 활성화 (사용자가 취소 후 재시도 가능)
-            RefreshJoinButton(roomCodeInput != null ? roomCodeInput.text.Trim().Length : 0);
-
-            UIManager.Instance.ShowPopup<UIWorkshopSubscribePopup>(popup =>
-            {
-                popup.Setup(fileId);
-                popup.OnSubscribeCompleted += () =>
-                {
-                    // 구독+다운로드 완료 → 입장 진행
-                    LobbyManager.Instance.JoinLobbyDirect(lobbyId);
-                };
-            }).Forget();
         }
     }
 }

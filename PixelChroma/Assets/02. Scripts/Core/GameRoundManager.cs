@@ -75,6 +75,12 @@ namespace PixelChroma
             NetworkClient.RegisterHandler<TimeStateMessage>(OnClientTimeStateChanged);
             NetworkClient.RegisterHandler<WinnerDecidedMessage>(OnClientWinnerDecided);
             NetworkClient.RegisterHandler<RoomOptionSyncMessage>(OnClientRoomOptionChanged);
+
+            WorkshopMapChecker.RegisterHandlers();
+            NetworkClient.RegisterHandler<WorkshopMapCheckResult>(WorkshopMapChecker.HandleCheckResult);
+
+            if (NetworkServer.active)
+                WorkshopMapChecker.RegisterServerHandlers();
         }
 
         public void Cleanup()
@@ -85,6 +91,12 @@ namespace PixelChroma
             NetworkClient.UnregisterHandler<TimeStateMessage>();
             NetworkClient.UnregisterHandler<WinnerDecidedMessage>();
             NetworkClient.UnregisterHandler<RoomOptionSyncMessage>();
+
+            WorkshopMapChecker.UnregisterHandlers();
+            NetworkClient.UnregisterHandler<WorkshopMapCheckResult>();
+
+            if (NetworkServer.active)
+                WorkshopMapChecker.UnregisterServerHandlers();
         }
 
         [Server]

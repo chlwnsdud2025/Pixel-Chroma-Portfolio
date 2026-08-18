@@ -19,4 +19,40 @@ namespace PixelChroma
     {
         public RoomOptionData option;
     }
+
+    // ── 창작마당 맵 보유 확인 ────────────────────────
+
+    // 서버 → 클라: "이 맵 갖고 있어?"
+    public struct WorkshopMapCheckRequest : NetworkMessage
+    {
+        public ulong fileId;
+    }
+
+    // 클라 → 서버: "나는 있어/없어"
+    public struct WorkshopMapCheckResponse : NetworkMessage
+    {
+        public bool isInstalled;
+        public string playerName;
+    }
+
+    // 서버 → 전체 클라: "검사 결과"
+    public struct WorkshopMapCheckResult : NetworkMessage
+    {
+        public bool allInstalled;
+        public WorkshopPlayerStatus[] playerStatuses;
+        public ulong fileId;
+        public string mapName;           
+    }
+
+    // 클라 → 서버: "나 다운 완료됐어"
+    public struct WorkshopMapDownloadComplete : NetworkMessage
+    {
+        public ulong fileId;
+    }
+    public struct WorkshopPlayerStatus
+    {
+        public uint netId;          // 강퇴·슬롯 매칭에 사용
+        public bool isInstalled;
+        public string playerName;   // 폴백 이름
+    }
 }

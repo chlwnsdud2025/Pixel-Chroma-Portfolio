@@ -49,9 +49,13 @@ namespace PixelChroma.UI
         [SerializeField] private GameObject paintModeRoot;
         [SerializeField] private UIColorPicker colorPicker;
 
+        [Header("Workshop Map Check")]
+        [SerializeField] private UIWorkshopMapCheck workshopMapCheckUI;
+
         [HideInInspector] public LobbyPlayerState localLobbyPlayer;
 
         private bool _isCodeVisible;
+
 
         // ── Override ─────────────────────────────────────────
 
@@ -70,9 +74,9 @@ namespace PixelChroma.UI
             if (languageSettingButton != null) languageSettingButton.AddClickListener(OnClickLanguageButton);
 
             if (colorPicker != null) colorPicker.Initialize();
-
-
             if (paintModeRoot != null) paintModeRoot.SetActive(false);
+
+            if (workshopMapCheckUI != null) workshopMapCheckUI.Initialize(this);
         }
 
         /// <summary>
@@ -90,8 +94,11 @@ namespace PixelChroma.UI
             GameSettings.Changed += RefreshMemberList;
             GameRoundManager.OnTimeStateChanged += OnTimeStateChanged;
             GameRoundManager.OnTimerTick += OnTimerTick;
-            
+
+
+            if (workshopMapCheckUI != null) workshopMapCheckUI.Subscribe();
             if (roomOptionPanel != null) roomOptionPanel.Subscribe();
+
         }
 
         /// <summary>
@@ -110,6 +117,8 @@ namespace PixelChroma.UI
             GameRoundManager.OnTimeStateChanged -= OnTimeStateChanged;
             GameRoundManager.OnTimerTick -= OnTimerTick;
 
+
+            if (workshopMapCheckUI != null) workshopMapCheckUI.Unsubscribe();
             if (roomOptionPanel != null) roomOptionPanel.Unsubscribe();
         }
 
@@ -135,6 +144,8 @@ namespace PixelChroma.UI
                 roomSettingsButton.gameObject.SetActive(isHost);
                 roomSettingsButton.SetInteractable(true);
             }
+
+            if (workshopMapCheckUI != null) workshopMapCheckUI.Hide();
 
             _isCodeVisible = false;
             ApplyCodeVisibility();
@@ -346,11 +357,41 @@ namespace PixelChroma.UI
 
         private void OnClickStartGame()
         {
-            if (LobbyManager.Instance.IsHost)
+            if (!LobbyManager.Instance.IsHost) return;
+
+            var option = LobbyManager.Instance.CurrentRoomOption;
+            if (option == null) return;
+
+            string mapName = option.mapName;
+
+            // 창작마당 맵이면 → 전원 보유 확인 후 시작
+            if (GameManager.SteamActive
+                && !string.IsNullOrEmpty(mapName)
+                && mapName.StartsWith("workshop:"))
             {
-                LobbyManager.Instance.ChangeLobbyStatusToInGame();
-                GameRoundManager.Instance?.StartGameWithOption(LobbyManager.Instance.CurrentRoomOption);
+                if (ulong.TryParse(mapName.Substring("workshop:".Length), out ulong fileId))
+                {
+                    if (startGameButton != null)
+                        startGameButton.SetInteractable(false);
+
+                    WorkshopMapChecker.RequestCheck(fileId);
+                    return;
+                }
             }
+
+            // 일반 맵 → 바로 시작
+            ProceedStartGame();
+        }
+
+        public void ProceedStartGame()
+        {
+            LobbyManager.Instance.ChangeLobbyStatusToInGame();
+            GameRoundManager.Instance?.StartGameWithOption(LobbyManager.Instance.CurrentRoomOption);
+        }
+
+        public void NotifyWorkshopCheckFailed()
+        {
+            RefreshReadyUI();
         }
 
         private void OnClickCopyCode()

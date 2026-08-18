@@ -9,10 +9,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a68a8e404d7de1440b5c87ab1c16b5e1, type: 3}
-  m_Name: WorkshopSubscribeTextData
-  m_EditorClassIdentifier: Assembly-CSharp::WorkshopSubscribeTextDataSO
-  message:
+  m_Script: {fileID: 11500000, guid: 2d1df162f7ed00042a71eccd8c0af2be, type: 3}
+  m_Name: WorkshopMapCheckTextData
+  m_EditorClassIdentifier: Assembly-CSharp::WorkshopMapCheckTextDataSO
+  warningMessage:
     m_TableReference:
       m_TableCollectionName: 
     m_TableEntryReference:
@@ -21,7 +21,7 @@ MonoBehaviour:
     m_FallbackState: 0
     m_WaitForCompletion: 0
     m_LocalVariables: []
-  confirmButton:
+  statusWaiting:
     m_TableReference:
       m_TableCollectionName: 
     m_TableEntryReference:
@@ -67,6 +67,24 @@ MonoBehaviour:
     m_WaitForCompletion: 0
     m_LocalVariables: []
   statusFailed:
+    m_TableReference:
+      m_TableCollectionName: 
+    m_TableEntryReference:
+      m_KeyId: 0
+      m_Key: 
+    m_FallbackState: 0
+    m_WaitForCompletion: 0
+    m_LocalVariables: []
+  slotInstalled:
+    m_TableReference:
+      m_TableCollectionName: 
+    m_TableEntryReference:
+      m_KeyId: 0
+      m_Key: 
+    m_FallbackState: 0
+    m_WaitForCompletion: 0
+    m_LocalVariables: []
+  slotNotInstalled:
     m_TableReference:
       m_TableCollectionName: 
     m_TableEntryReference:
