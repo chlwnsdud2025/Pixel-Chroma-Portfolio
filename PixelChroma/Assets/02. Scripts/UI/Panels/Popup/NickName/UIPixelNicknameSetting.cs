@@ -39,6 +39,16 @@ namespace PixelChroma.UI
         [Header("Preview")]
         [SerializeField] private RawImage previewImage;
 
+        [Header("Presets")]
+        [SerializeField] private Button[] presetButtons;    // Inspector에서 3개 할당
+        [SerializeField] private Color presetActiveColor = new Color(1f, 0.85f, 0.3f, 1f);
+        [SerializeField] private Color presetInactiveColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+
+        [Header("Default Preset")]
+        [SerializeField] private Button defaultPresetButton;
+        [SerializeField] private Texture2D[] defaultImages;  // Inspector에서 기본 이미지들 할당
+        [SerializeField] private Color defaultActiveColor = new Color(0.3f, 0.8f, 1f, 1f);
+
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
         [SerializeField] private float animationDuration = 0.25f;
@@ -69,6 +79,12 @@ namespace PixelChroma.UI
         private Color32[] _strokeSnapshot;
         private bool _strokeActive;
 
+        // ── Presets ──
+        private int _activePresetIndex;
+        private byte[][] _presetCache;
+        private bool _isDefaultPreset;
+        private int _defaultImageIndex;
+
         // ────────────────────── 라이프사이클 ──────────────────────
 
         public override void Initialize()
@@ -97,6 +113,18 @@ namespace PixelChroma.UI
             if (nicknameInputField != null)
                 nicknameInputField.characterLimit = maxNicknameLength;
 
+            if (presetButtons != null)
+            {
+                for (int i = 0; i < presetButtons.Length; i++)
+                {
+                    int index = i;  // 클로저 캡처용 로컬 복사
+                    if (presetButtons[i] != null)
+                        presetButtons[i].AddClickListener(() => OnPresetSelected(index));
+                }
+            }
+            if (defaultPresetButton != null)
+                defaultPresetButton.AddClickListener(OnDefaultPresetSelected);
+
             SetupCanvasDrag();
         }
 
@@ -104,7 +132,9 @@ namespace PixelChroma.UI
         {
             base.OnBeforeShow();
             _input?.EnableAll();
-            InitializeCanvas();
+
+            PixelNicknameService.MigrateToPresetIfNeeded();
+            LoadPresetsAndSelect();
 
             if (nicknameInputField != null)
                 nicknameInputField.text = TextNicknameService.LoadOrDefault();
@@ -179,51 +209,7 @@ namespace PixelChroma.UI
                 nicknameInputField.ActivateInputField();
         }
 
-
-
         // ────────────────────── 캔버스 초기화 ──────────────────────
-
-        private void InitializeCanvas()
-        {
-            if (_editTexture != null)
-                Destroy(_editTexture);
-
-            _editTexture = new Texture2D(canvasWidth, canvasHeight, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp
-            };
-
-            // 투명으로 초기화
-            _editTexture.SetPixels32(new Color32[canvasWidth * canvasHeight]);
-
-            byte[] savedPng = PixelNicknameService.Load();
-            if (savedPng != null && savedPng.Length > 0)
-            {
-                // LoadImage는 텍스처 크기를 PNG에 맞춰 변경하므로,
-                // 임시 텍스처에 로드 후 캔버스 크기에 맞춰 복사
-                var temp = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (temp.LoadImage(savedPng))
-                {
-                    int copyW = Mathf.Min(temp.width, canvasWidth);
-                    int copyH = Mathf.Min(temp.height, canvasHeight);
-                    for (int y = 0; y < copyH; y++)
-                        for (int x = 0; x < copyW; x++)
-                            _editTexture.SetPixel(x, y, temp.GetPixel(x, y));
-                }
-                Destroy(temp);
-            }
-
-            _editTexture.Apply();
-
-            canvasImage.texture = _editTexture;
-            if (previewImage != null)
-                previewImage.texture = _editTexture;
-
-            GenerateCheckerboard();
-            InitializeHoverOverlay();
-            ClearHistory();
-        }
 
         private void GenerateCheckerboard()
         {
@@ -656,6 +642,7 @@ namespace PixelChroma.UI
         private void OnClickClear()
         {
             if (_editTexture == null) return;
+            if (_isDefaultPreset) return;
 
             Color32[] before = CapturePixels();
             _editTexture.SetPixels32(new Color32[canvasWidth * canvasHeight]);
@@ -699,11 +686,222 @@ namespace PixelChroma.UI
             // ── 픽셀 닉네임 저장 ──
             if (_editTexture != null)
             {
+                // 빈 캔버스 체크: 유저 프리셋인데 아무것도 안 그렸으면 기본으로 자동 전환
+                if (!_isDefaultPreset && IsCanvasEmpty())
+                {
+                    _isDefaultPreset = true;
+                    _defaultImageIndex = PixelNicknameService.LoadDefaultImageIndex();
+                    if (defaultImages != null && defaultImages.Length > 0)
+                        ApplyDefaultToCanvas(_defaultImageIndex);
+                }
+
                 byte[] png = _editTexture.EncodeToPNG();
+
+                if (_isDefaultPreset)
+                {
+                    PixelNicknameService.SaveIsDefaultPreset(true);
+                    PixelNicknameService.SaveDefaultImageIndex(_defaultImageIndex);
+                }
+                else
+                {
+                    PixelNicknameService.SaveIsDefaultPreset(false);
+                    PixelNicknameService.SavePreset(_activePresetIndex, png);
+                    PixelNicknameService.SaveActivePresetIndex(_activePresetIndex);
+                }
+
+                // 메인 키는 항상 업데이트 (네트워크 호환)
                 PixelNicknameService.Save(png);
             }
 
             OnClickBack();
+        }
+
+        // ────────────────────── 프리셋 ──────────────────────
+
+        private void LoadPresetsAndSelect()
+        {
+            _presetCache = new byte[PixelNicknameService.PresetCount][];
+            for (int i = 0; i < PixelNicknameService.PresetCount; i++)
+                _presetCache[i] = PixelNicknameService.LoadPreset(i);
+
+            _isDefaultPreset = PixelNicknameService.LoadIsDefaultPreset();
+            _defaultImageIndex = PixelNicknameService.LoadDefaultImageIndex();
+            _activePresetIndex = PixelNicknameService.LoadActivePresetIndex();
+
+            if (_isDefaultPreset)
+                ApplyDefaultToCanvas(_defaultImageIndex);
+            else
+                ApplyPresetToCanvas(_activePresetIndex);
+
+            // 체커보드·호버는 최초 1회만
+            GenerateCheckerboard();
+            InitializeHoverOverlay();
+
+            UpdatePresetToggleVisual();
+            UpdateEditingLock();
+        }
+
+        private void OnDefaultPresetSelected()
+        {
+            if (_isDefaultPreset)
+            {
+                // 이미 기본 모드 → 다음 이미지로 순환
+                if (defaultImages != null && defaultImages.Length > 0)
+                {
+                    _defaultImageIndex = (_defaultImageIndex + 1) % defaultImages.Length;
+                    ApplyDefaultToCanvas(_defaultImageIndex);
+                }
+                return;
+            }
+
+            // 유저 프리셋 → 기본 프리셋으로 전환
+            // 현재 캔버스를 유저 프리셋 캐시에 보관
+            if (_editTexture != null)
+                _presetCache[_activePresetIndex] = _editTexture.EncodeToPNG();
+
+            _isDefaultPreset = true;
+            _defaultImageIndex = PixelNicknameService.LoadDefaultImageIndex();
+
+            ApplyDefaultToCanvas(_defaultImageIndex);
+            UpdatePresetToggleVisual();
+            UpdateEditingLock();
+        }
+
+        private void OnPresetSelected(int index)
+        {
+            // 기본 프리셋에서 유저 프리셋으로 복귀
+            if (_isDefaultPreset)
+            {
+                _isDefaultPreset = false;
+                _activePresetIndex = index;
+                ApplyPresetToCanvas(index);
+                UpdatePresetToggleVisual();
+                UpdateEditingLock();
+                return;
+            }
+
+            if (index == _activePresetIndex) return;
+
+            // 현재 캔버스 작업물을 기존 프리셋 캐시에 임시 보관
+            if (_editTexture != null)
+                _presetCache[_activePresetIndex] = _editTexture.EncodeToPNG();
+
+            _activePresetIndex = index;
+            ApplyPresetToCanvas(index);
+            UpdatePresetToggleVisual();
+            UpdateEditingLock();
+        }
+
+        private void ApplyDefaultToCanvas(int imageIndex)
+        {
+            if (defaultImages == null || defaultImages.Length == 0) return;
+
+            imageIndex = Mathf.Clamp(imageIndex, 0, defaultImages.Length - 1);
+            Texture2D source = defaultImages[imageIndex];
+            if (source == null) return;
+
+            InitializeCanvasTexture();
+
+            int copyW = Mathf.Min(source.width, canvasWidth);
+            int copyH = Mathf.Min(source.height, canvasHeight);
+            for (int y = 0; y < copyH; y++)
+                for (int x = 0; x < copyW; x++)
+                    _editTexture.SetPixel(x, y, source.GetPixel(x, y));
+
+            _editTexture.Apply();
+            canvasImage.texture = _editTexture;
+            if (previewImage != null)
+                previewImage.texture = _editTexture;
+
+            ClearHistory();
+        }
+
+        private void ApplyPresetToCanvas(int index)
+        {
+            InitializeCanvasTexture();
+
+            byte[] data = _presetCache[index];
+            if (data != null && data.Length > 0)
+            {
+                var temp = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (temp.LoadImage(data))
+                {
+                    int copyW = Mathf.Min(temp.width, canvasWidth);
+                    int copyH = Mathf.Min(temp.height, canvasHeight);
+                    for (int y = 0; y < copyH; y++)
+                        for (int x = 0; x < copyW; x++)
+                            _editTexture.SetPixel(x, y, temp.GetPixel(x, y));
+                }
+                Destroy(temp);
+            }
+
+            _editTexture.Apply();
+            canvasImage.texture = _editTexture;
+            if (previewImage != null)
+                previewImage.texture = _editTexture;
+
+            ClearHistory();
+        }
+
+        private void UpdateEditingLock()
+        {
+            if (canvasImage != null)
+                canvasImage.raycastTarget = !_isDefaultPreset;
+        }
+
+        private void UpdatePresetToggleVisual()
+        {
+            // 유저 프리셋 버튼
+            if (presetButtons != null)
+            {
+                for (int i = 0; i < presetButtons.Length; i++)
+                {
+                    if (presetButtons[i] == null) continue;
+
+                    var img = presetButtons[i].GetComponent<Image>();
+                    if (img != null)
+                    {
+                        bool active = !_isDefaultPreset && i == _activePresetIndex;
+                        img.color = active ? presetActiveColor : presetInactiveColor;
+                    }
+                }
+            }
+
+            // 기본 프리셋 버튼
+            if (defaultPresetButton != null)
+            {
+                var img = defaultPresetButton.GetComponent<Image>();
+                if (img != null)
+                    img.color = _isDefaultPreset ? defaultActiveColor : presetInactiveColor;
+            }
+        }
+
+        private bool IsCanvasEmpty()
+        {
+            if (_editTexture == null) return true;
+
+            Color32[] pixels = _editTexture.GetPixels32();
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (pixels[i].a > 0)
+                    return false;
+            }
+            return true;
+        }
+
+        private void InitializeCanvasTexture()
+        {
+            if (_editTexture != null)
+                Destroy(_editTexture);
+
+            _editTexture = new Texture2D(canvasWidth, canvasHeight, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            _editTexture.SetPixels32(new Color32[canvasWidth * canvasHeight]);
+            _editTexture.Apply();
         }
     }
 }
