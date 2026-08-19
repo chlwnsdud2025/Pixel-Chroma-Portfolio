@@ -74,6 +74,7 @@ namespace PixelChroma
         protected Rigidbody2D Rb { get; private set; }
         protected bool IsChatActive => _isChatActive;
         protected bool IsPopupOpen => UIManager.Instance != null && UIManager.Instance.IsPopupOpen;
+        protected bool IsGameplayInputBlocked => _isChatActive || IsPopupOpen;
         protected bool IsCheckTimeSpectatorLocked { get; private set; }
 
         protected virtual UIInGameHUD InGameHUD => null;
@@ -103,7 +104,11 @@ namespace PixelChroma
 
             UpdatePopupCursor();
 
-            if (_isChatActive) return;
+            if (IsGameplayInputBlocked)
+            {
+                StopLocalGameplayMotion();
+                return;
+            }
 
             if (CanUseFormWheel && formWheel != null
                 && (_spectator == null || !_spectator.IsSpectating))
@@ -141,7 +146,11 @@ namespace PixelChroma
         protected virtual void FixedUpdate()
         {
             if (!isLocalPlayer) return;
-            if (_isChatActive) return;
+            if (IsGameplayInputBlocked)
+            {
+                StopLocalGameplayMotion();
+                return;
+            }
             //if (formWheel != null && formWheel.IsOpen) return; // 변신중 움직임 금지
             HandleMovement();
         }
@@ -645,12 +654,20 @@ namespace PixelChroma
 
             if (_isChatActive)
             {
-                if (formWheel != null && formWheel.IsOpen)
-                    formWheel.ForceClose();
-
-                if (Rb != null) Rb.linearVelocity = Vector2.zero;
-                if (animator != null) animator.SetBool(IsMoving, false);
+                StopLocalGameplayMotion();
             }
+        }
+
+        private void StopLocalGameplayMotion()
+        {
+            if (formWheel != null && formWheel.IsOpen)
+                formWheel.ForceClose();
+
+            if (Rb != null)
+                Rb.linearVelocity = Vector2.zero;
+
+            if (animator != null)
+                animator.SetBool(IsMoving, false);
         }
 
         //---------------------------BackGround로 빠지는 경우-------------------------------

@@ -1,4 +1,4 @@
-using OneText.UGUI;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,43 +9,39 @@ namespace PixelChroma.UI
     public class UIGameSettingPanel : MonoBehaviour
     {
         [Header("Hide Time")]
-        [SerializeField] private Slider hideTimeSlider;
-        [SerializeField] private OneTextInputField hideTimeInput;
+        [SerializeField] private UINumericStepper hideTimeStepper;
 
         [Header("Seek Time")]
-        [SerializeField] private Slider seekTimeSlider;
-        [SerializeField] private OneTextInputField seekTimeInput;
+        [SerializeField] private UINumericStepper seekTimeStepper;
 
         [Header("Check Time")]
-        [SerializeField] private Slider checkTimeSlider;
-        [SerializeField] private OneTextInputField checkTimeInput;
+        [SerializeField] private UINumericStepper checkTimeStepper;
 
         [Header("Forced Expose")]
         [SerializeField] private Toggle forcedExposeToggle;            // on/off 토글
         [SerializeField] private GameObject forcedExposeActivePanel;    // 실제 작동(슬라이더/입력) 패널
         [SerializeField] private GameObject forcedExposeDisabledPanel;  // 회색 비활성 표시용 패널
-        [SerializeField] private Slider forcedExposeIntervalSlider;
-        [SerializeField] private OneTextInputField forcedExposeIntervalInput;
+        [SerializeField] private UINumericStepper forcedExposeIntervalStepper;
 
         [Header("Emboss")]
-        [SerializeField] private UIEmbossSection embossSection;         // 하이라이트/쉐도우 하위 섹션
+        [SerializeField] private UIEmbossSetting embossSetting;         // 하이라이트/쉐도우 설정
 
         private RoomOption _option;
+        private bool _initialized;
 
         public void Initialize()
         {
-            if (hideTimeInput != null) hideTimeInput.onEndEdit.AddListener(OnHideTimeInput);
-            if (seekTimeInput != null) seekTimeInput.onEndEdit.AddListener(OnSeekTimeInput);
-            if (checkTimeInput != null) checkTimeInput.onEndEdit.AddListener(OnCheckTimeInput);
-            if (forcedExposeIntervalInput != null) forcedExposeIntervalInput.onEndEdit.AddListener(OnForcedExposeIntervalInput);
+            if (_initialized) return;
+            _initialized = true;
+
+            SetupStepper(hideTimeStepper, RoomOption.MinHideTime, RoomOption.MaxHideTime, OnHideTimeChanged, RoomOption.TimeStep);
+            SetupStepper(seekTimeStepper, RoomOption.MinSeekTime, RoomOption.MaxSeekTime, OnSeekTimeChanged, RoomOption.TimeStep);
+            SetupStepper(checkTimeStepper, RoomOption.MinCheckTime, RoomOption.MaxCheckTime, OnCheckTimeChanged, RoomOption.TimeStep);
+            SetupStepper(forcedExposeIntervalStepper, RoomOption.MinForcedExposeInterval, RoomOption.GetMaxForcedExposeInterval(RoomOption.DefaultSeekTime), OnForcedExposeIntervalChanged, RoomOption.TimeStep);
+
             if (forcedExposeToggle != null) forcedExposeToggle.onValueChanged.AddListener(OnForcedExposeChanged);
 
-            SetupSlider(hideTimeSlider, RoomOption.MinHideTime, RoomOption.MaxHideTime, OnHideTimeChanged);
-            SetupSlider(seekTimeSlider, RoomOption.MinSeekTime, RoomOption.MaxSeekTime, OnSeekTimeChanged);
-            SetupSlider(checkTimeSlider, RoomOption.MinCheckTime, RoomOption.MaxCheckTime, OnCheckTimeChanged);
-            SetupSlider(forcedExposeIntervalSlider, RoomOption.MinForcedExposeInterval, RoomOption.MaxForcedExposeInterval, OnForcedExposeIntervalChanged);
-
-            if (embossSection != null) embossSection.Initialize();
+            if (embossSetting != null) embossSetting.Initialize();
         }
 
         public void Bind(RoomOption option)
@@ -53,94 +49,61 @@ namespace PixelChroma.UI
             _option = option;
             RefreshAll();
 
-            // 엠보스 섹션은 같은 RoomOption 참조를 물려받아 자기 필드만 갱신한다.
-            if (embossSection != null) embossSection.Bind(option);
+            // 엠보스 설정은 같은 RoomOption 참조를 물려받아 자기 필드만 갱신한다.
+            if (embossSetting != null) embossSetting.Bind(option);
         }
 
-        // 슬라이더와 InputField가 같은 clamp 규칙을 공유하도록 시간 값 설정을 한곳에 모은다.
+        // 버튼(+/-)과 InputField 직접 입력이 동일한 clamp 규칙을 공유하도록 값 설정을 한곳에 모은다.
         private void SetHideTime(float value)
         {
             _option.hideTime = Mathf.Clamp(Mathf.Round(value), RoomOption.MinHideTime, RoomOption.MaxHideTime);
-            if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
             RefreshTimeUI();
         }
 
         private void SetSeekTime(float value)
         {
             _option.seekTime = Mathf.Clamp(Mathf.Round(value), RoomOption.MinSeekTime, RoomOption.MaxSeekTime);
-            if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
+            ClampForcedExposeInterval();
             RefreshTimeUI();
         }
 
         private void SetCheckTime(float value)
         {
             _option.checkTime = Mathf.Clamp(Mathf.Round(value), RoomOption.MinCheckTime, RoomOption.MaxCheckTime);
-            if (checkTimeSlider != null) checkTimeSlider.SetValueWithoutNotify(_option.checkTime);
             RefreshTimeUI();
         }
 
         private void SetForcedExposeInterval(float value)
         {
-            _option.forcedExposeInterval = Mathf.Clamp(Mathf.Round(value), RoomOption.MinForcedExposeInterval, RoomOption.MaxForcedExposeInterval);
-            if (forcedExposeIntervalSlider != null) forcedExposeIntervalSlider.SetValueWithoutNotify(_option.forcedExposeInterval);
+            _option.forcedExposeInterval = Mathf.Clamp(
+                Mathf.Round(value),
+                RoomOption.MinForcedExposeInterval,
+                RoomOption.GetMaxForcedExposeInterval(_option.seekTime));
             RefreshTimeUI();
         }
 
         private void OnHideTimeChanged(float value)
         {
             if (_option == null) return;
-            _option.hideTime = value;
-            RefreshTimeUI();
+            SetHideTime(value);
         }
 
         private void OnSeekTimeChanged(float value)
         {
             if (_option == null) return;
-            _option.seekTime = value;
-            RefreshTimeUI();
+            SetSeekTime(value);
         }
 
         private void OnCheckTimeChanged(float value)
         {
             if (_option == null) return;
-            _option.checkTime = value;
-            RefreshTimeUI();
+            SetCheckTime(value);
         }
 
         private void OnForcedExposeIntervalChanged(float value)
         {
             if (_option == null) return;
-            _option.forcedExposeInterval = value;
-            RefreshTimeUI();
-        }
-
-        // InputField 직접 입력 처리: 숫자면 clamp 후 반영, 아니면 이전 값으로 되돌린다(재표시).
-        private void OnHideTimeInput(string text)
-        {
-            if (_option == null) return;
-            if (float.TryParse(text, out float value)) SetHideTime(value);
-            else RefreshTimeUI();
-        }
-
-        private void OnSeekTimeInput(string text)
-        {
-            if (_option == null) return;
-            if (float.TryParse(text, out float value)) SetSeekTime(value);
-            else RefreshTimeUI();
-        }
-
-        private void OnCheckTimeInput(string text)
-        {
-            if (_option == null) return;
-            if (float.TryParse(text, out float value)) SetCheckTime(value);
-            else RefreshTimeUI();
-        }
-
-        private void OnForcedExposeIntervalInput(string text)
-        {
-            if (_option == null) return;
-            if (float.TryParse(text, out float value)) SetForcedExposeInterval(value);
-            else RefreshTimeUI();
+            SetForcedExposeInterval(value);
         }
 
         private void OnForcedExposeChanged(bool isOn)
@@ -161,6 +124,7 @@ namespace PixelChroma.UI
             // on: 실제 패널 / off: 회색 비활성 패널
             if (forcedExposeActivePanel != null) forcedExposeActivePanel.SetActive(on);
             if (forcedExposeDisabledPanel != null) forcedExposeDisabledPanel.SetActive(!on);
+            if (forcedExposeIntervalStepper != null) forcedExposeIntervalStepper.SetInteractable(on);
         }
 
         private void RefreshAll()
@@ -168,42 +132,50 @@ namespace PixelChroma.UI
             if (_option == null) return;
 
             RefreshTimeUI();
-
-            if (hideTimeSlider != null) hideTimeSlider.SetValueWithoutNotify(_option.hideTime);
-            if (seekTimeSlider != null) seekTimeSlider.SetValueWithoutNotify(_option.seekTime);
-            if (checkTimeSlider != null) checkTimeSlider.SetValueWithoutNotify(_option.checkTime);
-            if (forcedExposeIntervalSlider != null) forcedExposeIntervalSlider.SetValueWithoutNotify(_option.forcedExposeInterval);
             RefreshForcedExposeUI();
         }
 
         private void RefreshTimeUI()
         {
-            if (hideTimeInput != null) ForceSetText(hideTimeInput, _option.hideTime.ToString("0"));
-            if (seekTimeInput != null) ForceSetText(seekTimeInput, _option.seekTime.ToString("0"));
-            if (checkTimeInput != null) ForceSetText(checkTimeInput, _option.checkTime.ToString("0"));
-            if (forcedExposeIntervalInput != null) ForceSetText(forcedExposeIntervalInput, _option.forcedExposeInterval.ToString("0"));
-        }
+            NormalizeTimeOptions();
 
-        private static void ForceSetText(OneTextInputField input, string value)
-        {
-            input.text = value;
-
-            // 텍스트 오버플로우로 밀린 textComponent의 스크롤 오프셋을 원위치시킨다.
-            if (input.textComponent != null)
+            if (hideTimeStepper != null) hideTimeStepper.SetValue(_option.hideTime);
+            if (seekTimeStepper != null) seekTimeStepper.SetValue(_option.seekTime);
+            if (checkTimeStepper != null) checkTimeStepper.SetValue(_option.checkTime);
+            if (forcedExposeIntervalStepper != null)
             {
-                var rt = input.textComponent.rectTransform;
-                rt.anchoredPosition = new Vector2(0f, rt.anchoredPosition.y);
+                forcedExposeIntervalStepper.SetRange(RoomOption.MinForcedExposeInterval, RoomOption.GetMaxForcedExposeInterval(_option.seekTime));
+                forcedExposeIntervalStepper.SetValue(_option.forcedExposeInterval);
             }
         }
 
-        private static void SetupSlider(Slider slider, float min, float max, UnityEngine.Events.UnityAction<float> onChanged)
+        private void NormalizeTimeOptions()
         {
-            if (slider == null) return;
+            if (_option == null) return;
 
-            slider.minValue = min;
-            slider.maxValue = max;
-            slider.wholeNumbers = true;
-            slider.onValueChanged.AddListener(onChanged);
+            _option.hideTime = Mathf.Clamp(Mathf.Round(_option.hideTime), RoomOption.MinHideTime, RoomOption.MaxHideTime);
+            _option.seekTime = Mathf.Clamp(Mathf.Round(_option.seekTime), RoomOption.MinSeekTime, RoomOption.MaxSeekTime);
+            _option.checkTime = Mathf.Clamp(Mathf.Round(_option.checkTime), RoomOption.MinCheckTime, RoomOption.MaxCheckTime);
+            ClampForcedExposeInterval();
+        }
+
+        private void ClampForcedExposeInterval()
+        {
+            if (_option == null) return;
+
+            _option.forcedExposeInterval = Mathf.Clamp(
+                Mathf.Round(_option.forcedExposeInterval),
+                RoomOption.MinForcedExposeInterval,
+                RoomOption.GetMaxForcedExposeInterval(_option.seekTime));
+        }
+
+        private static void SetupStepper(UINumericStepper stepper, float min, float max, Action<float> onChanged, float step = 1f)
+        {
+            if (stepper == null) return;
+
+            stepper.Initialize();
+            stepper.Configure(min, max, step);
+            stepper.OnValueChanged += onChanged;
         }
     }
 }

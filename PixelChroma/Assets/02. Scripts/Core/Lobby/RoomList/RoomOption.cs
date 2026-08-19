@@ -1,5 +1,6 @@
 using System;
 using Mirror;
+using UnityEngine;
 
 namespace PixelChroma
 {
@@ -14,7 +15,7 @@ namespace PixelChroma
     {
         public const int DefaultMaxPlayers = 12;
         public const int DefaultSeekerCount = 1;
-        public const float DefaultHideTime = 60f;
+        public const float DefaultHideTime = 120f;
         public const float DefaultSeekTime = 300f;
         public const float DefaultCheckTime = 30f;
         public const float DefaultForcedExposeInterval = 40f;
@@ -24,22 +25,21 @@ namespace PixelChroma
         public const int MinPlayers = 2;
         public const int MaxPlayersLimit = 12;
         public const int MinSeekerCount = 1;
-        public const int MaxSeekerCount = 5;
         public const float MinHideTime = 10f;
-        public const float MaxHideTime = 120f;
-        public const float MinSeekTime = 60f;
-        public const float MaxSeekTime = 600f;
+        public const float MaxHideTime = 600f;
+        public const float MinSeekTime = 10f;
+        public const float MaxSeekTime = 1000f;
         public const float MinCheckTime = 10f; 
-        public const float MaxCheckTime = 100f;
+        public const float MaxCheckTime = 600f;
         public const float MinForcedExposeInterval = 0f;
-        public const float MaxForcedExposeInterval = 120f;
+        public const float TimeStep = 10f;
         // 외곽선 엠보스(하이라이트/쉐도우)는 0~1 비율. PlayerPaintCanvas.Recomposite()가 소비한다.
         public const float MinEmboss = 0f;
         public const float MaxEmboss = 1f;
 
 
 
-        // 방 이름은 비워둘 수 있다. (비면 RoomListEntry가 "{hostName}의 방"으로 대체)
+        // 방 이름 입력 UI에서 사용하는 최대 길이.
         public const int MaxRoomNameLength = 20;
 
         public bool isPublic = true;
@@ -58,6 +58,16 @@ namespace PixelChroma
         public string mapName = "";
         public string roomCode = "";
         public string hostName = "";
+
+        public static int GetMaxSeekerCount(int maxPlayers)
+        {
+            return Mathf.Max(MinSeekerCount, maxPlayers - 1);
+        }
+
+        public static float GetMaxForcedExposeInterval(float seekTime)
+        {
+            return Mathf.Max(MinForcedExposeInterval, Mathf.Round(seekTime));
+        }
 
         public RoomOption Clone()
         {

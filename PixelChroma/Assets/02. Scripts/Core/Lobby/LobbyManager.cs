@@ -130,7 +130,7 @@ namespace PixelChroma
                 return;
             }
 
-            CurrentRoomOption = option.Clone();
+            CurrentRoomOption = ClampRoomOption(option, RoomOption.MinPlayers);
             CurrentRoomOption.hostName = TextNicknameService.LoadOrDefault();
 
             NetworkManager.singleton.maxConnections = CurrentRoomOption.maxPlayers;
@@ -144,9 +144,9 @@ namespace PixelChroma
                 return;
             }
 
-            var lobbyType = option.isPublic ? ELobbyType.k_ELobbyTypePublic : ELobbyType.k_ELobbyTypeFriendsOnly;
+            var lobbyType = CurrentRoomOption.isPublic ? ELobbyType.k_ELobbyTypePublic : ELobbyType.k_ELobbyTypeFriendsOnly;
             // 스팀 로비 생성 (인원 제한 포함). 결과는 OnLobbyCreated 콜백에서 처리됩니다.
-            SteamMatchmaking.CreateLobby(lobbyType, option.maxPlayers);
+            SteamMatchmaking.CreateLobby(lobbyType, CurrentRoomOption.maxPlayers);
         }
 
         private bool TryStartHost()
@@ -265,7 +265,7 @@ namespace PixelChroma
 
             string preservedCode = CurrentRoomCode;
             string preservedHostName = CurrentRoomOption?.hostName ?? "";
-            CurrentRoomOption = newOption.Clone();
+            CurrentRoomOption = ClampLobbyEditableOption(newOption);
             CurrentRoomOption.roomCode = preservedCode;
             CurrentRoomOption.hostName = preservedHostName;
 
@@ -419,6 +419,34 @@ namespace PixelChroma
 
         public CSteamID GetMember(int index) =>
             SteamMatchmaking.GetLobbyMemberByIndex(CurrentLobbyId, index);
+
+        private RoomOption ClampLobbyEditableOption(RoomOption option)
+        {
+            int memberCount = Mathf.Max(GetMemberCount(), LobbyPlayerState.AllPlayers.Count);
+            int minPlayers = Mathf.Clamp(memberCount, RoomOption.MinPlayers, RoomOption.MaxPlayersLimit);
+
+            return ClampRoomOption(option, minPlayers);
+        }
+
+        private static RoomOption ClampRoomOption(RoomOption option, int minPlayers)
+        {
+            RoomOption clamped = option?.Clone() ?? new RoomOption();
+            minPlayers = Mathf.Clamp(minPlayers, RoomOption.MinPlayers, RoomOption.MaxPlayersLimit);
+
+            clamped.maxPlayers = Mathf.Clamp(clamped.maxPlayers, minPlayers, RoomOption.MaxPlayersLimit);
+
+            int maxSeeker = RoomOption.GetMaxSeekerCount(clamped.maxPlayers);
+            clamped.seekerCount = Mathf.Clamp(clamped.seekerCount, RoomOption.MinSeekerCount, maxSeeker);
+            clamped.hideTime = Mathf.Clamp(Mathf.Round(clamped.hideTime), RoomOption.MinHideTime, RoomOption.MaxHideTime);
+            clamped.seekTime = Mathf.Clamp(Mathf.Round(clamped.seekTime), RoomOption.MinSeekTime, RoomOption.MaxSeekTime);
+            clamped.checkTime = Mathf.Clamp(Mathf.Round(clamped.checkTime), RoomOption.MinCheckTime, RoomOption.MaxCheckTime);
+            clamped.forcedExposeInterval = Mathf.Clamp(
+                Mathf.Round(clamped.forcedExposeInterval),
+                RoomOption.MinForcedExposeInterval,
+                RoomOption.GetMaxForcedExposeInterval(clamped.seekTime));
+
+            return clamped;
+        }
 
         private static string GenerateCode()
         {

@@ -19,6 +19,7 @@ namespace PixelChroma.UI
         [SerializeField] private OneTextLabel descriptionText;
 
         private RoomOption _option;
+        private bool _initialized;
 
         // 풀 위치 == registry.Modes 인덱스 (탭 i ↔ modes[i])
         private readonly List<UIFocusButton> _tabs = new();
@@ -27,6 +28,9 @@ namespace PixelChroma.UI
 
         public void Initialize()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             if (prevButton != null) prevButton.onClick.AddListener(() => Cycle(-1));
             if (nextButton != null) nextButton.onClick.AddListener(() => Cycle(1));
 

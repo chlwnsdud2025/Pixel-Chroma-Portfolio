@@ -5,13 +5,13 @@ using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
-    // 외곽선 엠보스(하이라이트/쉐도우) 설정을 담당하는 섹션. GameSettingPanel 하위에 배치된다.
+    // 외곽선 엠보스(하이라이트/쉐도우) 설정을 담당한다. GameSettingPanel 하위에 배치된다.
     // RoomOption의 소유권은 UIRoomSetting에 있고, 여기서는 Bind로 받은 참조에 값만 반영한다.
     // 실제 라운드 적용은 PlayerPaintCanvas가 CurrentRoomOption에서 값을 읽어 처리한다.
     //
     // 내부 저장값(RoomOption.edgeHighlight/Shadow)은 0~1이지만, 다른 GameSetting 슬라이더들과
     // 시각적 톤을 맞추기 위해 슬라이더/입력창은 정수 %(0~100)로 다룬다.
-    public class UIEmbossSection : MonoBehaviour
+    public class UIEmbossSetting : MonoBehaviour
     {
         // 0~1 저장값 ↔ 0~100 UI 표기 변환 계수.
         private const float PercentScale = 100f;
@@ -26,15 +26,20 @@ namespace PixelChroma.UI
 
         [Header("Preview")]
         [SerializeField] private UIEmbossPreview preview;   // 선택: 실시간 엠보스 프리뷰
+        [SerializeField] private UIEmbossColorSelector embossColorSelector;
 
         // 미리보기 UI가 구독해 실시간으로 PlayerPaintCanvas.ApplyEmboss를 호출할 수 있다.
         // (highlight, shadow) 두 값을 0~1로 전달한다.
         public event Action<float, float> OnEmbossChanged;
 
         private RoomOption _option;
+        private bool _initialized;
 
         public void Initialize()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             if (highlightInput != null) highlightInput.onEndEdit.AddListener(OnHighlightInput);
             if (shadowInput != null) shadowInput.onEndEdit.AddListener(OnShadowInput);
 
@@ -47,6 +52,12 @@ namespace PixelChroma.UI
             {
                 preview.Initialize();
                 OnEmbossChanged += preview.SetEmboss;
+            }
+
+            if (embossColorSelector != null)
+            {
+                embossColorSelector.Bind(preview);
+                embossColorSelector.Initialize();
             }
         }
 
