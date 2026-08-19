@@ -83,7 +83,7 @@ namespace PixelChroma.UI
             if (roomNameInput != null)
             {
                 string roomName = roomNameInput.text.Trim();
-                var result = NicknameService.Validate(roomName, bannedWords, RoomOption.MaxRoomNameLength);
+                var result = NameValidationService.Validate(roomName, bannedWords, RoomOption.MaxRoomNameLength);
 
                 if (result != NameValidation.Valid)
                 {

@@ -197,10 +197,10 @@ namespace PixelChroma
 
             RaiseNicknameVisibilityChanged();
 
-            string mySavedName = NicknameService.LoadOrDefault();
+            string mySavedName = TextNicknameService.LoadOrDefault();
             CmdRegisterMyNameWithManager(mySavedName);
 
-            byte[] pixelPng = NicknameService.LoadPixelNickname();
+            byte[] pixelPng = PixelNicknameService.Load();
             if (pixelPng != null && pixelPng.Length > 0)
                 CmdRegisterPixelNickname(pixelPng);
 

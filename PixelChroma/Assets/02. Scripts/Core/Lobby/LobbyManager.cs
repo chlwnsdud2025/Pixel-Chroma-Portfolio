@@ -131,7 +131,7 @@ namespace PixelChroma
             }
 
             CurrentRoomOption = option.Clone();
-            CurrentRoomOption.hostName = NicknameService.LoadOrDefault();
+            CurrentRoomOption.hostName = TextNicknameService.LoadOrDefault();
 
             NetworkManager.singleton.maxConnections = CurrentRoomOption.maxPlayers;
 

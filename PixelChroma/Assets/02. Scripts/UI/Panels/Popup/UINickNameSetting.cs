@@ -46,7 +46,7 @@ namespace PixelChroma.UI
             base.OnBeforeShow();
 
             if (nicknameInputField != null)
-                nicknameInputField.text = NicknameService.LoadOrDefault();
+                nicknameInputField.text = TextNicknameService.LoadOrDefault();
 
             SetwarningTextMessage(string.Empty);
 
@@ -84,7 +84,7 @@ namespace PixelChroma.UI
 
             // OneText는 NotoSans 동적 아틀라스와 폴백 스택으로 다국어를 폭넓게 렌더하므로,
             // 렌더 폰트를 넘겨 □ 문자를 걸러내던 TMP 시절 안전망은 더 이상 넘기지 않는다.
-            switch (NicknameService.Validate(enteredName, bannedWords, maxNicknameLength))
+            switch (NameValidationService.Validate(enteredName, bannedWords, maxNicknameLength))
             {
                 case NameValidation.TooLong:
                     SetwarningTextMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
@@ -100,9 +100,9 @@ namespace PixelChroma.UI
 
             // 비워두면 스팀 이름(스팀 미사용 시 임의 이름)을 대신 저장한다.
             if (string.IsNullOrEmpty(enteredName))
-                enteredName = NicknameService.GetDefaultSteamName();
+                enteredName = TextNicknameService.GetDefaultSteamName();
 
-            NicknameService.Save(enteredName);
+            TextNicknameService.Save(enteredName);
             OnClickBack();
         }
     }

@@ -107,7 +107,7 @@ namespace PixelChroma.UI
             InitializeCanvas();
 
             if (nicknameInputField != null)
-                nicknameInputField.text = NicknameService.LoadOrDefault();
+                nicknameInputField.text = TextNicknameService.LoadOrDefault();
 
             SetWarningMessage(string.Empty);
 
@@ -197,7 +197,7 @@ namespace PixelChroma.UI
             // 투명으로 초기화
             _editTexture.SetPixels32(new Color32[canvasWidth * canvasHeight]);
 
-            byte[] savedPng = NicknameService.LoadPixelNickname();
+            byte[] savedPng = PixelNicknameService.Load();
             if (savedPng != null && savedPng.Length > 0)
             {
                 // LoadImage는 텍스처 크기를 PNG에 맞춰 변경하므로,
@@ -676,7 +676,7 @@ namespace PixelChroma.UI
             {
                 string enteredName = nicknameInputField.text.Trim();
 
-                switch (NicknameService.Validate(enteredName, bannedWords, maxNicknameLength))
+                switch (NameValidationService.Validate(enteredName, bannedWords, maxNicknameLength))
                 {
                     case NameValidation.TooLong:
                         SetWarningMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
@@ -691,16 +691,16 @@ namespace PixelChroma.UI
                 }
 
                 if (string.IsNullOrEmpty(enteredName))
-                    enteredName = NicknameService.GetDefaultSteamName();
+                    enteredName = TextNicknameService.GetDefaultSteamName();
 
-                NicknameService.Save(enteredName);
+                TextNicknameService.Save(enteredName);
             }
 
             // ── 픽셀 닉네임 저장 ──
             if (_editTexture != null)
             {
                 byte[] png = _editTexture.EncodeToPNG();
-                NicknameService.SavePixelNickname(png);
+                PixelNicknameService.Save(png);
             }
 
             OnClickBack();

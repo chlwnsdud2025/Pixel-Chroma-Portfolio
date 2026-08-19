@@ -166,7 +166,7 @@ namespace PixelChroma
                 ? WorkshopSubscriptionService.IsInstalled(msg.fileId)
                 : true; // 에디터/로컬 → 항상 보유
 
-            string myName = NicknameService.LoadOrDefault();
+            string myName = TextNicknameService.LoadOrDefault();
 
             NetworkClient.Send(new WorkshopMapCheckResponse
             {
