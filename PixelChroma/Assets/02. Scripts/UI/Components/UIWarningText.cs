@@ -71,6 +71,14 @@ namespace PixelChroma.UI
             gameObject.SetActive(false);
         }
 
+        public void SetAutoHide(bool enabled)
+        {
+            autoHide = enabled;
+
+            if (!autoHide)
+                KillHideTween();
+        }
+
         public void Shake()
         {
             // 대상 텍스트가 없으면 자기 자신을 흔든다.

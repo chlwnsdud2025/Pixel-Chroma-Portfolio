@@ -265,7 +265,7 @@ namespace PixelChroma
 
             string preservedCode = CurrentRoomCode;
             string preservedHostName = CurrentRoomOption?.hostName ?? "";
-            CurrentRoomOption = newOption.Clone();
+            CurrentRoomOption = ClampLobbyEditableOption(newOption);
             CurrentRoomOption.roomCode = preservedCode;
             CurrentRoomOption.hostName = preservedHostName;
 
@@ -419,6 +419,20 @@ namespace PixelChroma
 
         public CSteamID GetMember(int index) =>
             SteamMatchmaking.GetLobbyMemberByIndex(CurrentLobbyId, index);
+
+        private RoomOption ClampLobbyEditableOption(RoomOption option)
+        {
+            RoomOption clamped = option?.Clone() ?? new RoomOption();
+            int memberCount = Mathf.Max(GetMemberCount(), LobbyPlayerState.AllPlayers.Count);
+            int minPlayers = Mathf.Clamp(memberCount, RoomOption.MinPlayers, RoomOption.MaxPlayersLimit);
+
+            clamped.maxPlayers = Mathf.Clamp(clamped.maxPlayers, minPlayers, RoomOption.MaxPlayersLimit);
+
+            int maxSeeker = Mathf.Min(RoomOption.MaxSeekerCount, clamped.maxPlayers - 1);
+            clamped.seekerCount = Mathf.Clamp(clamped.seekerCount, RoomOption.MinSeekerCount, maxSeeker);
+
+            return clamped;
+        }
 
         private static string GenerateCode()
         {

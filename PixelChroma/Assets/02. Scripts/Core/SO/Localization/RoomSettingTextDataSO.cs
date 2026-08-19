@@ -9,7 +9,7 @@ public class RoomSettingTextDataSO : ScriptableObject
     public LocalizedString editButtonLabel;
 
     [Header("Warning")]
-    public LocalizedString warningMaxLength;
+    public LocalizedString warningEmptyRoomName;
     public LocalizedString warningBanned;
     public LocalizedString defaultRoomName;
 }

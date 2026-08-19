@@ -5,6 +5,7 @@ namespace PixelChroma
     public enum NameValidation
     {
         Valid,
+        Empty,
         TooLong,
         Banned,
         Unsupported,
@@ -13,10 +14,10 @@ namespace PixelChroma
     // 방 이름/텍스트 닉네임처럼 문자열 이름에 공통으로 적용되는 검증 규칙.
     public static class NameValidationService
     {
-        public static NameValidation Validate(string name, BannedWordsSO bannedWords, int maxLength, TMP_FontAsset font = null)
+        public static NameValidation Validate(string name, BannedWordsSO bannedWords, int maxLength, TMP_FontAsset font = null, bool allowEmpty = true)
         {
             if (string.IsNullOrEmpty(name))
-                return NameValidation.Valid;
+                return allowEmpty ? NameValidation.Valid : NameValidation.Empty;
 
             if (name.Length > maxLength)
                 return NameValidation.TooLong;

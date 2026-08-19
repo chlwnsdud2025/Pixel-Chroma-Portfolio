@@ -111,7 +111,7 @@ namespace PixelChroma.UI
             _isEditMode = isEditMode;
 
             // 패널들은 이 인스턴스를 참조로 들고 자기 담당 필드만 갱신한다.
-            if (roomInfoPanel != null) roomInfoPanel.Bind(_option);
+            if (roomInfoPanel != null) roomInfoPanel.Bind(_option, _isEditMode);
             if (gameSettingPanel != null) gameSettingPanel.Bind(_option);
 
             RefreshCreateButtonUI();
