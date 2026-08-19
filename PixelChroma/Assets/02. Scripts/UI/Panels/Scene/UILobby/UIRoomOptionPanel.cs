@@ -71,6 +71,41 @@ namespace PixelChroma.UI
 
         private void RefreshMapName(RoomOption option)
         {
+            // 워크숍 맵인 경우
+            if (!string.IsNullOrEmpty(option.mapName) && option.mapName.StartsWith("workshop:"))
+            {
+                if (ulong.TryParse(option.mapName.Substring("workshop:".Length), out ulong fileId))
+                {
+                    // 맵 이름: 로컬에 설치되어 있으면 manifest에서 읽기
+                    string installPath = WorkshopSubscriptionService.GetInstallPath(fileId);
+                    string displayName = $"Workshop #{fileId}";
+                    Sprite preview = null;
+
+                    if (!string.IsNullOrEmpty(installPath))
+                    {
+                        try
+                        {
+                            var manifest = WorkshopMapPackageReader.ReadManifest(installPath);
+                            if (!string.IsNullOrEmpty(manifest.title))
+                                displayName = manifest.title;
+                            preview = WorkshopMapPackageReader.LoadPreview(installPath, manifest.previewImage);
+                        }
+                        catch { }
+                    }
+
+                    if (mapNameText != null)
+                        mapNameText.text = displayName;
+
+                    if (mapPreviewImage != null)
+                    {
+                        mapPreviewImage.sprite = preview;
+                        mapPreviewImage.enabled = preview != null;
+                    }
+                    return;
+                }
+            }
+
+            // 내장 맵인 경우 (기존 로직)
             var mapData = mapRegistry != null ? mapRegistry.FindById(option.mapName) : null;
 
             if (mapNameText != null)
