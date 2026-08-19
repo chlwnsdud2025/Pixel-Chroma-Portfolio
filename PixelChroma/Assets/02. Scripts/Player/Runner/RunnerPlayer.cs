@@ -113,7 +113,7 @@ namespace PixelChroma
 
             SyncPaintRatioIfNeeded();
 
-            if (IsChatActive) return;
+            if (IsGameplayInputBlocked) return;
 
             if (Input.ExposeSkill.WasPressedThisFrame())
                 TryUseExposeSkill();

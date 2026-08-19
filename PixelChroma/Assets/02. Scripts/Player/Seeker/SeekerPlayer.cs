@@ -7,7 +7,6 @@ namespace PixelChroma
 {
     public class SeekerPlayer : PlayerBase
     {
- 
         [Header("Indicator Settings")]
         [Tooltip("도망자를 가리킬 화살표 프리팹")]
         public GameObject indicatorPrefab;
@@ -16,7 +15,6 @@ namespace PixelChroma
 
         private SeekerWaterGun _waterGun;
         private UIInGameHUD_Seeker _seekerHUD;
-        
 
         protected override UIInGameHUD InGameHUD => _seekerHUD;
         protected override bool CanUseFormWheel => false;   // Seeker는 변신 불가
@@ -36,12 +34,12 @@ namespace PixelChroma
 
             if (Spectator != null && Spectator.IsSpectating)
             {
-                if (!IsChatActive)
+                if (!IsGameplayInputBlocked)
                     HandleSpectateInput();
                 return;
             }
 
-            if (!IsChatActive && !IsPopupOpen)
+            if (!IsGameplayInputBlocked)
             {
                 HandleSpectateInput();
                 if (_waterGun != null)
