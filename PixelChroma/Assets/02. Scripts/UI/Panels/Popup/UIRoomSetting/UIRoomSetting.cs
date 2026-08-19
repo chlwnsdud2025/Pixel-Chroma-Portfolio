@@ -17,7 +17,6 @@ namespace PixelChroma.UI
         [Header("Create")]
         [SerializeField] private Button createButton;
         [SerializeField] private OneTextLabel createButtonText;
-        [SerializeField] private OneTextLabel statusText;
 
         [Header("Close")]
         [SerializeField] private Button closeButton;
@@ -32,11 +31,15 @@ namespace PixelChroma.UI
         private RoomOption _option;
         private bool _isEditMode = false;
         private bool _creating = false;
+        private bool _initialized = false;
 
         public override bool CloseOnEscape => !_creating;
 
         public override void Initialize()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             base.Initialize();
 
             if (roomInfoPanel != null) roomInfoPanel.Initialize();
@@ -61,8 +64,6 @@ namespace PixelChroma.UI
 
             _creating = false;
             if (closeButton != null) closeButton.interactable = true;
-
-            SetStatusActive(false);
 
             if (lobby != null)
             {
@@ -101,8 +102,6 @@ namespace PixelChroma.UI
 
             if (mapPanel != null)
                 mapPanel.OnMapSelected -= OnMapSelected;
-
-            SetStatusActive(false);
         }
 
         public void Setup(RoomOption option, bool isEditMode = false)
@@ -115,11 +114,6 @@ namespace PixelChroma.UI
             if (gameSettingPanel != null) gameSettingPanel.Bind(_option);
 
             RefreshCreateButtonUI();
-        }
-
-        private void SetStatusActive(bool active)
-        {
-            if (statusText != null) statusText.gameObject.SetActive(active);
         }
 
         private void RefreshCreateButtonUI()
@@ -145,9 +139,6 @@ namespace PixelChroma.UI
             if (createButton != null) createButton.interactable = true;
             if (closeButton != null) closeButton.interactable = true;
 
-            // 실패 피드백은 공통 경고 팝업으로 통일한다. ("생성 중" 상태 문구는 정리)
-            SetStatusActive(false);
-
             UIManager.Instance.ShowPopup<UIwarningTextPopup>(p => p.SetReason(reason)).Forget();
         }
 
@@ -171,7 +162,6 @@ namespace PixelChroma.UI
             _creating = true;
             if (createButton != null) createButton.interactable = false;
             if (closeButton != null) closeButton.interactable = false;
-            SetStatusActive(true);
             LobbyManager.Instance.CreateLobby(_option);
         }
     }

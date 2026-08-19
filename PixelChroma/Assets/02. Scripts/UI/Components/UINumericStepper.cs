@@ -36,6 +36,7 @@ namespace PixelChroma.UI
             if (plusButton != null) plusButton.onClick.AddListener(OnClickPlus);
             if (input != null) input.onEndEdit.AddListener(OnInputEndEdit);
 
+            RefreshInputCharacterLimit();
             SetValue(_value, false);
         }
 
@@ -46,6 +47,7 @@ namespace PixelChroma.UI
             step = valueStep > 0f ? valueStep : 1f;
             format = string.IsNullOrEmpty(valueFormat) ? "0" : valueFormat;
 
+            RefreshInputCharacterLimit();
             SetValue(_value, false);
         }
 
@@ -53,6 +55,7 @@ namespace PixelChroma.UI
         {
             minValue = min;
             maxValue = max;
+            RefreshInputCharacterLimit();
             SetValue(_value, false);
         }
 
@@ -105,6 +108,17 @@ namespace PixelChroma.UI
             float max = Mathf.Max(minValue, maxValue);
 
             return Mathf.Clamp(Mathf.Round(value), min, max);
+        }
+
+        private void RefreshInputCharacterLimit()
+        {
+            if (input == null) return;
+
+            float maxMagnitude = Mathf.Max(Mathf.Abs(minValue), Mathf.Abs(maxValue));
+            int digitCount = Mathf.Max(1, Mathf.FloorToInt(maxMagnitude).ToString().Length);
+            bool allowsNegative = minValue < 0f || maxValue < 0f;
+
+            input.characterLimit = digitCount + (allowsNegative ? 1 : 0);
         }
 
         private void RefreshUI()

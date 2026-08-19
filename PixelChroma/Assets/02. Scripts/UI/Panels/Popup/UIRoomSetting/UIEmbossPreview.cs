@@ -44,9 +44,15 @@ namespace PixelChroma.UI
         private float _highlight;
         private float _shadow;
         private bool _ready;
+        private bool _initialized;
+
+        public Color PaintColor => paintColor;
 
         public void Initialize()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             _ready = false;
 
             if (previewSprite == null)
@@ -97,11 +103,18 @@ namespace PixelChroma.UI
             Rebuild();
         }
 
-        // UIEmbossSection.OnEmbossChanged 구독 지점. (highlight, shadow)는 0~1.
+        // UIEmbossSetting.OnEmbossChanged 구독 지점. (highlight, shadow)는 0~1.
         public void SetEmboss(float highlight, float shadow)
         {
             _highlight = Mathf.Clamp01(highlight);
             _shadow = Mathf.Clamp01(shadow);
+            Rebuild();
+        }
+
+        public void SetPaintColor(Color color)
+        {
+            paintColor = color;
+            ApplyBackgroundColor();
             Rebuild();
         }
 

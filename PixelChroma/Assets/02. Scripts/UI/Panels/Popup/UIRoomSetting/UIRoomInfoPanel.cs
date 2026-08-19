@@ -41,11 +41,15 @@ namespace PixelChroma.UI
         private bool _isEditMode;
         private Color _roomNameInputDefaultColor;
         private bool _hasRoomNameInputDefaultColor;
+        private bool _initialized;
 
         // ── Public ──
 
         public void Initialize()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             // 방 이름 InputField 이벤트 등록
             if (roomNameInput != null)
             {
@@ -69,7 +73,7 @@ namespace PixelChroma.UI
             if (seekerCountStepper != null)
             {
                 seekerCountStepper.Initialize();
-                seekerCountStepper.Configure(RoomOption.MinSeekerCount, RoomOption.MaxSeekerCount);
+                seekerCountStepper.Configure(RoomOption.MinSeekerCount, RoomOption.GetMaxSeekerCount(RoomOption.DefaultMaxPlayers));
                 seekerCountStepper.OnValueChanged += OnSeekerCountChanged;
             }
 
@@ -166,7 +170,7 @@ namespace PixelChroma.UI
                 GetMaxPlayersMinValue(),
                 RoomOption.MaxPlayersLimit);
 
-            int maxSeeker = _option.maxPlayers - 1;
+            int maxSeeker = RoomOption.GetMaxSeekerCount(_option.maxPlayers);
             if (_option.seekerCount > maxSeeker)
                 _option.seekerCount = Mathf.Max(RoomOption.MinSeekerCount, maxSeeker);
 
@@ -175,7 +179,7 @@ namespace PixelChroma.UI
 
         private void SetSeekerCount(int value)
         {
-            int maxSeeker = Mathf.Min(RoomOption.MaxSeekerCount, _option.maxPlayers - 1);
+            int maxSeeker = RoomOption.GetMaxSeekerCount(_option.maxPlayers);
             _option.seekerCount = Mathf.Clamp(
                 value,
                 RoomOption.MinSeekerCount,
@@ -194,7 +198,7 @@ namespace PixelChroma.UI
             if (maxPlayersStepper != null) maxPlayersStepper.SetRange(minPlayers, RoomOption.MaxPlayersLimit);
             if (maxPlayersStepper != null) maxPlayersStepper.SetValue(_option.maxPlayers);
 
-            int maxSeeker = Mathf.Min(RoomOption.MaxSeekerCount, _option.maxPlayers - 1);
+            int maxSeeker = RoomOption.GetMaxSeekerCount(_option.maxPlayers);
             if (seekerCountStepper != null)
             {
                 seekerCountStepper.SetRange(RoomOption.MinSeekerCount, maxSeeker);
@@ -209,7 +213,7 @@ namespace PixelChroma.UI
             int minPlayers = GetMaxPlayersMinValue();
             _option.maxPlayers = Mathf.Clamp(_option.maxPlayers, minPlayers, RoomOption.MaxPlayersLimit);
 
-            int maxSeeker = Mathf.Min(RoomOption.MaxSeekerCount, _option.maxPlayers - 1);
+            int maxSeeker = RoomOption.GetMaxSeekerCount(_option.maxPlayers);
             _option.seekerCount = Mathf.Clamp(_option.seekerCount, RoomOption.MinSeekerCount, maxSeeker);
         }
 

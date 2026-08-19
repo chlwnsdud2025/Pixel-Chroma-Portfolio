@@ -17,12 +17,15 @@ namespace PixelChroma.UI
 
         private int _builtInCount;
         private readonly List<WorkshopMapEntry> _workshopEntries = new();
+        private bool _initialized;
 
         public event Action<string> OnMapSelected;
 
         public void Initialize(MapRegistrySO registry)
         {
+            if (_initialized) return;
             if (listContent == null || registry == null) return;
+            _initialized = true;
 
             _registry = registry;
 
