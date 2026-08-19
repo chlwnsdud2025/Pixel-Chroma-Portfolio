@@ -47,7 +47,6 @@ namespace PixelChroma.UI
         [Header("Default Preset")]
         [SerializeField] private Button defaultPresetButton;
         [SerializeField] private Texture2D[] defaultImages;  // Inspector에서 기본 이미지들 할당
-        [SerializeField] private Color defaultActiveColor = new Color(0.3f, 0.8f, 1f, 1f);
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
@@ -355,7 +354,7 @@ namespace PixelChroma.UI
             else if (_input.SelectEraser != null && _input.SelectEraser.WasPressedThisFrame())
                 OnToolChanged(BrushMode.Eraser);
             else if (_input.SelectEyedropper != null && _input.SelectEyedropper.WasPressedThisFrame())
-                OnToolChanged(BrushMode.Eyedropper);
+                OnToolChanged(BrushMode.Fill);
         }
 
         private void HandleBrushSizeScroll()
@@ -872,7 +871,7 @@ namespace PixelChroma.UI
             {
                 var img = defaultPresetButton.GetComponent<Image>();
                 if (img != null)
-                    img.color = _isDefaultPreset ? defaultActiveColor : presetInactiveColor;
+                    img.color = _isDefaultPreset ? presetActiveColor : presetInactiveColor;
             }
         }
 
