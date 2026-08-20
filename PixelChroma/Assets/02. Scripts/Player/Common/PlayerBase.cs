@@ -107,6 +107,7 @@ namespace PixelChroma
             if (IsGameplayInputBlocked)
             {
                 StopLocalGameplayMotion();
+                _paintController?.HidePreview();
                 return;
             }
 
@@ -655,6 +656,7 @@ namespace PixelChroma
             if (_isChatActive)
             {
                 StopLocalGameplayMotion();
+                _paintController?.HidePreview();
             }
         }
 
