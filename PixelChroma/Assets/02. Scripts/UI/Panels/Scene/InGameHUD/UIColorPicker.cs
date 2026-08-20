@@ -10,8 +10,7 @@ namespace PixelChroma.UI
     public class ToolSlot
     {
         public BrushMode mode;
-        public Button button;
-        public GameObject selectImage;
+        public UIFocusButton button;
     }
 
     public class UIColorPicker : MonoBehaviour
@@ -216,8 +215,8 @@ namespace PixelChroma.UI
             if (toolSlots == null) return;
             foreach (var slot in toolSlots)
             {
-                if (slot.selectImage != null)
-                    slot.selectImage.SetActive(slot.mode == mode);
+                if (slot.button != null)
+                    slot.button.SetSelected(slot.mode == mode);
             }
         }
 
@@ -236,7 +235,7 @@ namespace PixelChroma.UI
                     if (slot.button != null)
                     {
                         var mode = slot.mode;
-                        slot.button.onClick.AddListener(() => OnToolButtonClicked?.Invoke(mode));
+                        slot.button.OnClicked += () => OnToolButtonClicked?.Invoke(mode);
                     }
                 }
             }

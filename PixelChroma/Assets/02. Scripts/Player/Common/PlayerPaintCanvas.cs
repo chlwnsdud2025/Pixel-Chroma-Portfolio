@@ -396,6 +396,17 @@ namespace PixelChroma
             return painted;
         }
 
+        public bool FillAll(Color color)
+        {
+            bool painted = FillAllLocal(color);
+            if (painted)
+            {
+                ApplyChanges();
+                CmdFillAll(color);
+            }
+            return painted;
+        }
+
         private bool PaintLocal(int px, int py, Color color, int size)
         {
             var form = _activeForm;
@@ -422,14 +433,33 @@ namespace PixelChroma
             return anyPainted;
         }
 
+        private bool FillAllLocal(Color color)
+        {
+            var form = _activeForm;
+            if (form == null || form.maskPixels == null || form.unionOpaque == null) return false;
+
+            bool anyPainted = false;
+            var target = PaintColorUtil.ToOpaqueColor32(color);
+            int count = Mathf.Min(form.maskPixels.Length, form.unionOpaque.Length);
+
+            for (int idx = 0; idx < count; idx++)
+            {
+                if (!form.unionOpaque[idx]) continue;
+                if (PaintColorUtil.Equals(form.maskPixels[idx], target)) continue;
+
+                RecordBefore(form, idx);
+                SetMaskCell(form, idx, color);
+                anyPainted = true;
+            }
+
+            if (anyPainted) form.isDirty = true;
+            return anyPainted;
+        }
+
         private static void SetMaskCell(PaintForm form, int idx, Color color)
         {
             if (form.maskPixels[idx].a == 0 && form.referenceOpaque[idx]) form.paintedCells++;
-            form.maskPixels[idx] = new Color32(
-                (byte)Mathf.Clamp(Mathf.RoundToInt(color.r * 255f), 0, 255),
-                (byte)Mathf.Clamp(Mathf.RoundToInt(color.g * 255f), 0, 255),
-                (byte)Mathf.Clamp(Mathf.RoundToInt(color.b * 255f), 0, 255),
-                255);
+            form.maskPixels[idx] = PaintColorUtil.ToOpaqueColor32(color);
         }
 
         [Command]
@@ -444,6 +474,21 @@ namespace PixelChroma
             if (isOwned) return;
 
             if (PaintLocal(px, py, color, size))
+                ApplyChanges();
+        }
+
+        [Command]
+        private void CmdFillAll(Color color)
+        {
+            RpcFillAll(color);
+        }
+
+        [ClientRpc]
+        private void RpcFillAll(Color color)
+        {
+            if (isOwned) return;
+
+            if (FillAllLocal(color))
                 ApplyChanges();
         }
 

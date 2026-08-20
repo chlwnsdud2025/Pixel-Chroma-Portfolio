@@ -11,7 +11,8 @@ namespace PixelChroma.UI
         Brush,
         Eraser,
         Eyedropper,
-        Crosshair
+        Crosshair,
+        Fill
     }
 
     public class CursorManager : MonoSingleton<CursorManager>
@@ -32,6 +33,9 @@ namespace PixelChroma.UI
 
         public Sprite eyedropperCursor;
         public Vector2 eyedropperPivot = new Vector2(0f, 1f);
+
+        public Sprite fillCursor;
+        public Vector2 fillPivot = new Vector2(0f, 1f);
 
         public Sprite crosshairCursor;
         public Vector2 crosshairPivot = new Vector2(0.5f, 0.5f);
@@ -58,11 +62,14 @@ namespace PixelChroma.UI
                     nestedCanvas.sortingOrder = 32767;
                 }
             }
+
+            DisableCursorRaycasts();
         }
 
         private void Start()
         {
             Cursor.visible = false;
+            DisableCursorRaycasts();
             SetCursorType(CursorType.Default);
         }
 
@@ -119,6 +126,10 @@ namespace PixelChroma.UI
                     cursorImage.sprite = eyedropperCursor;
                     cursorRect.pivot = eyedropperPivot;
                     break;
+                case CursorType.Fill:
+                    cursorImage.sprite = fillCursor != null ? fillCursor : brushCursor;
+                    cursorRect.pivot = fillPivot;
+                    break;
                 case CursorType.Crosshair:
                     cursorImage.sprite = crosshairCursor;
                     cursorRect.pivot = crosshairPivot;
@@ -128,6 +139,15 @@ namespace PixelChroma.UI
             // 미리보기는 스포이드 커서일 때만 보이도록 커서 타입에 종속시킨다.
             if (eyedropperPreview != null)
                 eyedropperPreview.gameObject.SetActive(type == CursorType.Eyedropper);
+        }
+
+        private void DisableCursorRaycasts()
+        {
+            if (cursorRect == null) return;
+
+            var graphics = cursorRect.GetComponentsInChildren<Graphic>(true);
+            foreach (var graphic in graphics)
+                graphic.raycastTarget = false;
         }
     }
 }

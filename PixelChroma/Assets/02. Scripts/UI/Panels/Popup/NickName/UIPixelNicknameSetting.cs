@@ -58,6 +58,8 @@ namespace PixelChroma.UI
         private BrushMode _brushMode = BrushMode.Brush;
         private int _brushSize = 1;
         private bool _isPainting;
+        private ScreenEyedropperSampler _eyedropperSampler;
+        private bool _waitForMouseRelease;
 
         // ── Input System ──
         private PlayerInputActions _input;
@@ -93,6 +95,9 @@ namespace PixelChroma.UI
             // Input System
             if (inputActions != null)
                 _input = new PlayerInputActions(inputActions);
+
+            _eyedropperSampler = new ScreenEyedropperSampler(this);
+            _eyedropperSampler.OnColorSampled += OnEyedropperColorSampled;
 
             // ColorPicker
             if (colorPicker != null)
@@ -142,6 +147,9 @@ namespace PixelChroma.UI
 
             _brushMode = BrushMode.Brush;
             _brushSize = 1;
+            _waitForMouseRelease = false;
+            _eyedropperSampler?.RestoreEventSystem();
+            RefreshCursor();
 
             if (colorPicker != null)
             {
@@ -158,6 +166,10 @@ namespace PixelChroma.UI
             base.OnAfterHide();
             _input?.DisableAll();
             ClearHoverOverlay();
+            _eyedropperSampler?.Stop(restoreEventSystem: false);
+            _waitForMouseRelease = false;
+            _eyedropperSampler?.RestoreEventSystem();
+            ResetCursor();
         }
 
         protected override async UniTask OnShowAnimation()
@@ -176,6 +188,15 @@ namespace PixelChroma.UI
 
         private void OnDestroy()
         {
+            ResetCursor();
+            _waitForMouseRelease = false;
+            if (_eyedropperSampler != null)
+            {
+                _eyedropperSampler.OnColorSampled -= OnEyedropperColorSampled;
+                _eyedropperSampler.Dispose();
+                _eyedropperSampler = null;
+            }
+
             if (_editTexture != null)   Destroy(_editTexture);
             if (_checkerTexture != null) Destroy(_checkerTexture);
             if (_hoverTexture != null)   Destroy(_hoverTexture);
@@ -197,6 +218,7 @@ namespace PixelChroma.UI
             UpdateHoverIndicator();
             HandleKeyboardShortcuts();
             HandleBrushSizeScroll();
+            TickEyedropper();
         }
 
         //---------------------------Text 닉네임----------------------------------------------
@@ -321,8 +343,6 @@ namespace PixelChroma.UI
                     PaintPixels(px, py, Color.clear);
                     break;
                 case BrushMode.Eyedropper:
-                    _currentColor = _editTexture.GetPixel(px, py);
-                    colorPicker?.SetColor(_currentColor);
                     break;
                 case BrushMode.Fill:
                     FloodFill(px, py, _currentColor);
@@ -348,12 +368,14 @@ namespace PixelChroma.UI
             else if (_input.Undo != null && _input.Undo.WasPressedThisFrame())
                 Undo();
 
-            // 도구 전환: 1 → 붓, 2 → 지우개, 3 → 스포이드
+            // 도구 전환: 1 → 붓, 2 → 지우개, 3 → 스포이드, 4 → 채우기
             if (_input.SelectBrush != null && _input.SelectBrush.WasPressedThisFrame())
                 OnToolChanged(BrushMode.Brush);
             else if (_input.SelectEraser != null && _input.SelectEraser.WasPressedThisFrame())
                 OnToolChanged(BrushMode.Eraser);
             else if (_input.SelectEyedropper != null && _input.SelectEyedropper.WasPressedThisFrame())
+                OnToolChanged(BrushMode.Eyedropper);
+            else if (_input.SelectFill != null && _input.SelectFill.WasPressedThisFrame())
                 OnToolChanged(BrushMode.Fill);
         }
 
@@ -433,10 +455,7 @@ namespace PixelChroma.UI
 
         private static bool ColorsEqual(Color a, Color b)
         {
-            return Mathf.Abs(a.r - b.r) < 0.01f
-                && Mathf.Abs(a.g - b.g) < 0.01f
-                && Mathf.Abs(a.b - b.b) < 0.01f
-                && Mathf.Abs(a.a - b.a) < 0.01f;
+            return PaintColorUtil.Approximately(a, b);
         }
 
         // ────────────────────── Undo / Redo ──────────────────────
@@ -519,8 +538,7 @@ namespace PixelChroma.UI
             if (a.Length != b.Length) return false;
             for (int i = 0; i < a.Length; i++)
             {
-                if (a[i].r != b[i].r || a[i].g != b[i].g ||
-                    a[i].b != b[i].b || a[i].a != b[i].a)
+                if (!PaintColorUtil.Equals(a[i], b[i]))
                     return false;
             }
             return true;
@@ -625,15 +643,73 @@ namespace PixelChroma.UI
 
         private void OnToolChanged(BrushMode mode)
         {
+            if (_brushMode == BrushMode.Eyedropper && mode != BrushMode.Eyedropper)
+            {
+                _eyedropperSampler?.Stop(restoreEventSystem: !_waitForMouseRelease);
+            }
+
             _brushMode = mode;
             colorPicker?.SetActiveTool(mode);
             _lastHoverPixelX = -1; // 도구 변경 시 호버 갱신
+
+            if (mode == BrushMode.Eyedropper)
+            {
+                _eyedropperSampler?.Start(_currentColor);
+            }
+
+            RefreshCursor();
         }
 
         private void OnBrushSizeChanged(int size)
         {
             _brushSize = size;
             _lastHoverPixelX = -1; // 크기 변경 시 호버 갱신
+            RefreshCursor();
+        }
+
+        private void RefreshCursor()
+        {
+            PaintToolCursor.Apply(_brushMode, _brushSize);
+        }
+
+        private static void ResetCursor()
+        {
+            if (CursorManager.Instance != null)
+                CursorManager.Instance.SetCursorType(CursorType.Default);
+        }
+
+        private void TickEyedropper()
+        {
+            if (Mouse.current == null) return;
+
+            if (_waitForMouseRelease)
+            {
+                if (!Mouse.current.leftButton.isPressed)
+                {
+                    _waitForMouseRelease = false;
+                    _eyedropperSampler?.RestoreEventSystem();
+                }
+                return;
+            }
+
+            if (_brushMode != BrushMode.Eyedropper) return;
+
+            if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+
+            colorPicker?.SetColor(_currentColor);
+            _isPainting = false;
+            EndStroke();
+            _waitForMouseRelease = true;
+            OnToolChanged(BrushMode.Brush);
+        }
+
+        private void OnEyedropperColorSampled(Color color)
+        {
+            _currentColor = color;
+            colorPicker?.SetEyedropperPreview(color);
+
+            if (CursorManager.Instance != null)
+                CursorManager.Instance.UpdateEyedropperPreview(color);
         }
 
         // ────────────────────── 버튼 ──────────────────────

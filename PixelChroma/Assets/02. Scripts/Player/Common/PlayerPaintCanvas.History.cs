@@ -55,7 +55,7 @@ namespace PixelChroma
             foreach (var kv in _strokeBefore)
             {
                 Color32 after = form.maskPixels[kv.Key];
-                if (!ColorEquals(kv.Value, after))
+                if (!PaintColorUtil.Equals(kv.Value, after))
                     list.Add(new CellChange { idx = kv.Key, before = kv.Value, after = after });
             }
             _strokeBefore.Clear();
@@ -210,7 +210,5 @@ namespace PixelChroma
             return cmd;
         }
 
-        private static bool ColorEquals(Color32 a, Color32 b)
-            => a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using PixelChroma.UI;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -25,12 +24,10 @@ namespace PixelChroma
         private bool _isPaintMode;
 
         private Color _eyedropperColor;
-        private Texture2D _eyedropperCapture;
-        private Coroutine _eyedropperCoroutine;
+        private readonly ScreenEyedropperSampler _eyedropperSampler;
         private bool _waitForMouseRelease;
 
         private Camera _cachedCamera;
-        private BaseInputModule _cachedInputModule;
         private GameObject _brushPreview;
         private SpriteRenderer _brushPreviewRenderer;
         private int _previewLastSize = -1;
@@ -50,6 +47,8 @@ namespace PixelChroma
             _paintCanvas = paintCanvas;
             _input = input;
             _cachedCamera = Camera.main;
+            _eyedropperSampler = new ScreenEyedropperSampler(owner);
+            _eyedropperSampler.OnColorSampled += OnEyedropperColorSampled;
         }
 
         public void Tick()
@@ -70,17 +69,11 @@ namespace PixelChroma
 
         public void Dispose()
         {
-            StopEyedropperCapture();
-            SetEventSystemEnabled(true);
+            _eyedropperSampler.OnColorSampled -= OnEyedropperColorSampled;
+            _eyedropperSampler.Dispose();
 
             if (_owner != null && _owner.isLocalPlayer && CursorManager.Instance != null)
                 CursorManager.Instance.SetCursorType(CursorType.Default);
-
-            if (_eyedropperCapture != null)
-            {
-                UnityEngine.Object.Destroy(_eyedropperCapture);
-                _eyedropperCapture = null;
-            }
 
             if (_brushPreview != null)
             {
@@ -140,17 +133,15 @@ namespace PixelChroma
 
             if (_brushMode == BrushMode.Eyedropper)
             {
-                StopEyedropperCapture();
-                if (!_waitForMouseRelease)
-                    SetEventSystemEnabled(true);
+                _eyedropperSampler.Stop(restoreEventSystem: !_waitForMouseRelease);
             }
 
             _brushMode = mode;
 
             if (mode == BrushMode.Eyedropper)
             {
-                SetEventSystemEnabled(false);
-                _eyedropperCoroutine = _owner.StartCoroutine(EyedropperCaptureLoop());
+                Color initialColor = _boundPicker != null ? _boundPicker.SelectedColor : _eyedropperColor;
+                _eyedropperSampler.Start(initialColor);
             }
 
             _boundPicker?.SetActiveTool(mode);
@@ -168,8 +159,7 @@ namespace PixelChroma
 
                 if (_brushMode == BrushMode.Eyedropper)
                 {
-                    StopEyedropperCapture();
-                    SetEventSystemEnabled(true);
+                    _eyedropperSampler.Stop(restoreEventSystem: true);
                     _brushMode = BrushMode.Brush;
                     _boundPicker?.SetActiveTool(BrushMode.Brush);
                 }
@@ -203,20 +193,7 @@ namespace PixelChroma
             }
 
             int brushSize = _boundPicker != null ? _boundPicker.BrushSize : 1;
-
-            switch (_brushMode)
-            {
-                case BrushMode.Eyedropper:
-                    CursorManager.Instance.SetCursorType(CursorType.Eyedropper);
-                    break;
-                case BrushMode.Eraser:
-                    CursorManager.Instance.SetCursorType(CursorType.Eraser, 1f + (brushSize * 0.1f));
-                    break;
-                case BrushMode.Brush:
-                default:
-                    CursorManager.Instance.SetCursorType(CursorType.Brush, 1f + (brushSize * 0.1f));
-                    break;
-            }
+            PaintToolCursor.Apply(_brushMode, brushSize);
         }
 
         public void HidePreview()
@@ -252,11 +229,13 @@ namespace PixelChroma
                 SetBrushMode(BrushMode.Eraser);
             else if (_input.SelectEyedropper != null && _input.SelectEyedropper.WasPressedThisFrame())
                 SetBrushMode(BrushMode.Eyedropper);
+            else if (_input.SelectFill != null && _input.SelectFill.WasPressedThisFrame())
+                SetBrushMode(BrushMode.Fill);
         }
 
         private void UpdateBrushPreview()
         {
-            if (_owner == null || !_owner.isLocalPlayer || !_isPaintMode)
+            if (_owner == null || !_owner.isLocalPlayer || !_isPaintMode || _brushMode == BrushMode.Fill)
             {
                 HideBrushPreview();
                 return;
@@ -363,7 +342,7 @@ namespace PixelChroma
                 if (!Mouse.current.leftButton.isPressed)
                 {
                     _waitForMouseRelease = false;
-                    SetEventSystemEnabled(true);
+                    _eyedropperSampler.RestoreEventSystem();
                 }
                 return;
             }
@@ -371,6 +350,18 @@ namespace PixelChroma
             if (!Mouse.current.leftButton.isPressed) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
             if (!TryGetMousePixel(out var pixel)) return;
+
+            if (_brushMode == BrushMode.Fill)
+            {
+                if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+                if (!_paintCanvas.IsInBounds(pixel.x, pixel.y)) return;
+
+                Color color = _boundPicker != null ? _boundPicker.SelectedColor : Color.white;
+                _paintCanvas.BeginStroke();
+                _paintCanvas.FillAll(color);
+                _paintCanvas.EndStroke();
+                return;
+            }
 
             if (_paintCanvas.IsInBounds(pixel.x, pixel.y))
             {
@@ -389,64 +380,13 @@ namespace PixelChroma
             }
         }
 
-        private IEnumerator EyedropperCaptureLoop()
+        private void OnEyedropperColorSampled(Color color)
         {
-            if (_eyedropperCapture == null)
-                _eyedropperCapture = new Texture2D(1, 1, TextureFormat.RGB24, false);
+            _eyedropperColor = color;
+            _boundPicker?.SetEyedropperPreview(color);
 
-            while (true)
-            {
-                yield return new WaitForEndOfFrame();
-
-                if (Mouse.current == null) continue;
-
-                Vector2 screenPos = Mouse.current.position.ReadValue();
-                int x = (int)screenPos.x;
-                int y = (int)screenPos.y;
-
-                if (x < 0 || x >= Screen.width || y < 0 || y >= Screen.height) continue;
-
-                _eyedropperCapture.ReadPixels(new Rect(x, y, 1, 1), 0, 0);
-                _eyedropperCapture.Apply();
-                _eyedropperColor = _eyedropperCapture.GetPixel(0, 0);
-
-                _boundPicker?.SetEyedropperPreview(_eyedropperColor);
-
-                // 커서 옆 스포이드 미리보기 내용만 갱신
-                if (CursorManager.Instance != null)
-                    CursorManager.Instance.UpdateEyedropperPreview(_eyedropperColor);
-            }
-        }
-
-        private void StopEyedropperCapture()
-        {
-            if (_eyedropperCoroutine != null)
-            {
-                _owner.StopCoroutine(_eyedropperCoroutine);
-                _eyedropperCoroutine = null;
-            }
-        }
-
-        private void SetEventSystemEnabled(bool enabled)
-        {
-            if (enabled)
-            {
-                if (_cachedInputModule != null)
-                    _cachedInputModule.enabled = true;
-            }
-            else
-            {
-                var es = EventSystem.current;
-                if (es != null)
-                {
-                    _cachedInputModule = es.currentInputModule != null
-                        ? es.currentInputModule
-                        : es.GetComponent<BaseInputModule>();
-
-                    if (_cachedInputModule != null)
-                        _cachedInputModule.enabled = false;
-                }
-            }
+            if (CursorManager.Instance != null)
+                CursorManager.Instance.UpdateEyedropperPreview(color);
         }
 
         private bool TryGetMousePixel(out Vector2Int pixel)
