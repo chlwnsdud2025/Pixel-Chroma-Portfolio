@@ -114,6 +114,7 @@ namespace PixelChroma.UI
             // 채팅창은 항상 활성, InputField만 비활성 상태로 시작
             chatInputField.gameObject.SetActive(false);
             _isInputActive = false;
+            SetChatRaycastBlocking(false);
 
             // 기존 초기화 코드 위치에 추가
             if (panelBackground != null)
@@ -129,6 +130,7 @@ namespace PixelChroma.UI
             HandleFocusLost();
             UpdateMessageFade();
             UpdateChatVisibility();
+            UpdateChatRaycastBlocking();
         }
 
         // ── T키 처리: InputField 포커스만 제어
@@ -246,6 +248,18 @@ namespace PixelChroma.UI
             panelBackground.color = c;
         }
 
+        private void SetChatRaycastBlocking(bool block)
+        {
+            if (chatCanvasGroup == null) return;
+            chatCanvasGroup.blocksRaycasts = block;
+            chatCanvasGroup.interactable = block;
+        }
+
+        private void UpdateChatRaycastBlocking()
+        {
+            SetChatRaycastBlocking(_isInputActive || _activeMessages.Count > 0);
+        }
+
         // ── InputField 토글 (기존 ToggleChat 대체) ──
         public void ToggleInput(bool open)
         {
@@ -327,6 +341,7 @@ namespace PixelChroma.UI
                 spawnTime = Time.time,
                 isFading = false,
             });
+            UpdateChatRaycastBlocking();
 
             _lastMessageTime = Time.time;
             SetBgAlpha(0.7f);
@@ -371,6 +386,7 @@ namespace PixelChroma.UI
             }
 
             if (chatInputField != null) chatInputField.text = string.Empty;
+            UpdateChatRaycastBlocking();
         }
     }
 }

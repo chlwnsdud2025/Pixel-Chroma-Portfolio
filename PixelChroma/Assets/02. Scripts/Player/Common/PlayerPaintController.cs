@@ -219,6 +219,11 @@ namespace PixelChroma
             }
         }
 
+        public void HidePreview()
+        {
+            HideBrushPreview();
+        }
+
         private void HandleHistoryInput()
         {
             if (_paintCanvas == null) return;
