@@ -9,7 +9,7 @@ namespace PixelChroma
     public static class LoadingManager
     {
         // 로딩창 최소 표시 시간(초). 실제 로드가 더 빨리 끝나도 이 시간만큼은 유지한다.
-        private const float MinDisplayTime = 1.5f;
+        private const float MinDisplayTime = 3f;
 
         // 로딩이 어떤 이유로든(씬 로드 행, 콜백 예외 등) 끝나지 않을 때의 최종 안전망(초).
         public const float WatchdogTimeout = 30f;
