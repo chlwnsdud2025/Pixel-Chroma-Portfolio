@@ -6981,7 +6981,6 @@ GameObject:
   m_Component:
   - component: {fileID: 683337535879373750}
   - component: {fileID: 8925445650167509327}
-  - component: {fileID: 8429476106394997921}
   - component: {fileID: 1402589920119655281}
   m_Layer: 5
   m_Name: Text
@@ -7017,19 +7016,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2765853937137786700}
   m_CullTransparentMesh: 1
---- !u!114 &8429476106394997921
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2765853937137786700}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b73ea14c0f1b1742907535b570cb572, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.LocalizedFontText
-  role: 0
 --- !u!114 &1402589920119655281
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7043,7 +7029,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: OneText.UGUI::OneText.UGUI.OneTextLabel
   m_Material: {fileID: 0}
-  m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -7069,7 +7055,7 @@ MonoBehaviour:
       rgba: 0
     GlowRadius: 0
     GlowInner: 0
-    FaceDilate: 0
+    FaceDilate: 0.15
   _namedFonts: []
   _sprites: {fileID: 0}
   _language: 
