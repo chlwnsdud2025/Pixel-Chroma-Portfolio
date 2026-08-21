@@ -15,6 +15,7 @@ public sealed class PixelChromaMapExportData
     public List<PixelChromaMapLayerExportData> layers = new List<PixelChromaMapLayerExportData>();
     public List<PixelChromaSpawnPointExportData> spawnPoints = new List<PixelChromaSpawnPointExportData>();
     public List<PixelChromaZoneExportData> zones = new List<PixelChromaZoneExportData>();
+    public List<MapEditorMovingRegionData> movingRegions = new List<MapEditorMovingRegionData>();
 }
 
 [System.Serializable]
@@ -138,4 +139,28 @@ public sealed class PixelChromaZoneExportData
     public int height;
     public string unityLayerName;
     public bool collider;
+}
+
+[System.Serializable]
+public sealed class MapEditorPathPointData
+{
+    public int x;
+    public int y;
+}
+
+[System.Serializable]
+public sealed class MapEditorMovingRegionData
+{
+    public string id;
+    public string displayName;
+    public int canvasLayerIndex;
+    public int x;
+    public int y;
+    public int width = 1;
+    public int height = 1;
+    public MapEditorPathPointData[] path;
+    public float tilesPerSecond = 1f;
+    public float waitSeconds;
+    public bool loop = true;
+    public bool pingPong;
 }

@@ -105,6 +105,8 @@ public static class RuntimeTilemapBuilder
             }
         }
 
+        BuildMovingRegions(gridGo.transform, mapData, tilemaps);
+
         // 5. 스폰 포인트 생성
         if (mapData.spawnPoints != null)
         {
@@ -141,5 +143,119 @@ public static class RuntimeTilemapBuilder
         }
 
         return root;
+    }
+
+    static void BuildMovingRegions(
+        Transform gridRoot,
+        PixelChromaMapExportData mapData,
+        System.Collections.Generic.Dictionary<string, Tilemap> tilemaps)
+    {
+        if (mapData.movingRegions == null) return;
+        for (int regionIndex = 0; regionIndex < mapData.movingRegions.Count; regionIndex++)
+        {
+            MapEditorMovingRegionData data = mapData.movingRegions[regionIndex];
+            if (data == null || data.width <= 0 || data.height <= 0 || data.path == null || data.path.Length < 2)
+                continue;
+
+            var regionGo = new GameObject(string.IsNullOrEmpty(data.id) ? "MovingRegion_" + regionIndex : data.id);
+            regionGo.transform.SetParent(gridRoot, false);
+            var body = regionGo.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.interpolation = RigidbodyInterpolation2D.Interpolate;
+            body.useFullKinematicContacts = true;
+            foreach (var pair in tilemaps)
+                MoveRegionTiles(pair.Value, regionGo.transform, data, mapData.height);
+            regionGo.AddComponent<RuntimeMovingRegionController>().Configure(data);
+        }
+    }
+
+    static void MoveRegionTiles(Tilemap source, Transform regionRoot, MapEditorMovingRegionData data, int mapHeight)
+    {
+        if (source == null) return;
+        var layerGo = new GameObject(source.name);
+        layerGo.layer = source.gameObject.layer;
+        layerGo.transform.SetParent(regionRoot, false);
+        var destination = layerGo.AddComponent<Tilemap>();
+        var sourceRenderer = source.GetComponent<TilemapRenderer>();
+        if (sourceRenderer != null)
+        {
+            var renderer = layerGo.AddComponent<TilemapRenderer>();
+            renderer.sortingLayerID = sourceRenderer.sortingLayerID;
+            renderer.sortingOrder = sourceRenderer.sortingOrder;
+            renderer.material = sourceRenderer.material;
+        }
+
+        bool copied = false;
+        for (int mapY = data.y; mapY < data.y + data.height; mapY++)
+        {
+            for (int mapX = data.x; mapX < data.x + data.width; mapX++)
+            {
+                var cell = new Vector3Int(mapX, mapHeight - 1 - mapY, 0);
+                TileBase tile = source.GetTile(cell);
+                if (tile == null) continue;
+                destination.SetTile(cell, tile);
+                source.SetTile(cell, null);
+                copied = true;
+            }
+        }
+
+        if (copied && source.GetComponent<TilemapCollider2D>() != null)
+            layerGo.AddComponent<TilemapCollider2D>();
+        if (!copied)
+            Object.Destroy(layerGo);
+    }
+}
+
+public sealed class RuntimeMovingRegionController : MonoBehaviour
+{
+    MapEditorMovingRegionData data;
+    Vector3 startPosition;
+    int pathIndex = 1;
+    int direction = 1;
+    float waitRemaining;
+    Rigidbody2D body;
+
+    public void Configure(MapEditorMovingRegionData value)
+    {
+        data = value;
+        startPosition = transform.localPosition;
+        body = GetComponent<Rigidbody2D>();
+    }
+
+    void FixedUpdate()
+    {
+        if (data == null || data.path == null || data.path.Length < 2) return;
+        if (waitRemaining > 0f)
+        {
+            waitRemaining -= Time.fixedDeltaTime;
+            return;
+        }
+
+        MapEditorPathPointData first = data.path[0];
+        MapEditorPathPointData targetPoint = data.path[pathIndex];
+        Vector3 targetLocal = startPosition + new Vector3(targetPoint.x - first.x, -(targetPoint.y - first.y), 0f);
+        Vector2 targetWorld = transform.parent == null ? targetLocal : transform.parent.TransformPoint(targetLocal);
+        Vector2 current = body == null ? (Vector2)transform.position : body.position;
+        Vector2 nextPosition = Vector2.MoveTowards(
+            current,
+            targetWorld,
+            Mathf.Max(0.05f, data.tilesPerSecond) * Time.fixedDeltaTime);
+        if (body != null) body.MovePosition(nextPosition);
+        else transform.position = nextPosition;
+        if ((nextPosition - targetWorld).sqrMagnitude > 0.0001f) return;
+
+        waitRemaining = Mathf.Max(0f, data.waitSeconds);
+        int next = pathIndex + direction;
+        if (next >= data.path.Length || next < 0)
+        {
+            if (data.pingPong)
+            {
+                direction *= -1;
+                next = pathIndex + direction;
+            }
+            else if (data.loop) next = 0;
+            else next = pathIndex;
+        }
+        pathIndex = Mathf.Clamp(next, 0, data.path.Length - 1);
     }
 }
