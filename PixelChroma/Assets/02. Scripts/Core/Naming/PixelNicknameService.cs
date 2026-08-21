@@ -72,22 +72,6 @@ namespace PixelChroma
             catch { return null; }
         }
 
-        /// <summary>
-        /// 최초 1회: 기존 "PixelNickname" 데이터가 있고 Preset0이 비어있으면 복사.
-        /// </summary>
-        public static void MigrateToPresetIfNeeded()
-        {
-            if (!string.IsNullOrEmpty(PlayerPrefs.GetString(PresetKeyPrefix + "0", "")))
-                return;
-
-            byte[] existing = Load();
-            if (existing != null && existing.Length > 0)
-            {
-                SavePreset(0, existing);
-                SaveActivePresetIndex(0);
-            }
-        }
-
         // ── 기본 프리셋 ──
 
         public static void SaveIsDefaultPreset(bool isDefault)

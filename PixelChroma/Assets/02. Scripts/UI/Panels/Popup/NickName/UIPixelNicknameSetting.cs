@@ -141,7 +141,6 @@ namespace PixelChroma.UI
             base.OnBeforeShow();
             _input?.EnableAll();
 
-            PixelNicknameService.MigrateToPresetIfNeeded();
             LoadPresetsAndSelect();
 
             _brushMode = BrushMode.Brush;
@@ -170,8 +169,8 @@ namespace PixelChroma.UI
             _eyedropperSampler?.RestoreEventSystem();
             ResetCursor();
 
-            // ── 저장된 닉네임이 없거나 빈 캔버스로 닫히면 기본 프리셋 0번 자동 선택 ──
-            if (PixelNicknameService.Load() == null || (!_isDefaultPreset && IsCanvasEmpty()))
+            // ── 유저 프리셋이 선택되었는데 빈 캔버스면 기본 프리셋 0번으로 전환 및 저장 ──
+            if (!_isDefaultPreset && IsCanvasEmpty())
             {
                 PixelNicknameService.SaveIsDefaultPreset(true);
                 PixelNicknameService.SaveDefaultImageIndex(0);
@@ -735,25 +734,29 @@ namespace PixelChroma.UI
 
         private void OnClickSave()
         {
-            // ── 픽셀 닉네임 저장 ──
-            if (_editTexture != null)
+            if (_isDefaultPreset)
             {
+                PixelNicknameService.SaveIsDefaultPreset(true);
+                PixelNicknameService.SaveDefaultImageIndex(_defaultImageIndex);
 
+                // 기본 프리셋 원본을 메인 키에 저장 (네트워크 전송용)
+                if (defaultImages != null && _defaultImageIndex < defaultImages.Length
+                    && defaultImages[_defaultImageIndex] != null)
+                {
+                    var readable = CopyToReadable(defaultImages[_defaultImageIndex]);
+                    PixelNicknameService.Save(readable.EncodeToPNG());
+                    Destroy(readable);
+                }
+            }
+            else if (_editTexture != null)
+            {
                 byte[] png = _editTexture.EncodeToPNG();
 
-                if (_isDefaultPreset)
-                {
-                    PixelNicknameService.SaveIsDefaultPreset(true);
-                    PixelNicknameService.SaveDefaultImageIndex(_defaultImageIndex);
-                }
-                else
-                {
-                    PixelNicknameService.SaveIsDefaultPreset(false);
-                    PixelNicknameService.SavePreset(_activePresetIndex, png);
-                    PixelNicknameService.SaveActivePresetIndex(_activePresetIndex);
-                }
+                PixelNicknameService.SaveIsDefaultPreset(false);
+                PixelNicknameService.SavePreset(_activePresetIndex, png);
+                PixelNicknameService.SaveActivePresetIndex(_activePresetIndex);
 
-                // 메인 키는 항상 업데이트 (네트워크 호환)
+                // 메인 키 업데이트 (네트워크 호환)
                 PixelNicknameService.Save(png);
             }
         }
