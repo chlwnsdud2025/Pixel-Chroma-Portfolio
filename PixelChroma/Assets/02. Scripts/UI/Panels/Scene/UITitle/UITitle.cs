@@ -94,6 +94,22 @@ namespace PixelChroma.UI
                 .SetEase(Ease.OutBack)
                 .ToUniTask();
         }
+        protected override UniTask OnShow()
+        {
+            // 현재 선택된 프리셋이 빈 그림일 경우에만 닉네임 설정 팝업을 띄운다
+            bool isDefault = PixelNicknameService.LoadIsDefaultPreset();
+            if (!isDefault)
+            {
+                int activeIndex = PixelNicknameService.LoadActivePresetIndex();
+                byte[] data = PixelNicknameService.LoadPreset(activeIndex);
+                if (data == null || data.Length == 0)
+                {
+                    UIManager.Instance.ShowPopup<UIPixelNicknameSetting>().Forget();
+                }
+            }
+
+            return UniTask.CompletedTask;
+        }
 
         private void OnClickQuickJoin()
         {

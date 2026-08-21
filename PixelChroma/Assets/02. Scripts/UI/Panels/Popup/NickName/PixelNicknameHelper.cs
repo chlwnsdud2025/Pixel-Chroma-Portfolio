@@ -58,11 +58,9 @@ namespace PixelChroma
         /// <summary>
         /// GameSettings.ShowPixelNickname이 켜져 있고, 픽셀 데이터가 있으면 true.
         /// </summary>
-        public static bool ShouldShowPixel(byte[] pngData)
+        public static bool ShouldShowPixel()
         {
-            return GameSettings.ShowPixelNickname
-                   && pngData != null
-                   && pngData.Length > 0;
+            return GameSettings.ShowPixelNickname;
         }
     }
 }

@@ -58,7 +58,7 @@ namespace PixelChroma.UI
 
         public void SetTargetName(string displayName, bool isSelf, byte[] pixelPng = null)
         {
-            bool showPixel = PixelNicknameHelper.ShouldShowPixel(pixelPng);
+            bool showPixel = PixelNicknameHelper.ShouldShowPixel();
 
             if (showPixel && targetNameImage != null)
             {

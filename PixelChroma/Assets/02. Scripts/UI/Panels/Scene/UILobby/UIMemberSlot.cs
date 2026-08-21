@@ -36,7 +36,7 @@ namespace PixelChroma.UI
             string playerName = playerBase != null ? playerBase.playerName : "Player";
 
             byte[] pngData = PixelNicknameHelper.GetPixelData(playerBase);
-            bool showPixel = PixelNicknameHelper.ShouldShowPixel(pngData);
+            bool showPixel = PixelNicknameHelper.ShouldShowPixel();
 
             if (showPixel && nicknameImage != null)
             {

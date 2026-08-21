@@ -29,7 +29,7 @@ namespace PixelChroma.UI
 
         public void Setup(string senderName, string message, string colorHex, byte[] pixelPng)
         {
-            bool showPixel = PixelNicknameHelper.ShouldShowPixel(pixelPng);
+            bool showPixel = PixelNicknameHelper.ShouldShowPixel();
 
             // ── 닉네임 영역: 이미지 vs 텍스트 전환 ──
             if (showPixel && nicknameImage != null)

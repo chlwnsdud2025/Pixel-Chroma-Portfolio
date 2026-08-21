@@ -45,7 +45,7 @@ namespace PixelChroma.UI
         {
             var player = PixelNicknameHelper.FindPlayer(netId);
             byte[] pngData = PixelNicknameHelper.GetPixelData(player);
-            bool showPixel = PixelNicknameHelper.ShouldShowPixel(pngData);
+            bool showPixel = PixelNicknameHelper.ShouldShowPixel();
 
             if (showPixel && image != null)
             {

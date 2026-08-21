@@ -51,7 +51,7 @@ namespace PixelChroma.UI
             // ── 1. 이름 표시 (픽셀 닉네임 우선) ──
             PlayerBase playerBase = PixelNicknameHelper.FindPlayer(status.netId);
             byte[] pngData = PixelNicknameHelper.GetPixelData(playerBase);
-            bool showPixel = PixelNicknameHelper.ShouldShowPixel(pngData);
+            bool showPixel = PixelNicknameHelper.ShouldShowPixel();
 
             if (showPixel && nicknameImage != null)
             {

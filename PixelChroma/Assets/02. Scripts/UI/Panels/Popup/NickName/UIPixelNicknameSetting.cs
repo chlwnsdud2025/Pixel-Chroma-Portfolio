@@ -1,6 +1,5 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using OneText.UGUI;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -31,13 +30,6 @@ namespace PixelChroma.UI
 
         [Header("Color Picker")]
         [SerializeField] private UIColorPicker colorPicker;
-
-        [Header("Text Nickname")]
-        [SerializeField] private OneTextInputField nicknameInputField;
-        [SerializeField] private int maxNicknameLength = 10;
-        [SerializeField] private BannedWordsSO bannedWords;
-        [SerializeField] private UIWarningText warningText;
-        [SerializeField] private NicknameSettingTextDataSO textData;
 
         [Header("Tools")]
         [SerializeField] private Button clearButton;
@@ -123,9 +115,6 @@ namespace PixelChroma.UI
             if (saveButton != null) saveButton.AddClickListener(OnClickSave);
             if (closeButton != null) closeButton.AddClickListener(OnClickBack);
 
-            if (nicknameInputField != null)
-                nicknameInputField.characterLimit = maxNicknameLength;
-
             if (presetSlots != null)
             {
                 for (int i = 0; i < presetSlots.Length; i++)
@@ -155,11 +144,6 @@ namespace PixelChroma.UI
             PixelNicknameService.MigrateToPresetIfNeeded();
             LoadPresetsAndSelect();
 
-            if (nicknameInputField != null)
-                nicknameInputField.text = TextNicknameService.LoadOrDefault();
-
-            SetWarningMessage(string.Empty);
-
             _brushMode = BrushMode.Brush;
             _brushSize = 1;
             _waitForMouseRelease = false;
@@ -185,6 +169,20 @@ namespace PixelChroma.UI
             _waitForMouseRelease = false;
             _eyedropperSampler?.RestoreEventSystem();
             ResetCursor();
+
+            // ── 저장된 닉네임이 없거나 빈 캔버스로 닫히면 기본 프리셋 0번 자동 선택 ──
+            if (PixelNicknameService.Load() == null || (!_isDefaultPreset && IsCanvasEmpty()))
+            {
+                PixelNicknameService.SaveIsDefaultPreset(true);
+                PixelNicknameService.SaveDefaultImageIndex(0);
+
+                if (defaultImages != null && defaultImages.Length > 0 && defaultImages[0] != null)
+                {
+                    var readable = CopyToReadable(defaultImages[0]);
+                    PixelNicknameService.Save(readable.EncodeToPNG());
+                    Destroy(readable);
+                }
+            }
         }
 
         protected override async UniTask OnShowAnimation()
@@ -236,15 +234,6 @@ namespace PixelChroma.UI
             HandleKeyboardShortcuts();
             HandleBrushSizeScroll();
             TickEyedropper();
-        }
-
-        //---------------------------Text 닉네임----------------------------------------------
-        private void SetWarningMessage(string message)
-        {
-            if (warningText != null) warningText.Show(message);
-
-            if (!string.IsNullOrEmpty(message) && nicknameInputField != null)
-                nicknameInputField.ActivateInputField();
         }
 
         // ────────────────────── 캔버스 초기화 ──────────────────────
@@ -373,8 +362,6 @@ namespace PixelChroma.UI
         {
             if (_input == null) return;
 
-            // 텍스트 입력 중에는 단축키 비활성화 (1→붓, Z→undo 등 충돌 방지)
-            if (nicknameInputField != null && nicknameInputField.isFocused) return;
             // 드래그 중에는 Undo/Redo/도구전환 막음
             if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
 
@@ -398,8 +385,6 @@ namespace PixelChroma.UI
 
         private void HandleBrushSizeScroll()
         {
-            if (nicknameInputField != null && nicknameInputField.isFocused) return;
-
             if (_input?.BrushSizeModifier == null) return;
             if (!_input.BrushSizeModifier.IsPressed()) return;
             if (Mouse.current == null) return;
@@ -750,42 +735,9 @@ namespace PixelChroma.UI
 
         private void OnClickSave()
         {
-            // ── 텍스트 닉네임 검증 ──
-            if (nicknameInputField != null)
-            {
-                string enteredName = nicknameInputField.text.Trim();
-
-                switch (NameValidationService.Validate(enteredName, bannedWords, maxNicknameLength))
-                {
-                    case NameValidation.TooLong:
-                        SetWarningMessage(textData.warningMaxLength.GetLocalizedString(maxNicknameLength));
-                        return;
-                    case NameValidation.Banned:
-                        SetWarningMessage(textData.warningBanned.GetLocalizedString());
-                        return;
-                    case NameValidation.Unsupported:
-                        if (!textData.warningUnsupported.IsEmpty)
-                            SetWarningMessage(textData.warningUnsupported.GetLocalizedString());
-                        return;
-                }
-
-                if (string.IsNullOrEmpty(enteredName))
-                    enteredName = TextNicknameService.GetDefaultSteamName();
-
-                TextNicknameService.Save(enteredName);
-            }
-
             // ── 픽셀 닉네임 저장 ──
             if (_editTexture != null)
             {
-                // 빈 캔버스 체크: 유저 프리셋인데 아무것도 안 그렸으면 기본으로 자동 전환
-                if (!_isDefaultPreset && IsCanvasEmpty())
-                {
-                    _isDefaultPreset = true;
-                    _defaultImageIndex = PixelNicknameService.LoadDefaultImageIndex();
-                    if (defaultImages != null && defaultImages.Length > 0)
-                        ApplyDefaultToCanvas(_defaultImageIndex);
-                }
 
                 byte[] png = _editTexture.EncodeToPNG();
 
@@ -804,8 +756,6 @@ namespace PixelChroma.UI
                 // 메인 키는 항상 업데이트 (네트워크 호환)
                 PixelNicknameService.Save(png);
             }
-
-            OnClickBack();
         }
 
         // ────────────────────── 프리셋 ──────────────────────
@@ -842,8 +792,12 @@ namespace PixelChroma.UI
             // 유저 프리셋에서 전환하는 경우: 현재 캔버스를 캐시에 보관
             if (!_isDefaultPreset && _editTexture != null)
             {
-                _presetCache[_activePresetIndex] = _editTexture.EncodeToPNG();
-                RefreshUserPresetPreview(_activePresetIndex);
+                // 빈 캔버스는 유저 프리셋에 저장하지 않음
+                if (!IsCanvasEmpty())
+                {
+                    _presetCache[_activePresetIndex] = _editTexture.EncodeToPNG();
+                    RefreshUserPresetPreview(_activePresetIndex);
+                }
             }
 
             _isDefaultPreset = true;
@@ -1088,6 +1042,27 @@ namespace PixelChroma.UI
                     Destroy(_presetPreviewTextures[i]);
             }
             _presetPreviewTextures = null;
+        }
+
+        /// <summary>
+        /// 압축 텍스처를 RGBA32로 복사하여 EncodeToPNG 호출이 가능하게 만든다.
+        /// </summary>
+        private static Texture2D CopyToReadable(Texture2D source)
+        {
+            var rt = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
+            Graphics.Blit(source, rt);
+
+            var prev = RenderTexture.active;
+            RenderTexture.active = rt;
+
+            var readable = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+            readable.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0);
+            readable.Apply();
+
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+
+            return readable;
         }
     }
 }

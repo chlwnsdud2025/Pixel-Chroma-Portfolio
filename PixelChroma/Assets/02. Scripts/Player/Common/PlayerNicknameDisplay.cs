@@ -23,23 +23,21 @@ namespace PixelChroma
             _likeCountText = likeCountText;
             _nicknameImage = nicknameImage;
         }
-        
+
 
         public void Refresh()
         {
-            // 픽셀 닉네임이 있으면 이미지 표시, 없으면 텍스트 표시
-            bool hasPixel = _owner.pixelNicknamePng != null
-                            && _owner.pixelNicknamePng.Length > 0
-                            && GameSettings.ShowPixelNickname;
-
-            if (_text != null)
-                _text.gameObject.SetActive(!hasPixel);
+            bool showPixel = GameSettings.ShowPixelNickname;
 
             if (_nicknameImage != null)
-                _nicknameImage.gameObject.SetActive(hasPixel);
+                _nicknameImage.gameObject.SetActive(showPixel);
 
-            if (!hasPixel && _text != null)
-                _text.text = _owner.playerName;
+            if (_text != null)
+            {
+                _text.gameObject.SetActive(!showPixel);
+                if (!showPixel)
+                    _text.text = _owner.playerName;
+            }
 
             RefreshLikeCount();
         }
@@ -47,19 +45,9 @@ namespace PixelChroma
         public void RefreshPixelNickname(byte[] pngData)
         {
             if (_nicknameImage == null) return;
+            if (pngData == null || pngData.Length == 0) return;
 
-            if (pngData == null || pngData.Length == 0)
-            {
-                _nicknameImage.gameObject.SetActive(false);
-                if (_text != null)
-                {
-                    _text.gameObject.SetActive(true);
-                    _text.text = _owner.playerName;
-                }
-                return;
-            }
-
-            // 텍스처는 설정과 무관하게 항상 로드/캐시
+            // 텍스처 로드/캐시만 수행
             if (_cachedTexture == null)
             {
                 _cachedTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false)
@@ -72,17 +60,8 @@ namespace PixelChroma
             _cachedTexture.filterMode = FilterMode.Point;
             _nicknameImage.texture = _cachedTexture;
 
-            // 표시 여부는 설정에 따라
-            bool show = GameSettings.ShowPixelNickname;       
-            _nicknameImage.gameObject.SetActive(show);        
-
-            if (_text != null)
-            {
-                _text.gameObject.SetActive(!show);             
-                if (!show) _text.text = _owner.playerName;    
-            }
-
-            RefreshLikeCount();
+            // on/off 결정은 Refresh()에 위임
+            Refresh();
         }
 
         public void Cleanup() 
