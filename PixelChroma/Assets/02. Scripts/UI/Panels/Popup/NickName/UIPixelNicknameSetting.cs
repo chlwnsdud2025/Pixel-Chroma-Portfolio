@@ -1,14 +1,22 @@
+using Cysharp.Threading.Tasks;
+using DG.Tweening;
+using OneText.UGUI;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
-using Cysharp.Threading.Tasks;
-using DG.Tweening;
-using OneText.UGUI;
 
 namespace PixelChroma.UI
 {
+    [Serializable]
+    public class PresetSlot
+    {
+        public Button button;
+        public RawImage preview;
+    }
+
     public class UIPixelNicknameSetting : UIPopup
     {
         [Header("Canvas")]
@@ -40,13 +48,13 @@ namespace PixelChroma.UI
         [SerializeField] private RawImage previewImage;
 
         [Header("Presets")]
-        [SerializeField] private Button[] presetButtons;    // Inspector에서 3개 할당
+        [SerializeField] private PresetSlot[] presetSlots;    // 유저 프리셋 3개 (Button + RawImage)
         [SerializeField] private Color presetActiveColor = new Color(1f, 0.85f, 0.3f, 1f);
         [SerializeField] private Color presetInactiveColor = new Color(0.3f, 0.3f, 0.3f, 1f);
 
         [Header("Default Preset")]
-        [SerializeField] private Button defaultPresetButton;
-        [SerializeField] private Texture2D[] defaultImages;  // Inspector에서 기본 이미지들 할당
+        [SerializeField] private PresetSlot[] defaultPresetSlots;  // 기본 프리셋 3개 (Button + RawImage)
+        [SerializeField] private Texture2D[] defaultImages;        // Inspector에서 기본 이미지들 할당
 
         [Header("Animation")]
         [SerializeField] private RectTransform panel;
@@ -85,6 +93,7 @@ namespace PixelChroma.UI
         private byte[][] _presetCache;
         private bool _isDefaultPreset;
         private int _defaultImageIndex;
+        private Texture2D[] _presetPreviewTextures;   // ← 추가: 유저 프리셋 프리뷰 텍스처
 
         // ────────────────────── 라이프사이클 ──────────────────────
 
@@ -117,18 +126,24 @@ namespace PixelChroma.UI
             if (nicknameInputField != null)
                 nicknameInputField.characterLimit = maxNicknameLength;
 
-            if (presetButtons != null)
+            if (presetSlots != null)
             {
-                for (int i = 0; i < presetButtons.Length; i++)
+                for (int i = 0; i < presetSlots.Length; i++)
                 {
-                    int index = i;  // 클로저 캡처용 로컬 복사
-                    if (presetButtons[i] != null)
-                        presetButtons[i].AddClickListener(() => OnPresetSelected(index));
+                    int index = i;
+                    if (presetSlots[i].button != null)
+                        presetSlots[i].button.AddClickListener(() => OnPresetSelected(index));
                 }
             }
-            if (defaultPresetButton != null)
-                defaultPresetButton.AddClickListener(OnDefaultPresetSelected);
-
+            if (defaultPresetSlots != null)
+            {
+                for (int i = 0; i < defaultPresetSlots.Length; i++)
+                {
+                    int index = i;
+                    if (defaultPresetSlots[i].button != null)
+                        defaultPresetSlots[i].button.AddClickListener(() => OnDefaultPresetSelected(index));
+                }
+            }
             SetupCanvasDrag();
         }
 
@@ -200,6 +215,8 @@ namespace PixelChroma.UI
             if (_editTexture != null)   Destroy(_editTexture);
             if (_checkerTexture != null) Destroy(_checkerTexture);
             if (_hoverTexture != null)   Destroy(_hoverTexture);
+
+            CleanupPresetPreviews();
 
             if (colorPicker != null)
             {
@@ -808,43 +825,37 @@ namespace PixelChroma.UI
             else
                 ApplyPresetToCanvas(_activePresetIndex);
 
-            // 체커보드·호버는 최초 1회만
             GenerateCheckerboard();
             InitializeHoverOverlay();
 
+            RefreshDefaultPresetPreviews(); 
+            RefreshAllUserPresetPreviews(); 
             UpdatePresetToggleVisual();
             UpdateEditingLock();
         }
 
-        private void OnDefaultPresetSelected()
+        private void OnDefaultPresetSelected(int index)
         {
-            if (_isDefaultPreset)
+            // 이미 같은 기본 프리셋이 선택된 상태면 무시
+            if (_isDefaultPreset && _defaultImageIndex == index) return;
+
+            // 유저 프리셋에서 전환하는 경우: 현재 캔버스를 캐시에 보관
+            if (!_isDefaultPreset && _editTexture != null)
             {
-                // 이미 기본 모드 → 다음 이미지로 순환
-                if (defaultImages != null && defaultImages.Length > 0)
-                {
-                    _defaultImageIndex = (_defaultImageIndex + 1) % defaultImages.Length;
-                    ApplyDefaultToCanvas(_defaultImageIndex);
-                }
-                return;
+                _presetCache[_activePresetIndex] = _editTexture.EncodeToPNG();
+                RefreshUserPresetPreview(_activePresetIndex);
             }
 
-            // 유저 프리셋 → 기본 프리셋으로 전환
-            // 현재 캔버스를 유저 프리셋 캐시에 보관
-            if (_editTexture != null)
-                _presetCache[_activePresetIndex] = _editTexture.EncodeToPNG();
-
             _isDefaultPreset = true;
-            _defaultImageIndex = PixelNicknameService.LoadDefaultImageIndex();
+            _defaultImageIndex = index;
 
-            ApplyDefaultToCanvas(_defaultImageIndex);
+            ApplyDefaultToCanvas(index);
             UpdatePresetToggleVisual();
             UpdateEditingLock();
         }
 
         private void OnPresetSelected(int index)
         {
-            // 기본 프리셋에서 유저 프리셋으로 복귀
             if (_isDefaultPreset)
             {
                 _isDefaultPreset = false;
@@ -858,8 +869,11 @@ namespace PixelChroma.UI
             if (index == _activePresetIndex) return;
 
             // 현재 캔버스 작업물을 기존 프리셋 캐시에 임시 보관
+            int prevIndex = _activePresetIndex;
             if (_editTexture != null)
-                _presetCache[_activePresetIndex] = _editTexture.EncodeToPNG();
+                _presetCache[prevIndex] = _editTexture.EncodeToPNG();
+
+            RefreshUserPresetPreview(prevIndex);   // ← 추가: 떠나는 프리셋 프리뷰 갱신
 
             _activePresetIndex = index;
             ApplyPresetToCanvas(index);
@@ -927,13 +941,12 @@ namespace PixelChroma.UI
         private void UpdatePresetToggleVisual()
         {
             // 유저 프리셋 버튼
-            if (presetButtons != null)
+            if (presetSlots != null)
             {
-                for (int i = 0; i < presetButtons.Length; i++)
+                for (int i = 0; i < presetSlots.Length; i++)
                 {
-                    if (presetButtons[i] == null) continue;
-
-                    var img = presetButtons[i].GetComponent<Image>();
+                    if (presetSlots[i].button == null) continue;
+                    var img = presetSlots[i].button.GetComponent<Image>();
                     if (img != null)
                     {
                         bool active = !_isDefaultPreset && i == _activePresetIndex;
@@ -943,11 +956,18 @@ namespace PixelChroma.UI
             }
 
             // 기본 프리셋 버튼
-            if (defaultPresetButton != null)
+            if (defaultPresetSlots != null)
             {
-                var img = defaultPresetButton.GetComponent<Image>();
-                if (img != null)
-                    img.color = _isDefaultPreset ? presetActiveColor : presetInactiveColor;
+                for (int i = 0; i < defaultPresetSlots.Length; i++)
+                {
+                    if (defaultPresetSlots[i].button == null) continue;
+                    var img = defaultPresetSlots[i].button.GetComponent<Image>();
+                    if (img != null)
+                    {
+                        bool active = _isDefaultPreset && i == _defaultImageIndex;
+                        img.color = active ? presetActiveColor : presetInactiveColor;
+                    }
+                }
             }
         }
 
@@ -977,6 +997,97 @@ namespace PixelChroma.UI
 
             _editTexture.SetPixels32(new Color32[canvasWidth * canvasHeight]);
             _editTexture.Apply();
+        }
+
+        // ────────────────────── 프리셋 프리뷰 ──────────────────────
+
+        /// <summary>
+        /// 기본 프리셋 프리뷰: defaultImages[i]를 직접 할당 (텍스처 생성 불필요)
+        /// </summary>
+        private void RefreshDefaultPresetPreviews()
+        {
+            if (defaultPresetSlots == null || defaultImages == null) return;
+
+            for (int i = 0; i < defaultPresetSlots.Length; i++)
+            {
+                if (defaultPresetSlots[i].preview == null) continue;
+
+                if (i < defaultImages.Length && defaultImages[i] != null)
+                {
+                    defaultPresetSlots[i].preview.texture = defaultImages[i];
+                    defaultPresetSlots[i].preview.uvRect = new Rect(0, 0, 1, 1);
+                    defaultPresetSlots[i].preview.enabled = true;
+                }
+                else
+                {
+                    defaultPresetSlots[i].preview.texture = null;
+                    defaultPresetSlots[i].preview.enabled = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 유저 프리셋 프리뷰 전체 갱신: _presetCache[i]의 PNG → Texture2D
+        /// </summary>
+        private void RefreshAllUserPresetPreviews()
+        {
+            if (presetSlots == null) return;
+
+            if (_presetPreviewTextures == null)
+                _presetPreviewTextures = new Texture2D[presetSlots.Length];
+
+            for (int i = 0; i < presetSlots.Length; i++)
+                RefreshUserPresetPreview(i);
+        }
+
+        /// <summary>
+        /// 특정 유저 프리셋 프리뷰만 갱신
+        /// </summary>
+        private void RefreshUserPresetPreview(int index)
+        {
+            if (presetSlots == null || _presetPreviewTextures == null) return;
+            if (index < 0 || index >= presetSlots.Length) return;
+            if (presetSlots[index].preview == null) return;
+
+            // 기존 텍스처 정리
+            if (_presetPreviewTextures[index] != null)
+                Destroy(_presetPreviewTextures[index]);
+
+            byte[] data = (index < _presetCache.Length) ? _presetCache[index] : null;
+
+            if (data != null && data.Length > 0)
+            {
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+                {
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp
+                };
+                tex.LoadImage(data);
+                _presetPreviewTextures[index] = tex;
+                presetSlots[index].preview.texture = tex;
+                presetSlots[index].preview.uvRect = new Rect(0, 0, 1, 1);
+                presetSlots[index].preview.enabled = true;
+            }
+            else
+            {
+                _presetPreviewTextures[index] = null;
+                presetSlots[index].preview.texture = null;
+                presetSlots[index].preview.enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// 프리뷰 텍스처 메모리 정리
+        /// </summary>
+        private void CleanupPresetPreviews()
+        {
+            if (_presetPreviewTextures == null) return;
+            for (int i = 0; i < _presetPreviewTextures.Length; i++)
+            {
+                if (_presetPreviewTextures[i] != null)
+                    Destroy(_presetPreviewTextures[i]);
+            }
+            _presetPreviewTextures = null;
         }
     }
 }
