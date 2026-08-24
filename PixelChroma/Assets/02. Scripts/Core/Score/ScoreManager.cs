@@ -18,32 +18,30 @@ namespace PixelChroma
         [SerializeField] private int scorePerSeekerVisible = 10;   // Seeker 1명 보일 때마다 주는 점수
         [SerializeField] private float visionRange = 12f;          // 시야 범위 (카메라 대리)
 
-        [Header("Catch Score")]
-        [SerializeField] private int catchBaseScore = 100;           // 처치 기본 점수
-        [SerializeField] private float catchScorePercent = 0.2f;     // 러너 점수의 20%
-
         [Header("Survival Bonus")]
         [SerializeField] private float survivalBonusPercent = 0.3f;  // 생존 보너스 30%
 
         private readonly Dictionary<int, int> _scores = new();
+        private readonly HashSet<int> _frozenPlayers = new();
         private CancellationTokenSource _cts;
         private CancellationTokenSource _visionCts;
-        public int CatchBaseScore => catchBaseScore;
-        public float CatchScorePercent => catchScorePercent;
+
         public float SurvivalBonusPercent => survivalBonusPercent;
 
         public float VisionRange => visionRange;
+
 
         // ── 점수 조작 API (서버에서 호출) ──
 
         public void AddScore(int connectionId, int amount)
         {
+            if (_frozenPlayers.Contains(connectionId)) return;   // ← 동결 체크
+
             if (!_scores.ContainsKey(connectionId))
                 _scores[connectionId] = 0;
 
             _scores[connectionId] += amount;
         }
-
         public void SetScore(int connectionId, int value)
         {
             _scores[connectionId] = value;
@@ -75,6 +73,7 @@ namespace PixelChroma
             StopBroadcast();
             StopVisionScoring();
             _scores.Clear();
+            _frozenPlayers.Clear();
         }
 
         private void OnDestroy()
@@ -120,6 +119,7 @@ namespace PixelChroma
         {
             if (!NetworkServer.active) return;
 
+
             var sorted = _scores
                 .OrderByDescending(kv => kv.Value)
                 .Select((kv, index) => new ScoreEntry
@@ -132,6 +132,7 @@ namespace PixelChroma
                     pixelNicknamePng = NicknameRegistry.TryGetPixel(kv.Key, out var png) ? png : System.Array.Empty<byte>()
                 })
                 .ToArray();
+
 
             NetworkServer.SendToAll(new ScoreBoardMessage
             {
@@ -206,14 +207,9 @@ namespace PixelChroma
             return 0;
         }
 
-        public int GetConnectionIdByNetId(uint netId)
+        public void FreezeScore(int connectionId)
         {
-            foreach (var kv in NetworkServer.connections)
-            {
-                if (kv.Value.identity != null && kv.Value.identity.netId == netId)
-                    return kv.Key;
-            }
-            return -1;
+            _frozenPlayers.Add(connectionId);
         }
     }
 }

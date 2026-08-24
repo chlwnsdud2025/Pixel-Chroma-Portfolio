@@ -134,13 +134,19 @@ namespace PixelChroma
         {
             SetTimeState(TimeState.HideTime, OptionHideTime);
 
-            // ── 점수 시스템 시작 ──
             if (ScoreManager.Instance != null)
             {
                 ScoreManager.Instance.ResetAll();
 
+                // Runner만 점수 초기화
                 foreach (var conn in NetworkServer.connections.Values)
-                    ScoreManager.Instance.SetScore(conn.connectionId, 0);
+                {
+                    if (_assignedRoles.TryGetValue(conn.connectionId, out var role)
+                        && role == PlayerRole.Runner)
+                    {
+                        ScoreManager.Instance.SetScore(conn.connectionId, 0);
+                    }
+                }
 
                 ScoreManager.Instance.StartBroadcast();
                 ScoreManager.Instance.StartVisionScoring();

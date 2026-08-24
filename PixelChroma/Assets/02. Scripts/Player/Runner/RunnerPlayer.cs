@@ -145,18 +145,8 @@ namespace PixelChroma
             if (_isDead) return;
             _isDead = true;
 
-            // ── 술래 처치 점수 ──
             if (ScoreManager.Instance != null && connectionToClient != null)
-            {
-                // catcherNetId로 술래의 connectionId 찾기
-                int catcherConnId = ScoreManager.Instance.GetConnectionIdByNetId(catcherNetId);
-                if (catcherConnId >= 0)
-                {
-                    int runnerScore = ScoreManager.Instance.GetScore(connectionToClient.connectionId);
-                    int bonus = Mathf.RoundToInt(runnerScore * ScoreManager.Instance.CatchScorePercent);
-                    ScoreManager.Instance.AddScore(catcherConnId, ScoreManager.Instance.CatchBaseScore + bonus);
-                }
-            }
+                ScoreManager.Instance.FreezeScore(connectionToClient.connectionId);
 
             _pendingKnockback = new KnockbackInfo { dir = knockbackDir, impulse = impulse, drag = drag, rotSpeed = rotSpeed };
             _deathSnapshot.Capture(transform, paintCanvas);
