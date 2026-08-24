@@ -84,7 +84,11 @@ namespace PixelChroma.UI
         protected override async UniTask OnShowAnimation()
         {
             if (panel != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(panel);
+                await UniTask.NextFrame();
                 await panel.DOScale(Vector3.one, animationDuration).SetEase(Ease.OutBack).ToUniTask();
+            }
         }
 
         protected override async UniTask OnHideAnimation()

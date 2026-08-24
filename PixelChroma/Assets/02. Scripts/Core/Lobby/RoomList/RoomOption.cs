@@ -33,7 +33,8 @@ namespace PixelChroma
         public const float MaxCheckTime = 600f;
         public const float MinForcedExposeInterval = 0f;
         public const float TimeStep = 10f;
-        // 외곽선 엠보스(하이라이트/쉐도우)는 0~1 비율. PlayerPaintCanvas.Recomposite()가 소비한다.
+        // 외곽선 엠보스(하이라이트/쉐도우)는 0~1 비율(풀 강도). PlayerPaintCanvas.Recomposite()가 소비한다.
+        // UI 표기는 UIEmbossSetting에서 0~50 스케일로 변환하지만, 저장값은 0~1 그대로다.
         public const float MinEmboss = 0f;
         public const float MaxEmboss = 1f;
 

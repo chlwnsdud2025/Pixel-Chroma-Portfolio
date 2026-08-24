@@ -9,12 +9,12 @@ namespace PixelChroma.UI
     // RoomOption의 소유권은 UIRoomSetting에 있고, 여기서는 Bind로 받은 참조에 값만 반영한다.
     // 실제 라운드 적용은 PlayerPaintCanvas가 CurrentRoomOption에서 값을 읽어 처리한다.
     //
-    // 내부 저장값(RoomOption.edgeHighlight/Shadow)은 0~1이지만, 다른 GameSetting 슬라이더들과
-    // 시각적 톤을 맞추기 위해 슬라이더/입력창은 정수 %(0~100)로 다룬다.
+    // 내부 저장값(RoomOption.edgeHighlight/Shadow)은 0~1(풀 강도)이지만, 슬라이더/입력창은
+    // 정수 표기 0~50 스케일로 다룬다. 표기만 0~50이고 효과 세기는 0~1 풀 강도를 유지한다.
     public class UIEmbossSetting : MonoBehaviour
     {
-        // 0~1 저장값 ↔ 0~100 UI 표기 변환 계수.
-        private const float PercentScale = 100f;
+        // 0~1 저장값 ↔ 0~50 UI 표기 변환 계수. (슬라이더 50 = 내부 1.0 = 풀 강도)
+        private const float PercentScale = 50f;
 
         [Header("Highlight")]
         [SerializeField] private Slider highlightSlider;
@@ -43,7 +43,7 @@ namespace PixelChroma.UI
             if (highlightInput != null) highlightInput.onEndEdit.AddListener(OnHighlightInput);
             if (shadowInput != null) shadowInput.onEndEdit.AddListener(OnShadowInput);
 
-            // 슬라이더는 0~100(%) 정수 스케일. 저장 시 /100 하여 0~1로 되돌린다.
+            // 슬라이더는 0~50 정수 스케일. 저장 시 PercentToValue로 0~1(풀 강도)로 되돌린다.
             SetupSlider(highlightSlider, ToPercent(RoomOption.MinEmboss), ToPercent(RoomOption.MaxEmboss), OnHighlightChanged);
             SetupSlider(shadowSlider, ToPercent(RoomOption.MinEmboss), ToPercent(RoomOption.MaxEmboss), OnShadowChanged);
 
@@ -68,7 +68,7 @@ namespace PixelChroma.UI
         }
 
         // 슬라이더와 InputField가 같은 clamp 규칙을 공유하도록 값 설정을 한곳에 모은다.
-        // percent 입력(0~100)을 받아 0~1로 저장한다.
+        // percent 입력(0~50)을 받아 0~1로 저장한다.
         private void SetHighlight(float percent)
         {
             _option.edgeHighlight = PercentToValue(percent);
@@ -85,7 +85,7 @@ namespace PixelChroma.UI
             RaiseChanged();
         }
 
-        // 슬라이더는 이미 0~100 범위로 clamp되어 있으므로 그대로 /100 저장한다.
+        // 슬라이더는 이미 0~50 범위로 clamp되어 있으므로 PercentToValue로 0~1 저장한다.
         private void OnHighlightChanged(float percent)
         {
             if (_option == null) return;
@@ -141,13 +141,13 @@ namespace PixelChroma.UI
             OnEmbossChanged?.Invoke(_option.edgeHighlight, _option.edgeShadow);
         }
 
-        // 0~1 저장값을 0~100 표기로.
+        // 0~1 저장값을 0~50 표기로.
         private static float ToPercent(float value01)
         {
             return value01 * PercentScale;
         }
 
-        // 0~100 입력을 clamp 후 0~1로.
+        // 0~50 입력을 0~1로 변환 후 clamp.
         private static float PercentToValue(float percent)
         {
             float value01 = percent / PercentScale;
