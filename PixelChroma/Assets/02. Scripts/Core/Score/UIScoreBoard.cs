@@ -96,11 +96,11 @@ namespace PixelChroma.UI
 
         private void HandleTimerTick(int remainingSeconds)
         {
-            _refreshCountdown--;
-            if (_refreshCountdown < 0) _refreshCountdown = 0;
-
             if (refreshTimerText != null)
                 refreshTimerText.text = _refreshCountdown.ToString();
+
+            _refreshCountdown--;
+            if (_refreshCountdown < 0) _refreshCountdown = 0;
         }
     }
 }
