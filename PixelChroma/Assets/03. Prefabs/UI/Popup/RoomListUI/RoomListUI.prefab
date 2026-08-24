@@ -83,7 +83,7 @@ GameObject:
   - component: {fileID: 930012496991803550}
   - component: {fileID: 4166616304336641388}
   m_Layer: 5
-  m_Name: DropDown
+  m_Name: LanguageDropDownLayout
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -770,7 +770,7 @@ GameObject:
   - component: {fileID: 7310341852125552864}
   - component: {fileID: 7719098869810485192}
   m_Layer: 5
-  m_Name: Dropdown
+  m_Name: GameModeDropDown
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -911,7 +911,7 @@ GameObject:
   - component: {fileID: 2142654206513926895}
   - component: {fileID: 3659911132200659936}
   m_Layer: 5
-  m_Name: Dropdown
+  m_Name: MapNameDropDown
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1423,7 +1423,7 @@ GameObject:
   - component: {fileID: 492888472330854564}
   - component: {fileID: 838481346607919910}
   m_Layer: 5
-  m_Name: DropDown
+  m_Name: MapNameDropDownLayout
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1642,7 +1642,7 @@ GameObject:
   - component: {fileID: 680505153119053920}
   - component: {fileID: 3448394667619873718}
   m_Layer: 5
-  m_Name: GameObject (1)
+  m_Name: ButtonPanelLayout
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2286,7 +2286,7 @@ GameObject:
   - component: {fileID: 8746913199927112645}
   - component: {fileID: 4110181872124961601}
   m_Layer: 5
-  m_Name: Button (1)
+  m_Name: SearchButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5231,17 +5231,17 @@ MonoBehaviour:
   dimmed: {fileID: 7837791830115065488}
   closeOnDimmedClick: 1
   closeOnEscape: 1
-  gameModeDropdown: {fileID: 0}
-  mapDropdown: {fileID: 0}
-  languageDropdown: {fileID: 0}
-  roomNameInput: {fileID: 0}
-  searchButton: {fileID: 0}
-  refreshButton: {fileID: 0}
+  gameModeDropdown: {fileID: 7719098869810485192}
+  mapDropdown: {fileID: 3659911132200659936}
+  languageDropdown: {fileID: 1303656644590455511}
+  roomNameInput: {fileID: 3153896027546967351}
+  searchButton: {fileID: 4110181872124961601}
+  refreshButton: {fileID: 8234598418495229191}
   closeButton: {fileID: 8859553538889749938}
-  listContent: {fileID: 0}
+  listContent: {fileID: 8768628270408312500}
   itemPrefab: {fileID: 7459665752233451580, guid: 5a878252200896445afb84112d904ff2, type: 3}
   emptyRoot: {fileID: 0}
-  statusText: {fileID: 0}
+  statusText: {fileID: 8582182397038105050}
   panel: {fileID: 1709060613854895713}
   animationDuration: 0.25
   textData: {fileID: 11400000, guid: a7536a16f591f40429e66367aec3eaad, type: 2}
@@ -5500,7 +5500,7 @@ GameObject:
   - component: {fileID: 3315280338149031100}
   - component: {fileID: 3357873037339819448}
   m_Layer: 5
-  m_Name: DropDown
+  m_Name: GameModeDropDownLayout
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5803,7 +5803,7 @@ GameObject:
   - component: {fileID: 3894370425751140459}
   - component: {fileID: 8234598418495229191}
   m_Layer: 5
-  m_Name: Button
+  m_Name: RefreshButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5998,7 +5998,7 @@ GameObject:
   - component: {fileID: 7782763346809238119}
   - component: {fileID: 1303656644590455511}
   m_Layer: 5
-  m_Name: Dropdown
+  m_Name: LanguageDropDown
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
