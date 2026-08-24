@@ -22,6 +22,7 @@ namespace PixelChroma.UI
 
         private readonly List<UIScoreRow> _pool = new();
 
+        private int _refreshCountdown;
         // ── 초기화 ──
 
         public void Initialize()
@@ -56,7 +57,8 @@ namespace PixelChroma.UI
 
         private void OnScoreBoardReceived(ScoreBoardMessage msg)
         {
-            RebuildRows(msg.entries);    // 타이머 관련 코드 제거, 데이터 갱신만
+            _refreshCountdown = Mathf.RoundToInt(msg.refreshInterval);    // 카운트다운 리셋
+            RebuildRows(msg.entries);
         }
 
         // ── UI 구축 (오브젝트 풀링) ──
@@ -94,8 +96,11 @@ namespace PixelChroma.UI
 
         private void HandleTimerTick(int remainingSeconds)
         {
+            _refreshCountdown--;
+            if (_refreshCountdown < 0) _refreshCountdown = 0;
+
             if (refreshTimerText != null)
-                refreshTimerText.text = remainingSeconds.ToString();
+                refreshTimerText.text = _refreshCountdown.ToString();
         }
     }
 }
