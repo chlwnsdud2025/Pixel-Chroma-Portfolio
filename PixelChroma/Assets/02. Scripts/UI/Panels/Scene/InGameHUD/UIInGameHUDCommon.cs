@@ -96,6 +96,8 @@ namespace PixelChroma.UI
         public void SetPaintMode(bool active)
         {
             if (paintModeRoot != null) paintModeRoot.SetActive(active);
+
+            if (scoreBoard != null) scoreBoard.SetVisible(!active);
         }
 
         public void ResetHUDState()

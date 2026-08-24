@@ -87,13 +87,32 @@ namespace PixelChroma
 
         private async UniTaskVoid BroadcastLoop(CancellationToken token)
         {
+            // 모든 클라이언트 준비 대기 (최대 5초, 초과 시 그냥 진행)
+            float timeout = 5f;
+            float elapsed = 0f;
+
+            while (elapsed < timeout)
+            {
+                if (NetworkServer.connections.Values.All(conn => conn.isReady))
+                    break;
+
+                await UniTask.Delay(
+                    System.TimeSpan.FromSeconds(0.5f),
+                    cancellationToken: token
+                );
+                elapsed += 0.5f;
+            }
+
+            SendScoreBoard();
+
+            // 이후 정상 주기
             while (!token.IsCancellationRequested)
             {
                 await UniTask.Delay(
                     System.TimeSpan.FromSeconds(broadcastInterval),
                     cancellationToken: token
                 );
-                SendScoreBoard();   // ← delay 후에 전송
+                SendScoreBoard();
             }
         }
 

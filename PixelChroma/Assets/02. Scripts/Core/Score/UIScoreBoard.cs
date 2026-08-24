@@ -17,10 +17,10 @@ namespace PixelChroma.UI
         [Header("Pool")]
         [SerializeField] private int initialPoolSize = 6;
 
+        [Header("Visibility")]
+        [SerializeField] private GameObject visualRoot;
+
         private readonly List<UIScoreRow> _pool = new();
-        private float _refreshCountdown;
-        private float _refreshInterval;
-        private bool _isActive;
 
         // ── 초기화 ──
 
@@ -43,36 +43,20 @@ namespace PixelChroma.UI
         private void OnEnable()
         {
             NetworkClient.RegisterHandler<ScoreBoardMessage>(OnScoreBoardReceived);
-            _isActive = true;
+            GameRoundManager.OnTimerTick += HandleTimerTick;
         }
 
         private void OnDisable()
         {
             NetworkClient.UnregisterHandler<ScoreBoardMessage>();
-            _isActive = false;
-        }
-
-        // ── 매 프레임: 갱신 카운트다운 ──
-
-        private void Update()
-        {
-            if (!_isActive || _refreshInterval <= 0f) return;
-
-            _refreshCountdown -= Time.deltaTime;
-            if (_refreshCountdown < 0f) _refreshCountdown = 0f;
-
-            if (refreshTimerText != null)
-                refreshTimerText.text = $"{Mathf.CeilToInt(_refreshCountdown)}";
+            GameRoundManager.OnTimerTick -= HandleTimerTick;
         }
 
         // ── 네트워크 수신 ──
 
         private void OnScoreBoardReceived(ScoreBoardMessage msg)
         {
-            _refreshInterval  = msg.refreshInterval;
-            _refreshCountdown = msg.refreshInterval;
-
-            RebuildRows(msg.entries);
+            RebuildRows(msg.entries);    // 타이머 관련 코드 제거, 데이터 갱신만
         }
 
         // ── UI 구축 (오브젝트 풀링) ──
@@ -101,6 +85,17 @@ namespace PixelChroma.UI
             {
                 _pool[i].ResetRow();
             }
+        }
+
+        public void SetVisible(bool visible)
+        {
+            if (visualRoot != null) visualRoot.SetActive(visible);
+        }
+
+        private void HandleTimerTick(int remainingSeconds)
+        {
+            if (refreshTimerText != null)
+                refreshTimerText.text = remainingSeconds.ToString();
         }
     }
 }
