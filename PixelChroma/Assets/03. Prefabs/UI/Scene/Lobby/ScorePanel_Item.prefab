@@ -48,7 +48,7 @@ GameObject:
   - component: {fileID: 8880815697176617761}
   - component: {fileID: 5474218713536290390}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: ScoreText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -135,7 +135,7 @@ MonoBehaviour:
   _autoSize: 1
   _autoSizeMin: 10
   _autoSizeMax: 128
-  _alignment: 1
+  _alignment: 2
   _verticalAlignment: 1
   _writingMode: 0
   _wrap: 1
@@ -234,7 +234,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: -10}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3432711421471396832
 CanvasRenderer:
@@ -447,7 +447,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
-  m_MinWidth: 110
+  m_MinWidth: 200
   m_MinHeight: -1
   m_PreferredWidth: -1
   m_PreferredHeight: -1
@@ -470,7 +470,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &8515849533117155982
 RectTransform:
   m_ObjectHideFlags: 0
@@ -486,10 +486,10 @@ RectTransform:
   - {fileID: 8845987447453648251}
   m_Father: {fileID: 5909891803718048486}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 337, y: -13}
+  m_SizeDelta: {x: 26, y: 26}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &3463143836620254534
 MonoBehaviour:
@@ -542,14 +542,14 @@ RectTransform:
   m_Children:
   - {fileID: 8218965520680554744}
   - {fileID: 2007650331179184433}
-  - {fileID: 8515849533117155982}
   - {fileID: 2044101934684303390}
+  - {fileID: 8515849533117155982}
   m_Father: {fileID: 307231308868821366}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -6, y: -4}
+  m_SizeDelta: {x: -10, y: -4}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &5796489511063053226
 MonoBehaviour:
@@ -588,7 +588,7 @@ GameObject:
   - component: {fileID: 2044101934684303390}
   - component: {fileID: 7119057720717932567}
   m_Layer: 5
-  m_Name: ScoreText
+  m_Name: ScoreTextPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -684,7 +684,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
-  m_MinWidth: 30
+  m_MinWidth: 50
   m_MinHeight: -1
   m_PreferredWidth: -1
   m_PreferredHeight: -1
@@ -840,7 +840,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 307231308868821366}
-  - component: {fileID: 4563481229052376958}
+  - component: {fileID: 3477856403701649507}
   m_Layer: 5
   m_Name: ScorePanel_Item
   m_TagString: Untagged
@@ -869,7 +869,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 360, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &4563481229052376958
+--- !u!114 &3477856403701649507
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -878,15 +878,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 5934586173278603926}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b96fb68b08875d4aab69f1ab7ea85c1, type: 3}
+  m_Script: {fileID: 11500000, guid: 7ed2c2f3158966749be215a321bc551f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIWorkshopMemberSlot
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIScoreRow
+  rankText: {fileID: 2587081962745570840}
   nameText: {fileID: 8851786851095143563}
-  nicknameImage: {fileID: 832983024279928727}
-  statusText: {fileID: 2587081962745570840}
-  installedColor: {r: 0.495283, g: 1, b: 0.495283, a: 1}
-  notInstalledColor: {r: 1, g: 0.4481132, b: 0.4481132, a: 1}
-  kickButton: {fileID: 0}
+  scoreText: {fileID: 5474218713536290390}
+  pixelNicknameImage: {fileID: 832983024279928727}
+  backgroundImage: {fileID: 5907609167269045636}
+  normalColor: {r: 1, g: 1, b: 1, a: 0.78431374}
+  selfColor: {r: 0.3820755, g: 0.5880504, b: 1, a: 0.78431374}
 --- !u!1 &6214247812453049839
 GameObject:
   m_ObjectHideFlags: 0
@@ -971,12 +972,12 @@ GameObject:
   - component: {fileID: 7582670431400349060}
   - component: {fileID: 5907609167269045636}
   m_Layer: 5
-  m_Name: GameObject
+  m_Name: BG
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &2407328332707610126
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1024,7 +1025,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7364211495118198464, guid: b1608dbdd03693f4eaeabd222692ac51, type: 3}
+  m_Sprite: {fileID: 3222175596317814940, guid: dd508a492656ff8438a6ef1bc38e0697, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1033,4 +1034,4 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 4
+  m_PixelsPerUnitMultiplier: 2.5

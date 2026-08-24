@@ -133,6 +133,19 @@ namespace PixelChroma
         public void BeginRound()
         {
             SetTimeState(TimeState.HideTime, OptionHideTime);
+
+            // ── 점수 시스템 시작 ──
+            if (ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.ResetAll();
+
+                foreach (var conn in NetworkServer.connections.Values)
+                    ScoreManager.Instance.SetScore(conn.connectionId, 0);
+
+                ScoreManager.Instance.StartBroadcast();
+                ScoreManager.Instance.StartVisionScoring();
+            }
+
             Debug.Log($"[GameRound] 인게임 씬 진입 확인. 타이머 가동 시작: {OptionHideTime}초");
         }
 
@@ -185,10 +198,26 @@ namespace PixelChroma
             if (aliveRunners == 0)
             {
                 SetWinner(PlayerRole.Seeker);
+                GrantSurvivalBonus();
                 SetTimeState(TimeState.CheckTime, OptionCheckTime);
             }
         }
+        [Server]
+        private void GrantSurvivalBonus()
+        {
+            if (ScoreManager.Instance == null || InGameManager.Instance == null) return;
 
+            foreach (var runner in InGameManager.Instance.Runners)
+            {
+                if (runner == null || runner.IsDead) continue;
+                if (runner.connectionToClient == null) continue;
+
+                int connId = runner.connectionToClient.connectionId;
+                int currentScore = ScoreManager.Instance.GetScore(connId);
+                int bonus = Mathf.RoundToInt(currentScore * ScoreManager.Instance.SurvivalBonusPercent);
+                ScoreManager.Instance.AddScore(connId, bonus);
+            }
+        }
         [Server]
         private void HandleTimerExpired()
         {
@@ -235,6 +264,7 @@ namespace PixelChroma
         private void OnSeekTimeExpired()
         {
             SetWinner(PlayerRole.Runner);
+            GrantSurvivalBonus();
             SetTimeState(TimeState.CheckTime, OptionCheckTime);
         }
 

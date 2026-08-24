@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3812511012292489898}
   - component: {fileID: 376871433658932499}
   - component: {fileID: 5608905904617246084}
+  - component: {fileID: 5277658847543754760}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -75,7 +76,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d6e4a844a0b32440b791a292893edd7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.InGameManager
-  spectateTransitionTime: 5
 --- !u!114 &5608905904617246084
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -89,3 +89,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.GameRoundManager
   forcedExposeDuration: 0
+--- !u!114 &5277658847543754760
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1692573125789801173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84bfe5c84b9b8044c960d022d531bf3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.ScoreManager
+  broadcastInterval: 1
+  visionCheckInterval: 1
+  scorePerSeekerVisible: 10
+  visionRange: 6.5
+  catchBaseScore: 100
+  catchScorePercent: 0.2
+  survivalBonusPercent: 0.3

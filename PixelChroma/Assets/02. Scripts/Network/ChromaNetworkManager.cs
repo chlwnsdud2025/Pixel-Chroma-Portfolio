@@ -165,7 +165,9 @@ namespace PixelChroma
                 InGameManager.Instance?.ResetState();
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
                 LikeManager.ClearRecords();
+                ScoreManager.Instance?.ResetAll();
             }
+
         }
 
         // 씬 로드가 시작되기 직전에 호출된다.

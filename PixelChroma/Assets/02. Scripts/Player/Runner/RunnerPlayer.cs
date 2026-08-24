@@ -139,11 +139,25 @@ namespace PixelChroma
 
         //--------------------------------------사망시 로직(모드따라 다름)------------------------------------------
         [Server]
-        public void ServerNotifyCaught(string catcherName, uint catcherNetId,  
-            Vector2 knockbackDir = default, float impulse = 0f, float drag = 5f, float rotSpeed = 720f)
+        public void ServerNotifyCaught(string catcherName, uint catcherNetId,
+    Vector2 knockbackDir = default, float impulse = 0f, float drag = 5f, float rotSpeed = 720f)
         {
             if (_isDead) return;
             _isDead = true;
+
+            // ── 술래 처치 점수 ──
+            if (ScoreManager.Instance != null && connectionToClient != null)
+            {
+                // catcherNetId로 술래의 connectionId 찾기
+                int catcherConnId = ScoreManager.Instance.GetConnectionIdByNetId(catcherNetId);
+                if (catcherConnId >= 0)
+                {
+                    int runnerScore = ScoreManager.Instance.GetScore(connectionToClient.connectionId);
+                    int bonus = Mathf.RoundToInt(runnerScore * ScoreManager.Instance.CatchScorePercent);
+                    ScoreManager.Instance.AddScore(catcherConnId, ScoreManager.Instance.CatchBaseScore + bonus);
+                }
+            }
+
             _pendingKnockback = new KnockbackInfo { dir = knockbackDir, impulse = impulse, drag = drag, rotSpeed = rotSpeed };
             _deathSnapshot.Capture(transform, paintCanvas);
             RpcNotifyCaught(catcherName, playerName, catcherNetId, netId);
@@ -492,6 +506,14 @@ namespace PixelChroma
             }
         }
 
+#if UNITY_EDITOR
+        private void OnDrawGizmosSelected()
+        {
+            if (ScoreManager.Instance == null) return;
 
+            Gizmos.color = new Color(0f, 1f, 0f, 0.25f);
+            Gizmos.DrawWireSphere(transform.position, ScoreManager.Instance.VisionRange);
+        }
+#endif
     }
 }

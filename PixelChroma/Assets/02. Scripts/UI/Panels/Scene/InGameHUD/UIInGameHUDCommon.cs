@@ -30,6 +30,9 @@ namespace PixelChroma.UI
         [SerializeField] private float resultAppearStartScale = 0.8f;
         [SerializeField] private float resultHoldDuration = 2f;
 
+        [Header("Score Board")]
+        [SerializeField] private UIScoreBoard scoreBoard;
+
         [Header("Game Mode UI")]
         [SerializeField] private OneTextLabel modeText;
         [SerializeField] private GameModeRegistrySO gameModeRegistry;
@@ -69,6 +72,7 @@ namespace PixelChroma.UI
                 resultBaseAnchoredPos = ((RectTransform)resultOverlayGroup.transform).anchoredPosition;
                 resultOverlayGroup.gameObject.SetActive(false);
             }
+            if (scoreBoard != null) scoreBoard.Initialize();
         }
 
         public void SubscribeEvents()
