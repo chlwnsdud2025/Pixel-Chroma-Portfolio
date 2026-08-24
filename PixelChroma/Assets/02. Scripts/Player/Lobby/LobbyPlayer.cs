@@ -1,22 +1,26 @@
+using Mirror;
 using PixelChroma.UI;
 using UnityEngine;
+using System;
 
 namespace PixelChroma
 {
-    // 이제 LobbyPlayer는 독자적인 isReady 변수를 가지지 않고, 
-    // 같은 프리팹에 붙어있는 LobbyPlayerState의 데이터를 가져다 씁니다.
     public class LobbyPlayer : PlayerBase
     {
         [Header("Lobby Ready UI")]
         [Tooltip("레디 시 켜질 체크마크 이미지 오브젝트를 연결해주세요.")]
         [SerializeField] private GameObject readyCheckObject;
 
+        [Header("Crown")]
+        [SerializeField] private GameObject crownObject;
+
         private LobbyPlayerState _lobbyState;
+
+        private static event Action<uint> _onCrownReceived;
 
         protected override void Awake()
         {
             base.Awake();
-            // 같은 프리팹에 있는 상태 관리 스크립트를 찾아옵니다.
             _lobbyState = GetComponent<LobbyPlayerState>();
         }
 
@@ -24,12 +28,19 @@ namespace PixelChroma
         {
             base.OnStartClient();
             LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
+
+            _onCrownReceived += HandleCrown;
+
+            NetworkClient.RegisterHandler<CrownMessage>(OnCrownMessage);
+
             UpdateReadyImage();
+            if (crownObject != null) crownObject.SetActive(false);
         }
 
         public override void OnStopClient()
         {
             LobbyPlayerState.OnReadyChanged -= UpdateReadyImage;
+            _onCrownReceived -= HandleCrown;
             base.OnStopClient();
         }
 
@@ -50,6 +61,17 @@ namespace PixelChroma
             {
                 readyCheckObject.SetActive(_lobbyState.isReady);
             }
+        }
+
+        private static void OnCrownMessage(CrownMessage msg)
+        {
+            _onCrownReceived?.Invoke(msg.topScorerNetId);
+        }
+
+        private void HandleCrown(uint topNetId)
+        {
+            if (crownObject == null) return;
+            crownObject.SetActive(netId == topNetId);
         }
     }
 }

@@ -205,6 +205,7 @@ namespace PixelChroma
             {
                 SetWinner(PlayerRole.Seeker);
                 GrantSurvivalBonus();
+                ScoreManager.Instance?.SaveTopScorer();
                 SetTimeState(TimeState.CheckTime, OptionCheckTime);
             }
         }
@@ -271,6 +272,7 @@ namespace PixelChroma
         {
             SetWinner(PlayerRole.Runner);
             GrantSurvivalBonus();
+            ScoreManager.Instance?.SaveTopScorer();
             SetTimeState(TimeState.CheckTime, OptionCheckTime);
         }
 

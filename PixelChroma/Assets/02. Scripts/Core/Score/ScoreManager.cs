@@ -29,7 +29,10 @@ namespace PixelChroma
         public float SurvivalBonusPercent => survivalBonusPercent;
 
         public float VisionRange => visionRange;
+        public int TopScorerConnectionId => _topScorerConnId;
 
+        // 1등 플레이어 connectionId (게임 종료 시 저장, 로비에서 사용)
+        private int _topScorerConnId = -1;
 
         // ── 점수 조작 API (서버에서 호출) ──
 
@@ -129,7 +132,8 @@ namespace PixelChroma
                     netId = GetNetIdByConnectionId(kv.Key),
                     playerName = NicknameRegistry.TryGet(kv.Key, out var n) ? n : $"Player {kv.Key}",
                     score = kv.Value,
-                    pixelNicknamePng = NicknameRegistry.TryGetPixel(kv.Key, out var png) ? png : System.Array.Empty<byte>()
+                    pixelNicknamePng = NicknameRegistry.TryGetPixel(kv.Key, out var png) ? png : System.Array.Empty<byte>(),
+                    isDead = _frozenPlayers.Contains(kv.Key)
                 })
                 .ToArray();
 
@@ -200,6 +204,9 @@ namespace PixelChroma
             }
         }
 
+
+        //-----------------------헬퍼함수---------------------------------------
+
         private uint GetNetIdByConnectionId(int connectionId)
         {
             if (NetworkServer.connections.TryGetValue(connectionId, out var conn))
@@ -210,6 +217,22 @@ namespace PixelChroma
         public void FreezeScore(int connectionId)
         {
             _frozenPlayers.Add(connectionId);
+        }
+
+        public void SaveTopScorer()
+        {
+            if (_scores.Count == 0)
+            {
+                _topScorerConnId = -1;
+                return;
+            }
+
+            _topScorerConnId = _scores.OrderByDescending(kv => kv.Value).First().Key;
+        }
+
+        public void ClearTopScorer()
+        {
+            _topScorerConnId = -1;
         }
     }
 }

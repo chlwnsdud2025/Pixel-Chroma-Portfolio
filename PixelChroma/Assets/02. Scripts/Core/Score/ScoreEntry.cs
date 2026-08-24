@@ -8,5 +8,6 @@ namespace PixelChroma
         public string playerName;
         public int score;
         public byte[] pixelNicknamePng;
+        public bool isDead;
     }
 }

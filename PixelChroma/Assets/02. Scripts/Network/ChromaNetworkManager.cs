@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using Mirror;
 using Mirror.FizzySteam;
 using Steamworks;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -165,7 +166,13 @@ namespace PixelChroma
                 InGameManager.Instance?.ResetState();
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
                 LikeManager.ClearRecords();
+
+                int topConnId = ScoreManager.Instance != null
+                    ? ScoreManager.Instance.TopScorerConnectionId : -1;
                 ScoreManager.Instance?.ResetAll();
+
+                if (topConnId >= 0)
+                    SendCrownAfterReady(topConnId).Forget();
             }
 
         }
@@ -341,6 +348,30 @@ namespace PixelChroma
             var mapData = MapRegistry?.FindById(mapName);
             if (mapData?.mapPrefab != null)
                 MapLoader.Instance.LoadBuiltInMap(mapData);
+        }
+
+        private async UniTaskVoid SendCrownAfterReady(int topConnId)
+        {
+            // 클라이언트들이 로비 씬 로드 완료할 때까지 대기
+            float elapsed = 0f;
+            while (elapsed < 5f)
+            {
+                if (NetworkServer.connections.Values.All(conn => conn.isReady))
+                    break;
+                await UniTask.Delay(System.TimeSpan.FromSeconds(0.5f));
+                elapsed += 0.5f;
+            }
+
+            // connectionId → 로비 플레이어의 netId 변환
+            uint topNetId = 0;
+            if (NetworkServer.connections.TryGetValue(topConnId, out var conn)
+                && conn.identity != null)
+            {
+                topNetId = conn.identity.netId;
+            }
+
+            NetworkServer.SendToAll(new CrownMessage { topScorerNetId = topNetId });
+            ScoreManager.Instance?.ClearTopScorer();
         }
     }
 }

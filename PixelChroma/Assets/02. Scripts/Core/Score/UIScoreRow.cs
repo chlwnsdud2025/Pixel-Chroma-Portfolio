@@ -15,6 +15,7 @@ namespace PixelChroma.UI
         [Header("Color")]
         [SerializeField] private Color normalColor = new(0.12f, 0.12f, 0.15f, 0.8f);
         [SerializeField] private Color selfColor = new(0.2f, 0.4f, 0.8f, 0.4f);
+        [SerializeField] private Color deadColor = new(0.4f, 0.1f, 0.1f, 0.6f);
 
         private Texture2D _pixelTex;
 
@@ -41,7 +42,14 @@ namespace PixelChroma.UI
             }
 
             if (backgroundImage != null)
-                backgroundImage.color = isSelf ? selfColor : normalColor;
+            {
+                if (entry.isDead)
+                    backgroundImage.color = deadColor;
+                else if (isSelf)
+                    backgroundImage.color = selfColor;
+                else
+                    backgroundImage.color = normalColor;
+            }
         }
 
         // 풀 반환 시 초기화
