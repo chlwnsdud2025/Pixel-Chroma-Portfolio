@@ -1,11 +1,9 @@
 using Cysharp.Threading.Tasks;
 using OneText.UGUI;
-using Steamworks;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections.Generic;
 
 namespace PixelChroma.UI
 {
