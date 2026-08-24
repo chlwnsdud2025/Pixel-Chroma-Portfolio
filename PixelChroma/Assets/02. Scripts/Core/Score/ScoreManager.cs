@@ -217,6 +217,7 @@ namespace PixelChroma
         public void FreezeScore(int connectionId)
         {
             _frozenPlayers.Add(connectionId);
+            SendScoreBoard();
         }
 
         public void SaveTopScorer()
