@@ -1,5 +1,6 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
+using OneText.UGUI;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -52,6 +53,9 @@ namespace PixelChroma.UI
         [SerializeField] private RectTransform panel;
         [SerializeField] private float animationDuration = 0.25f;
 
+        [Header("Save Feedback")]
+        [SerializeField] private OneTextLabel saveFeedbackLabel;
+
         private Texture2D _editTexture;
         private Texture2D _checkerTexture;
         private Color _currentColor = Color.white;
@@ -86,6 +90,9 @@ namespace PixelChroma.UI
         private bool _isDefaultPreset;
         private int _defaultImageIndex;
         private Texture2D[] _presetPreviewTextures;   // ← 추가: 유저 프리셋 프리뷰 텍스처
+
+        // --- Tween ---
+        private Tween _saveFeedbackTween;
 
         // ────────────────────── 라이프사이클 ──────────────────────
 
@@ -157,6 +164,10 @@ namespace PixelChroma.UI
             }
 
             if (panel != null) panel.localScale = Vector3.zero;
+
+            _saveFeedbackTween?.Kill();
+            if (saveFeedbackLabel != null)
+                saveFeedbackLabel.gameObject.SetActive(false);
         }
 
         public override void OnAfterHide()
@@ -223,6 +234,7 @@ namespace PixelChroma.UI
                 colorPicker.OnUndoButtonClicked  -= Undo;
                 colorPicker.OnRedoButtonClicked  -= Redo;
             }
+            _saveFeedbackTween?.Kill();
         }
 
         // ────────────────────── Update ──────────────────────
@@ -758,8 +770,37 @@ namespace PixelChroma.UI
 
                 // 메인 키 업데이트 (네트워크 호환)
                 PixelNicknameService.Save(png);
+
+                // ── 프리셋 프리뷰 즉시 갱신 ──
+                _presetCache[_activePresetIndex] = png;
+                RefreshUserPresetPreview(_activePresetIndex);
             }
+
+            ShowSaveFeedback();
         }
+
+        private void ShowSaveFeedback()
+        {
+            if (saveFeedbackLabel == null) return;
+
+            _saveFeedbackTween?.Kill();
+
+            var rt = saveFeedbackLabel.rectTransform;
+
+            saveFeedbackLabel.alpha = 0f;
+            rt.localScale = Vector3.one * 0.8f;
+            saveFeedbackLabel.gameObject.SetActive(true);
+
+            _saveFeedbackTween = DOTween.Sequence()
+                .Append(DOTween.To(() => saveFeedbackLabel.alpha, a => saveFeedbackLabel.alpha = a, 1f, 0.25f)
+                    .SetEase(Ease.OutQuad))
+                .Join(rt.DOScale(1f, 0.3f).SetEase(Ease.OutBack))
+                .AppendInterval(1.5f)
+                .Append(DOTween.To(() => saveFeedbackLabel.alpha, a => saveFeedbackLabel.alpha = a, 0f, 0.4f)
+                    .SetEase(Ease.InQuad))
+                .OnComplete(() => saveFeedbackLabel.gameObject.SetActive(false));
+        }
+
 
         // ────────────────────── 프리셋 ──────────────────────
 
