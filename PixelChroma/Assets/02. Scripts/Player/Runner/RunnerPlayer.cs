@@ -450,6 +450,8 @@ namespace PixelChroma
             }
 
             RpcPlayExposeSound();
+
+            RevealRandomPaintedPixel();
         }
 
         [Command]
@@ -466,6 +468,8 @@ namespace PixelChroma
             }
 
             RpcPlayExposeSound();
+
+            RevealRandomPaintedPixel();
         }
 
         // 도발(능동/강제) 시 러너 위치에서 노출 효과음을 재생합니다.
@@ -475,6 +479,20 @@ namespace PixelChroma
         {
             SoundManager.Instance?.PlaySfxAt(SfxType.Expose, transform.position);
         }
+
+
+        [Server]
+        private void RevealRandomPaintedPixel()
+        {
+            if (paintCanvas == null) return;
+            if (ScoreManager.Instance == null) return;
+            if (connectionToClient == null) return;
+
+            Color32 color = paintCanvas.GetRandomPaintedColor();
+            if (color.a > 0)   // 칠해진 게 있을 때만
+                ScoreManager.Instance.SetRevealedColor(connectionToClient.connectionId, color);
+        }
+
 
         // 사망 상태 복제 시 모든 클라이언트에서 호출됩니다. 생존 인원 HUD 갱신을 트리거합니다.
         private void OnDeadStateChanged(bool oldVal, bool newVal)

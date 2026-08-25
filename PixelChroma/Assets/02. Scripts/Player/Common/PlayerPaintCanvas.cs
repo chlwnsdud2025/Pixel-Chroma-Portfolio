@@ -492,6 +492,26 @@ namespace PixelChroma
                 ApplyChanges();
         }
 
+        // ── 색하나 차출 ────────────────────────────────────────
+
+        public Color32 GetRandomPaintedColor()
+        {
+            var form = _activeForm;
+            if (form?.maskPixels == null) return default;
+
+            // 칠해진 픽셀의 인덱스를 수집
+            var painted = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < form.maskPixels.Length; i++)
+            {
+                if (form.maskPixels[i].a > 0)
+                    painted.Add(i);
+            }
+
+            if (painted.Count == 0) return default;
+
+            int pick = painted[UnityEngine.Random.Range(0, painted.Count)];
+            return form.maskPixels[pick];
+        }
         // ── 지우기 (즉시) ───────────────────────────────────────────────────────
 
         public void EraseAt(int px, int py)
