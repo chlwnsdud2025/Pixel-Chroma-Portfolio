@@ -169,15 +169,21 @@ namespace PixelChroma
                 LobbyManager.Instance?.ChangeLobbyStatusToLobby();
                 LikeManager.ClearRecords();
 
-                int topConnId = ScoreManager.Instance != null
-                    ? ScoreManager.Instance.TopScorerConnectionId : -1;
+                ScoreManager.Instance?.SaveRanks();  // ResetAll 전에 호출!
+                int firstConn = ScoreManager.Instance?.FirstConnectionId ?? -1;
+                int secondConn = ScoreManager.Instance?.SecondConnectionId ?? -1;
+                int thirdConn = ScoreManager.Instance?.ThirdConnectionId ?? -1;
+                int lastConn = ScoreManager.Instance?.LastConnectionId ?? -1;
                 ScoreManager.Instance?.ResetAll();
 
-                if (topConnId >= 0)
-                    SendCrownAfterReady(topConnId).Forget();
+                bool hasAnyRank = firstConn >= 0 || secondConn >= 0 || thirdConn >= 0 || lastConn >= 0;
+                if (hasAnyRank)
+                    SendRanksAfterReady(firstConn, secondConn, thirdConn, lastConn).Forget();
             }
 
         }
+
+
 
         // 씬 로드가 시작되기 직전에 호출된다.
         public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
@@ -352,7 +358,7 @@ namespace PixelChroma
                 MapLoader.Instance.LoadBuiltInMap(mapData);
         }
 
-        private async UniTaskVoid SendCrownAfterReady(int topConnId)
+        private async UniTaskVoid SendRanksAfterReady(int firstConn, int secondConn, int thirdConn, int lastConn)
         {
             // 클라이언트들이 로비 씬 로드 완료할 때까지 대기
             float elapsed = 0f;
@@ -364,16 +370,29 @@ namespace PixelChroma
                 elapsed += 0.5f;
             }
 
-            // connectionId → 로비 플레이어의 netId 변환
-            uint topNetId = 0;
-            if (NetworkServer.connections.TryGetValue(topConnId, out var conn)
-                && conn.identity != null)
-            {
-                topNetId = conn.identity.netId;
-            }
+            // connectionId → 로비 플레이어의 netId 변환 (헬퍼 메서드 사용)
+            uint firstNetId = ConnIdToNetId(firstConn);
+            uint secondNetId = ConnIdToNetId(secondConn);
+            uint thirdNetId = ConnIdToNetId(thirdConn);
+            uint lastNetId = ConnIdToNetId(lastConn);
 
-            NetworkServer.SendToAll(new CrownMessage { topScorerNetId = topNetId });
-            ScoreManager.Instance?.ClearTopScorer();
+            NetworkServer.SendToAll(new RankMessage
+            {
+                firstNetId = firstNetId,
+                secondNetId = secondNetId,
+                thirdNetId = thirdNetId,
+                lastNetId = lastNetId
+            });
+
+            ScoreManager.Instance?.ClearRanks();
+        }
+
+        private uint ConnIdToNetId(int connId)
+        {
+            if (connId < 0) return 0;
+            if (NetworkServer.connections.TryGetValue(connId, out var conn) && conn.identity != null)
+                return conn.identity.netId;
+            return 0;
         }
     }
 }

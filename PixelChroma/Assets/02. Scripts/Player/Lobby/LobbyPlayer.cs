@@ -1,77 +1,95 @@
 using Mirror;
+using PixelChroma;
 using PixelChroma.UI;
-using UnityEngine;
 using System;
+using UnityEngine;
 
-namespace PixelChroma
+public class LobbyPlayer : PlayerBase
 {
-    public class LobbyPlayer : PlayerBase
+    [Header("Lobby Ready UI")]
+    [Tooltip("레디 시 켜질 체크마크 이미지 오브젝트를 연결해주세요.")]
+    [SerializeField] private GameObject readyCheckObject;
+
+    [Header("Rank Icons")]
+    [SerializeField] private GameObject goldMedalObject;    // 1등 금메달
+    [SerializeField] private GameObject silverMedalObject;  // 2등 은메달
+    [SerializeField] private GameObject bronzeMedalObject;  // 3등 동메달
+    [SerializeField] private GameObject poopObject;         // 꼴지 💩
+
+    private LobbyPlayerState _lobbyState;
+
+    private static event Action<RankMessage> _onRankReceived;
+
+    protected override void Awake()
     {
-        [Header("Lobby Ready UI")]
-        [Tooltip("레디 시 켜질 체크마크 이미지 오브젝트를 연결해주세요.")]
-        [SerializeField] private GameObject readyCheckObject;
+        base.Awake();
+        _lobbyState = GetComponent<LobbyPlayerState>();
+    }
 
-        [Header("Crown")]
-        [SerializeField] private GameObject crownObject;
+    public override void OnStartClient()
+    {
+        base.OnStartClient();
+        LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
+        _onRankReceived += HandleRank;
 
-        private LobbyPlayerState _lobbyState;
+        NetworkClient.RegisterHandler<RankMessage>(OnRankMessage);
 
-        private static event Action<uint> _onCrownReceived;
+        UpdateReadyImage();
+        HideAllRankIcons();
+    }
 
-        protected override void Awake()
+    public override void OnStopClient()
+    {
+        LobbyPlayerState.OnReadyChanged -= UpdateReadyImage;
+        _onRankReceived -= HandleRank;
+        base.OnStopClient();
+    }
+
+    protected override void OnLocalPlayerStarted()
+    {
+        var lobby = UIManager.Instance.GetPanel<UILobby>();
+        PaintController.BindHUD(lobby);
+    }
+
+    protected override void OnLocalPlayerStopped()
+    {
+        PaintController.UnbindHUD();
+    }
+
+    private void UpdateReadyImage()
+    {
+        if (readyCheckObject != null && _lobbyState != null)
         {
-            base.Awake();
-            _lobbyState = GetComponent<LobbyPlayerState>();
+            readyCheckObject.SetActive(_lobbyState.isReady);
         }
+    }
 
-        public override void OnStartClient()
-        {
-            base.OnStartClient();
-            LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
+    private static void OnRankMessage(RankMessage msg)
+    {
+        _onRankReceived?.Invoke(msg);
+    }
 
-            _onCrownReceived += HandleCrown;
+    private void HandleRank(RankMessage msg)
+    {
+        HideAllRankIcons();
 
-            NetworkClient.RegisterHandler<CrownMessage>(OnCrownMessage);
+        if (netId == msg.firstNetId && goldMedalObject != null)
+            goldMedalObject.SetActive(true);
+        else if (netId == msg.secondNetId && silverMedalObject != null)
+            silverMedalObject.SetActive(true);
+        else if (netId == msg.thirdNetId && bronzeMedalObject != null)
+            bronzeMedalObject.SetActive(true);
 
-            UpdateReadyImage();
-            if (crownObject != null) crownObject.SetActive(false);
-        }
+        // 꼴지는 1~3등과 겹치지 않으므로 별도 if
+        if (netId == msg.lastNetId && poopObject != null)
+            poopObject.SetActive(true);
+    }
 
-        public override void OnStopClient()
-        {
-            LobbyPlayerState.OnReadyChanged -= UpdateReadyImage;
-            _onCrownReceived -= HandleCrown;
-            base.OnStopClient();
-        }
-
-        protected override void OnLocalPlayerStarted()
-        {
-            var lobby = UIManager.Instance.GetPanel<UILobby>();
-            PaintController.BindHUD(lobby);
-        }
-
-        protected override void OnLocalPlayerStopped()
-        {
-            PaintController.UnbindHUD();
-        }
-
-        private void UpdateReadyImage()
-        {
-            if (readyCheckObject != null && _lobbyState != null)
-            {
-                readyCheckObject.SetActive(_lobbyState.isReady);
-            }
-        }
-
-        private static void OnCrownMessage(CrownMessage msg)
-        {
-            _onCrownReceived?.Invoke(msg.topScorerNetId);
-        }
-
-        private void HandleCrown(uint topNetId)
-        {
-            if (crownObject == null) return;
-            crownObject.SetActive(netId == topNetId);
-        }
+    private void HideAllRankIcons()
+    {
+        if (goldMedalObject != null) goldMedalObject.SetActive(false);
+        if (silverMedalObject != null) silverMedalObject.SetActive(false);
+        if (bronzeMedalObject != null) bronzeMedalObject.SetActive(false);
+        if (poopObject != null) poopObject.SetActive(false);
     }
 }

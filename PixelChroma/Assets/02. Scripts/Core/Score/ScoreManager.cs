@@ -26,13 +26,20 @@ namespace PixelChroma
         private CancellationTokenSource _cts;
         private CancellationTokenSource _visionCts;
 
+        // 1,2,3등 및 꼴등 플레이어 connectionId
+        private int _firstConnId = -1;
+        private int _secondConnId = -1;
+        private int _thirdConnId = -1;
+        private int _lastConnId = -1;
+
+
+
         public float SurvivalBonusPercent => survivalBonusPercent;
-
         public float VisionRange => visionRange;
-        public int TopScorerConnectionId => _topScorerConnId;
-
-        // 1등 플레이어 connectionId (게임 종료 시 저장, 로비에서 사용)
-        private int _topScorerConnId = -1;
+        public int FirstConnectionId => _firstConnId;
+        public int SecondConnectionId => _secondConnId;
+        public int ThirdConnectionId => _thirdConnId;
+        public int LastConnectionId => _lastConnId;
 
         // ── 점수 조작 API (서버에서 호출) ──
 
@@ -227,20 +234,29 @@ namespace PixelChroma
             NetworkServer.SendToAll(new RevealedPixelMessage { netId = netId, color = color });
         }
 
-        public void SaveTopScorer()
+        public void SaveRanks()
         {
-            if (_scores.Count == 0)
-            {
-                _topScorerConnId = -1;
-                return;
-            }
+            _firstConnId = _secondConnId = _thirdConnId = _lastConnId = -1;
 
-            _topScorerConnId = _scores.OrderByDescending(kv => kv.Value).First().Key;
+            if (_scores.Count == 0) return;
+
+            var sorted = _scores
+                .OrderByDescending(kv => kv.Value)
+                .ToList();
+
+            // 1, 2, 3등 할당
+            if (sorted.Count >= 1) _firstConnId = sorted[0].Key;
+            if (sorted.Count >= 2) _secondConnId = sorted[1].Key;
+            if (sorted.Count >= 3) _thirdConnId = sorted[2].Key;
+
+            // 꼴지: 4명 이상일 때만 의미 있음 (3명 이하면 3등=꼴지이므로 똥 표시 안함)
+            if (sorted.Count >= 4)
+                _lastConnId = sorted[sorted.Count - 1].Key;
         }
 
-        public void ClearTopScorer()
+        public void ClearRanks()
         {
-            _topScorerConnId = -1;
+            _firstConnId = _secondConnId = _thirdConnId = _lastConnId = -1;
         }
     }
 }
