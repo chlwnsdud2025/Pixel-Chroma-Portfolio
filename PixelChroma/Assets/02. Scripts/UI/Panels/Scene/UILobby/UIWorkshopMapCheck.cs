@@ -106,7 +106,9 @@ namespace PixelChroma.UI
             {
                 if (!_isDownloading)
                 {
-                    SetStatus("");
+                    SetStatus(textData != null
+                        ? textData.statusNeedDownload.GetLocalizedString()
+                        : "Map not installed. Please download it.");
                     if (downloadButton != null)
                     {
                         downloadButton.gameObject.SetActive(true);

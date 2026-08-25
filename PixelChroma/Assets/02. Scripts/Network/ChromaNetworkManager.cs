@@ -112,6 +112,8 @@ namespace PixelChroma
             base.OnServerDisconnect(conn);
             NicknameRegistry.Unregister(conn.connectionId);
 
+            WorkshopMapChecker.HandlePlayerDisconnected(conn.connectionId);
+
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.RemovePlayer(conn.connectionId);
         }
