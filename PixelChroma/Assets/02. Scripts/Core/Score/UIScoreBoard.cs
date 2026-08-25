@@ -57,7 +57,8 @@ namespace PixelChroma.UI
 
         private void OnScoreBoardReceived(ScoreBoardMessage msg)
         {
-            _refreshCountdown = Mathf.RoundToInt(msg.refreshInterval);    // 카운트다운 리셋
+            if (msg.refreshInterval > 0)                                 
+                _refreshCountdown = Mathf.RoundToInt(msg.refreshInterval);
             RebuildRows(msg.entries);
         }
 

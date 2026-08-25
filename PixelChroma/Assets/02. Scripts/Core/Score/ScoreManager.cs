@@ -120,10 +120,9 @@ namespace PixelChroma
             }
         }
 
-        private void SendScoreBoard()
+        private void SendScoreBoard(bool resetClientTimer = true)
         {
             if (!NetworkServer.active) return;
-
 
             var sorted = _scores
                 .OrderByDescending(kv => kv.Value)
@@ -140,11 +139,10 @@ namespace PixelChroma
                 })
                 .ToArray();
 
-
             NetworkServer.SendToAll(new ScoreBoardMessage
             {
                 entries = sorted,
-                refreshInterval = broadcastInterval
+                refreshInterval = resetClientTimer ? broadcastInterval : 0f
             });
 
             _revealedColors.Clear();
@@ -222,12 +220,12 @@ namespace PixelChroma
         public void FreezeScore(int connectionId) // 점수 고정
         {
             _frozenPlayers.Add(connectionId);
-            SendScoreBoard();
+            SendScoreBoard(false);
         }
         public void SetRevealedColor(int connectionId, Color32 color) // Pixel 차출
         {
             _revealedColors[connectionId] = color;
-            SendScoreBoard();
+            SendScoreBoard(false);
         }
 
         public void SaveTopScorer()
