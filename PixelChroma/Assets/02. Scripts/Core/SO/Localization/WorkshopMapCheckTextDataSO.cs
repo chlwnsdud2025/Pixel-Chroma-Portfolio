@@ -7,6 +7,7 @@ using UnityEngine.Localization;
 public class WorkshopMapCheckTextDataSO : ScriptableObject
 {
     [Header("Status")]
+    public LocalizedString statusNeedDownload; // "맵이 설치되어 있지 않습니다. 아래 버튼을 눌러 다운로드해 주세요."
     public LocalizedString statusWaiting;       // "다른 유저의 다운로드를 기다리는 중입니다..."
     public LocalizedString statusSubscribing;   // "구독 대기 중..."
     public LocalizedString statusDownloading;   // "다운로드 중..."

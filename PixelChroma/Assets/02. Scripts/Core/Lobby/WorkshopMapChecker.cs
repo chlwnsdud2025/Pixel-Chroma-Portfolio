@@ -139,7 +139,10 @@ namespace PixelChroma
 
             // 전원 보유면 응답 정리
             if (result.allInstalled)
+            {
                 _responses.Clear();
+                _pendingFileId = 0;
+            }
         }
 
         private static string ResolveMapName(ulong fileId)
@@ -191,6 +194,21 @@ namespace PixelChroma
             _cts?.Dispose();
             _cts = null;
         }
+
+        public static void HandlePlayerDisconnected(int connectionId)
+        {
+            // 진행 중인 검사가 없으면 무시
+            if (_pendingFileId == 0) return;
+
+            _responses.Remove(connectionId);
+            _expectedCount = NetworkServer.connections.Count;
+
+            // 남은 인원으로 결과 재발행
+            // (PublishResult는 NetworkServer.connections.Values를 순회하므로
+            //  이미 끊어진 플레이어는 자동으로 빠진다)
+            PublishResult();
+        }
+
 
         private static void OnServerReceiveDownloadComplete(
     NetworkConnectionToClient conn, WorkshopMapDownloadComplete msg)
