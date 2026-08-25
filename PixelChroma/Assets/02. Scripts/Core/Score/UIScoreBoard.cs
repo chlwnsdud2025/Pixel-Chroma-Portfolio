@@ -44,12 +44,16 @@ namespace PixelChroma.UI
         private void OnEnable()
         {
             NetworkClient.RegisterHandler<ScoreBoardMessage>(OnScoreBoardReceived);
+            NetworkClient.RegisterHandler<RevealedPixelMessage>(OnRevealedPixelReceived);
+            NetworkClient.RegisterHandler<PlayerDeadMessage>(OnPlayerDeadReceived);
             GameRoundManager.OnTimerTick += HandleTimerTick;
         }
 
         private void OnDisable()
         {
             NetworkClient.UnregisterHandler<ScoreBoardMessage>();
+            NetworkClient.UnregisterHandler<RevealedPixelMessage>();
+            NetworkClient.UnregisterHandler<PlayerDeadMessage>();
             GameRoundManager.OnTimerTick -= HandleTimerTick;
         }
 
@@ -57,8 +61,7 @@ namespace PixelChroma.UI
 
         private void OnScoreBoardReceived(ScoreBoardMessage msg)
         {
-            if (msg.refreshInterval > 0)                                 
-                _refreshCountdown = Mathf.RoundToInt(msg.refreshInterval);
+            _refreshCountdown = Mathf.RoundToInt(msg.refreshInterval);
             RebuildRows(msg.entries);
         }
 
@@ -102,6 +105,30 @@ namespace PixelChroma.UI
 
             _refreshCountdown--;
             if (_refreshCountdown < 0) _refreshCountdown = 0;
+        }
+
+        private void OnRevealedPixelReceived(RevealedPixelMessage msg)
+        {
+            foreach (var row in _pool)
+            {
+                if (row.gameObject.activeSelf && row.CurrentNetId == msg.netId)
+                {
+                    row.PlayExposeEffect(msg.color);
+                    break;
+                }
+            }
+        }
+
+        private void OnPlayerDeadReceived(PlayerDeadMessage msg)
+        {
+            foreach (var row in _pool)
+            {
+                if (row.gameObject.activeSelf && row.CurrentNetId == msg.netId)
+                {
+                    row.ApplyDeadColor();
+                    break;
+                }
+            }
         }
     }
 }

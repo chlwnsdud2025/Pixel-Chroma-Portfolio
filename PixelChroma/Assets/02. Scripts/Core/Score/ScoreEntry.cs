@@ -11,6 +11,5 @@ namespace PixelChroma
         public int score;
         public byte[] pixelNicknamePng;
         public bool isDead;
-        public Color32 revealedColor;
     }
 }

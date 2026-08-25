@@ -25,9 +25,13 @@ namespace PixelChroma.UI
 
         private Texture2D _pixelTex;
         private Texture2D _exposeTex;
+        private uint _currentNetId;
+        public uint CurrentNetId => _currentNetId;
 
         public void SetData(ScoreEntry entry, bool isSelf)
         {
+            _currentNetId = entry.netId;
+
             rankText.text = $"#{entry.rank}";
             nameText.text = entry.playerName;
             scoreText.text = entry.score.ToString("N0");
@@ -58,15 +62,9 @@ namespace PixelChroma.UI
                 else
                     backgroundImage.color = normalColor;
             }
-
-            // 도발 공개 픽셀
-            if (exposePixelImage != null && entry.revealedColor.a > 0)
-            {
-                PlayExposeEffect(entry.revealedColor);
-            }
         }
 
-        private void PlayExposeEffect(Color32 color)
+        public void PlayExposeEffect(Color32 color)
         {
             if (_exposeTex == null)
                 _exposeTex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
@@ -108,6 +106,12 @@ namespace PixelChroma.UI
         {
             if (_pixelTex != null) Object.Destroy(_pixelTex);
             if (_exposeTex != null) Object.Destroy(_exposeTex);
+        }
+
+        public void ApplyDeadColor()
+        {
+            if (backgroundImage != null)
+                backgroundImage.color = deadColor;
         }
     }
 }

@@ -23,7 +23,6 @@ namespace PixelChroma
 
         private readonly Dictionary<int, int> _scores = new();
         private readonly HashSet<int> _frozenPlayers = new();
-        private readonly Dictionary<int, Color32> _revealedColors = new();
         private CancellationTokenSource _cts;
         private CancellationTokenSource _visionCts;
 
@@ -78,7 +77,6 @@ namespace PixelChroma
             StopVisionScoring();
             _scores.Clear();
             _frozenPlayers.Clear();
-            _revealedColors.Clear();
         }
 
         private void OnDestroy()
@@ -120,7 +118,7 @@ namespace PixelChroma
             }
         }
 
-        private void SendScoreBoard(bool resetClientTimer = true)
+        private void SendScoreBoard()
         {
             if (!NetworkServer.active) return;
 
@@ -134,18 +132,15 @@ namespace PixelChroma
                     playerName = NicknameRegistry.TryGet(kv.Key, out var n) ? n : $"Player {kv.Key}",
                     score = kv.Value,
                     pixelNicknamePng = NicknameRegistry.TryGetPixel(kv.Key, out var png) ? png : System.Array.Empty<byte>(),
-                    isDead = _frozenPlayers.Contains(kv.Key),
-                    revealedColor = _revealedColors.TryGetValue(kv.Key, out var rc) ? rc : default
+                    isDead = _frozenPlayers.Contains(kv.Key)
                 })
                 .ToArray();
 
             NetworkServer.SendToAll(new ScoreBoardMessage
             {
                 entries = sorted,
-                refreshInterval = resetClientTimer ? broadcastInterval : 0f
+                refreshInterval = broadcastInterval
             });
-
-            _revealedColors.Clear();
         }
 
         // ── 시야 점수 시작/종료 ──
@@ -217,15 +212,19 @@ namespace PixelChroma
             return 0;
         }
 
-        public void FreezeScore(int connectionId) // 점수 고정
+        public void FreezeScore(int connectionId)
         {
             _frozenPlayers.Add(connectionId);
-            SendScoreBoard(false);
+
+            if (!NetworkServer.active) return;
+            uint netId = GetNetIdByConnectionId(connectionId);
+            NetworkServer.SendToAll(new PlayerDeadMessage { netId = netId });
         }
-        public void SetRevealedColor(int connectionId, Color32 color) // Pixel 차출
+        public void SetRevealedColor(int connectionId, Color32 color)
         {
-            _revealedColors[connectionId] = color;
-            SendScoreBoard(false);
+            if (!NetworkServer.active) return;
+            uint netId = GetNetIdByConnectionId(connectionId);
+            NetworkServer.SendToAll(new RevealedPixelMessage { netId = netId, color = color });
         }
 
         public void SaveTopScorer()
