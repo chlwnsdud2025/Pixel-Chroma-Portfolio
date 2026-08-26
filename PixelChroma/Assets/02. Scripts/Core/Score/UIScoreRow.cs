@@ -62,6 +62,16 @@ namespace PixelChroma.UI
                 else
                     backgroundImage.color = normalColor;
             }
+
+            if (rankText != null)
+            {
+                if (entry.isDead)
+                    rankText.color = deadColor;
+                else if (isSelf)
+                    rankText.color = selfColor;
+                else
+                    rankText.color = normalColor;
+            }
         }
 
         public void PlayExposeEffect(Color32 color)
@@ -112,6 +122,8 @@ namespace PixelChroma.UI
         {
             if (backgroundImage != null)
                 backgroundImage.color = deadColor;
+            if (rankText != null)
+                rankText.color = deadColor;
         }
     }
 }

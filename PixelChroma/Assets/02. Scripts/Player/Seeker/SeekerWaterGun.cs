@@ -29,6 +29,10 @@ namespace PixelChroma
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
 
+        [Header("Magazine")]
+        [Tooltip("탄 1발이 회복되는 데 걸리는 시간(초)")]
+        [SerializeField] private float ammoRegenInterval = 10f;
+
         [Header("Recoil (발사 반동)")]
         [Tooltip("발사 시 총이 총구 반대방향으로 밀리는 거리(월드 유닛). 0이면 반동 없음")]
         [SerializeField] private float recoilDistance = 0.15f;
@@ -47,6 +51,9 @@ namespace PixelChroma
         [SerializeField] private float knockbackRotSpeed = 720f;
 
         [SerializeField] private float knockbackForwardBias = 0.7f;
+
+
+
 
         //---------------테스트-------------------------
 #if UNITY_EDITOR
@@ -68,6 +75,12 @@ namespace PixelChroma
         private Camera _mainCam;
         private WaterGunEffects _effects;
 
+        private int _maxAmmo;           // HUD 슬롯 수에서 받아옴
+        private int _currentAmmo;
+        private float _regenTimer;
+        private int _serverCurrentAmmo;
+        private float _serverRegenTimer;
+
         // 반동 연출용: 총 스프라이트의 원위치와 진행 중인 반동 코루틴
         private Vector3 _weaponRestLocalPos;
         private Coroutine _recoilRoutine;
@@ -83,12 +96,16 @@ namespace PixelChroma
         public float CooldownFill01 =>
             fireCooldown <= 0f ? 0f : 1f - Mathf.Clamp01((Time.time - _lastFireTime) / fireCooldown);
 
-        private bool CanFireLocally => Time.time - _lastFireTime >= fireCooldown;
-
+        private bool CanFireLocally => Time.time - _lastFireTime >= fireCooldown && _currentAmmo > 0;
         // 발사·판정 기준점(총구). 미할당 시 회전 중심 → 몸통 순으로 폴백합니다.
         private Vector2 FireOrigin =>
             firePoint != null ? (Vector2)firePoint.position :
             (weaponPivot != null ? (Vector2)weaponPivot.position : (Vector2)transform.position);
+
+        public int CurrentAmmo => _currentAmmo;
+        public int MaxAmmo => _maxAmmo;
+        public float RegenFill01 => _currentAmmo >= _maxAmmo ? 0f : 1f - Mathf.Clamp01(_regenTimer / ammoRegenInterval);
+
 
         private void Awake()
         {
@@ -112,6 +129,7 @@ namespace PixelChroma
         {
             HandleAiming(isPaintMode);
             HandleShooting(isPaintMode);
+            RegenerateAmmo();
 
 #if UNITY_EDITOR
             AutoFireTick();
@@ -229,9 +247,19 @@ namespace PixelChroma
             if (_mainCam == null || Mouse.current == null) return;
             if (isPaintMode || !Mouse.current.leftButton.wasPressedThisFrame) return;
             if (IsPointerOverInteractiveUI()) return;
+
+            // 빈 탄창 사격 시도
+            if (_currentAmmo <= 0)
+            {
+                _seeker.NotifyEmptyFire();
+                return;
+            }
+
             if (!CanFireLocally) return;
 
             _lastFireTime = Time.time;
+            _currentAmmo--;        
+            _regenTimer = 0f;
 
             Vector2 mouseScreen = Mouse.current.position.ReadValue();
             Vector2 mouseWorld = _mainCam.ScreenToWorldPoint(mouseScreen);   // 조준 시 이미 사거리로 클램프된 위치
@@ -268,6 +296,40 @@ namespace PixelChroma
             }
             return false;          // 읽기전용 UI(또는 UI 없음) → 통과
         }
+
+        //----------------------------------------탄창-------------------------------------------------
+
+        /// HUD 슬롯 수 기반으로 최대 탄창을 설정한다. 클라이언트에서 호출.
+        public void SetMaxAmmo(int max)
+        {
+            _maxAmmo = max;
+            _currentAmmo = max;
+            _regenTimer = 0f;
+            CmdSetMaxAmmo(max);
+        }
+
+        [Command]
+        private void CmdSetMaxAmmo(int max)
+        {
+            _maxAmmo = max;
+            _serverCurrentAmmo = max;
+            _serverRegenTimer = 0f;
+        }
+
+        private void RegenerateAmmo()
+        {
+            if (_maxAmmo <= 0 || _currentAmmo >= _maxAmmo) return;
+
+            _regenTimer += Time.deltaTime;
+
+            if (_regenTimer >= ammoRegenInterval)
+            {
+                _regenTimer -= ammoRegenInterval;
+                _currentAmmo = Mathf.Min(_currentAmmo + 1, _maxAmmo);
+            }
+        }
+
+
         //----------------------------------------테스트--------------------------------------------------
 #if UNITY_EDITOR
         private void AutoFireTick()
@@ -295,9 +357,12 @@ namespace PixelChroma
             }
 
             if (nearest == null) return;
+            if (!CanFireLocally) return;
 
             Vector2 targetPoint = nearest.transform.position;
             _lastFireTime = Time.time;
+            _currentAmmo--;
+            _regenTimer = 0f;
             CmdFireWaterGun(targetPoint);
         }
 #endif
@@ -307,6 +372,22 @@ namespace PixelChroma
         private void CmdFireWaterGun(Vector2 targetPoint)
         {
             if (Time.time - _lastServerFireTime < fireCooldown - ServerCooldownGrace) return;
+
+            // ── 서버 탄창 회복 계산 ──
+            float elapsed = Time.time - _lastServerFireTime;
+            if (_serverCurrentAmmo < _maxAmmo && elapsed > 0f)
+            {
+                int regenCount = Mathf.FloorToInt((_serverRegenTimer + elapsed) / ammoRegenInterval);
+                _serverCurrentAmmo = Mathf.Min(_serverCurrentAmmo + regenCount, _maxAmmo);
+                _serverRegenTimer = (_serverRegenTimer + elapsed) % ammoRegenInterval;
+            }
+
+            // ── 서버 탄창 검증 ──
+            if (_serverCurrentAmmo <= 0) return;
+            _serverCurrentAmmo--;
+            _serverRegenTimer = 0f;
+
+
             _lastServerFireTime = Time.time;
 
             Vector2 origin = FireOrigin;

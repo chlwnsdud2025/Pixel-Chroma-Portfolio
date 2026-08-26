@@ -49,6 +49,10 @@ namespace PixelChroma
             if (_seekerHUD != null && _waterGun != null)
             {
                 _seekerHUD.UpdateWaterGunCooldown(_waterGun.CooldownFill01);
+                _seekerHUD.UpdateAmmoDisplay(
+                    _waterGun.CurrentAmmo,
+                    _waterGun.MaxAmmo,
+                    _waterGun.RegenFill01);    
             }
         }
 
@@ -167,8 +171,13 @@ namespace PixelChroma
             _seekerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Seeker>();
             PaintController.BindHUD(_seekerHUD);
 
+            _seekerHUD.InitializeSlots();                    
+
             if (_waterGun != null)
+            {
                 _seekerHUD.SetWaterGunCooldownDuration(_waterGun.FireCooldownDuration);
+                _waterGun.SetMaxAmmo(_seekerHUD.SlotCount);
+            }
 
             _seekerHUD.SetSpectateKeyHintVisible(false);
         }
@@ -189,6 +198,11 @@ namespace PixelChroma
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(transform.position, indicatorRadius);
+        }
+
+        public void NotifyEmptyFire()
+        {
+            _seekerHUD?.ShakeAmmoText();
         }
     }
 }
