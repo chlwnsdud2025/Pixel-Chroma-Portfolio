@@ -205,7 +205,7 @@ namespace PixelChroma
             {
                 SetWinner(PlayerRole.Seeker);
                 GrantSurvivalBonus();
-                //ScoreManager.Instance?.SaveRanks();
+                FinalizeScores(); 
                 SetTimeState(TimeState.CheckTime, OptionCheckTime);
             }
         }
@@ -272,7 +272,7 @@ namespace PixelChroma
         {
             SetWinner(PlayerRole.Runner);
             GrantSurvivalBonus();
-            //ScoreManager.Instance?.SaveRanks();
+            FinalizeScores(); 
             SetTimeState(TimeState.CheckTime, OptionCheckTime);
         }
 
@@ -338,6 +338,17 @@ namespace PixelChroma
             CurrentTimeState = TimeState.Waiting;
             CurrentWinner = PlayerRole.None;
             CurrentTimer = 0;
+        }
+
+
+        [Server]
+        private void FinalizeScores()
+        {
+            if (ScoreManager.Instance == null) return;
+
+            ScoreManager.Instance.StopVisionScoring();  // 시야 점수 루프 중단
+            ScoreManager.Instance.StopBroadcast();      // 주기적 브로드캐스트 중단
+            ScoreManager.Instance.ForceBroadcast();     // 최종 점수 1회 강제 전송
         }
 
 

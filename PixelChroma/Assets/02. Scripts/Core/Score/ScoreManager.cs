@@ -150,6 +150,11 @@ namespace PixelChroma
             });
         }
 
+        public void ForceBroadcast()
+        {
+            SendScoreBoard();
+        }
+
         // ── 시야 점수 시작/종료 ──
 
         public void StartVisionScoring()
@@ -238,20 +243,19 @@ namespace PixelChroma
         {
             _firstConnId = _secondConnId = _thirdConnId = _lastConnId = -1;
 
-            if (_scores.Count == 0) return;
+            if (_scores.Count < 2) return;  // 2명 미만이면 아무것도 안 함
 
             var sorted = _scores
                 .OrderByDescending(kv => kv.Value)
                 .ToList();
 
-            // 1, 2, 3등 할당
-            if (sorted.Count >= 1) _firstConnId = sorted[0].Key;
-            if (sorted.Count >= 2) _secondConnId = sorted[1].Key;
-            if (sorted.Count >= 3) _thirdConnId = sorted[2].Key;
+            // 메달 부여 (꼴지 제외한 나머지에서)
+            _firstConnId = sorted[0].Key;
+            if (sorted.Count >= 3) _secondConnId = sorted[1].Key;
+            if (sorted.Count >= 4) _thirdConnId = sorted[2].Key;
 
-            // 꼴지: 4명 이상일 때만 의미 있음 (3명 이하면 3등=꼴지이므로 똥 표시 안함)
-            if (sorted.Count >= 4)
-                _lastConnId = sorted[sorted.Count - 1].Key;
+            // 꼴지는 항상 부여 (2명 이상이면 무조건)
+            _lastConnId = sorted[sorted.Count - 1].Key;
         }
 
         public void ClearRanks()
