@@ -76,22 +76,32 @@ namespace PixelChroma.UI
             {
                 if (ulong.TryParse(option.mapName.Substring("workshop:".Length), out ulong fileId))
                 {
-                    // 맵 이름: 로컬에 설치되어 있으면 manifest에서 읽기
                     string installPath = WorkshopSubscriptionService.GetInstallPath(fileId);
+
+                    // ──  미설치 시 맵 이름·프리뷰 모두 비우기 ──
+                    if (string.IsNullOrEmpty(installPath))
+                    {
+                        if (mapNameText != null)
+                            mapNameText.text = string.Empty;
+
+                        if (mapPreviewImage != null)
+                            mapPreviewImage.enabled = false;
+
+                        return;
+                    }
+
+                    // 설치되어 있으면 manifest에서 읽기
                     string displayName = $"Workshop #{fileId}";
                     Sprite preview = null;
 
-                    if (!string.IsNullOrEmpty(installPath))
+                    try
                     {
-                        try
-                        {
-                            var manifest = WorkshopMapPackageReader.ReadManifest(installPath);
-                            if (!string.IsNullOrEmpty(manifest.title))
-                                displayName = manifest.title;
-                            preview = WorkshopMapPackageReader.LoadPreview(installPath, manifest.previewImage);
-                        }
-                        catch { }
+                        var manifest = WorkshopMapPackageReader.ReadManifest(installPath);
+                        if (!string.IsNullOrEmpty(manifest.title))
+                            displayName = manifest.title;
+                        preview = WorkshopMapPackageReader.LoadPreview(installPath, manifest.previewImage);
                     }
+                    catch { }
 
                     if (mapNameText != null)
                         mapNameText.text = displayName;
