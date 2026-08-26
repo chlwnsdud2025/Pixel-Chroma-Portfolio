@@ -13,6 +13,7 @@ namespace PixelChroma
         private const float CountdownDuration = 10f;
 
         private const float LobbyReturnDelayOnCheckEnd = 0.5f;
+       
 
         public static event Action<TimeState, int> OnTimeStateChanged;
         public static event Action<PlayerRole> OnWinnerDecided;
@@ -24,6 +25,9 @@ namespace PixelChroma
 
         [Header("forced Expose")]
         [SerializeField] private float forcedExposeDuration;
+
+        [Header("Timer Sound Start")]
+        [SerializeField] private const int ClockSoundThreshold = 10;
 
         public RoomOption CurrentRoomOption { get; private set; }
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
@@ -296,7 +300,8 @@ namespace PixelChroma
                 {
                     await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: token);
                     CurrentTimer--;
-                    SoundManager.Instance?.PlaySfx(SfxType.Clock);
+                    if (CurrentTimer > 0 && CurrentTimer <= ClockSoundThreshold)
+                        SoundManager.Instance?.PlaySfx(SfxType.Clock);
                     OnTimerTick?.Invoke(CurrentTimer);
 
                     if (NetworkServer.active)
