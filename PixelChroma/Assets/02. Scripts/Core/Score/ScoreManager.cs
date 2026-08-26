@@ -96,7 +96,6 @@ namespace PixelChroma
 
         private async UniTaskVoid BroadcastLoop(CancellationToken token)
         {
-            // 모든 클라이언트 준비 대기 (최대 5초, 초과 시 그냥 진행)
             float timeout = 5f;
             float elapsed = 0f;
 
@@ -112,22 +111,31 @@ namespace PixelChroma
                 elapsed += 0.5f;
             }
 
-            SendScoreBoard();
+            // 첫 갱신 간격: 대기 시간만큼 보정
+            float firstInterval = Mathf.Max(1f, broadcastInterval - elapsed);
+
+            SendScoreBoard(firstInterval);
+
+            await UniTask.Delay(
+                System.TimeSpan.FromSeconds(firstInterval),
+                cancellationToken: token
+            );
 
             // 이후 정상 주기
             while (!token.IsCancellationRequested)
             {
+                SendScoreBoard();
                 await UniTask.Delay(
                     System.TimeSpan.FromSeconds(broadcastInterval),
                     cancellationToken: token
                 );
-                SendScoreBoard();
             }
         }
 
-        private void SendScoreBoard()
+        private void SendScoreBoard(float interval = -1f)
         {
             if (!NetworkServer.active) return;
+            if (interval < 0f) interval = broadcastInterval;
 
             var sorted = _scores
                 .OrderByDescending(kv => kv.Value)
@@ -146,7 +154,7 @@ namespace PixelChroma
             NetworkServer.SendToAll(new ScoreBoardMessage
             {
                 entries = sorted,
-                refreshInterval = broadcastInterval
+                refreshInterval = interval
             });
         }
 
