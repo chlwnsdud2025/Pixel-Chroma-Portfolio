@@ -68,7 +68,8 @@ namespace PixelChroma.UI
                 {
                     if (seeker == null || seeker.isLocalPlayer) continue;
                     if (!IsWithinRange(localTransform, seeker.transform)) continue;
-                    TryPlaceIndicator(seeker.transform, seeker.playerName, ref used);
+                    TryPlaceIndicator(seeker.transform, seeker.playerName,
+                                      seeker.pixelNicknamePng, ref used);
                 }
             }
             else if (targetRole == PlayerRole.Runner)
@@ -81,7 +82,8 @@ namespace PixelChroma.UI
                     if (runner == null || runner.isLocalPlayer) continue;
                     if (runner.IsDead) continue; // 사망한 Runner는 표시하지 않음
                     if (!IsWithinRange(localTransform, runner.transform)) continue;
-                    TryPlaceIndicator(runner.transform, runner.playerName, ref used);
+                    TryPlaceIndicator(runner.transform, runner.playerName,
+                                      runner.pixelNicknamePng, ref used);
                 }
             }
 
@@ -90,7 +92,8 @@ namespace PixelChroma.UI
         }
 
         // 화면 밖에 있으면 가장자리에 배치, 화면 안이면 스킵. 배치했으면 used 증가.
-        private bool TryPlaceIndicator(Transform target, string playerName, ref int used)
+        private bool TryPlaceIndicator(Transform target, string playerName,
+                               byte[] pixelPng, ref int used)
         {
             Vector3 viewport = targetCamera.WorldToViewportPoint(target.position);
             bool onScreen = viewport.z > 0f
@@ -101,9 +104,10 @@ namespace PixelChroma.UI
 
             var icon = GetIcon(used++);
             PlaceOnEdge(icon, viewport);
-            icon.SetNickname(playerName);
+            icon.SetNicknameData(playerName, pixelPng);
             return true;
         }
+
 
         private IndicatorIconView GetIcon(int index)
         {
