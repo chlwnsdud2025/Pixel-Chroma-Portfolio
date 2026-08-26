@@ -36,6 +36,7 @@ namespace PixelChroma.UI
         private void Awake()
         {
             _rt = GetComponent<RectTransform>();
+            if (glowOverlay != null) EnsureGlowMat();
         }
 
 
@@ -131,7 +132,7 @@ namespace PixelChroma.UI
                 if (_glowMat != null)
                 {
                     _glowMat.SetFloat("_GlowIntensity", 0f);
-                    _glowMat.SetFloat("_SweepProgress", -0.5f);
+                    _glowMat.SetFloat("_SweepProgress", -1.5f);
                 }
             }
 
@@ -168,9 +169,9 @@ namespace PixelChroma.UI
 
             var seq = DOTween.Sequence().SetTarget(this);
 
-            // 좌→우 스윕: -0.5 → 1.5
+            // 좌→우 스윕: -0.5 → 2
             seq.Append(
-                DOVirtual.Float(-0.5f, 1.5f, duration, v =>
+                DOVirtual.Float(-0.5f, 3f, duration, v =>
                     _glowMat.SetFloat("_SweepProgress", v))
                    .SetEase(Ease.InOutCubic)
             );

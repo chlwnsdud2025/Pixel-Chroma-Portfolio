@@ -23,8 +23,8 @@ namespace PixelChroma.UI
         [SerializeField] private GameObject visualRoot;
 
         [Header("Animation")]
-        [SerializeField] private float sweepDuration = 0.4f;      // 스윕 1회 시간
-        [SerializeField] private float sweepStagger = 0.12f;      // Row 간 시간차
+        [SerializeField] private float sweepDuration = 1f;      // 스윕 1회 시간
+        [SerializeField] private float sweepStagger = 0.3f;      // Row 간 시간차
         [SerializeField] private float counterDuration = 0.6f;
 
         //---애니매이션(효과) 용--
@@ -135,7 +135,6 @@ namespace PixelChroma.UI
                         // 순위 변경 → 글로우 펄스 + 뱃지 모핑
                         if (oldRank != entry.rank)
                         {
-                            _pool[idx].PlayGlowPulse(entry.rank < oldRank);
                             _pool[idx].AnimateRankBadge(oldRank, entry.rank);
                         }
                     });

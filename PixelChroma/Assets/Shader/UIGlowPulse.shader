@@ -10,9 +10,10 @@ Shader "Custom/UIGlowPulse"
         _GlowIntensity ("Glow Intensity", Range(0, 1)) = 0
 
         // Sweep (갱신 스캔라인)
-        _SweepProgress ("Sweep Progress", Range(-0.5, 1.5)) = -0.5
-        _SweepWidth    ("Sweep Width", Range(0.01, 0.3)) = 0.12
+        _SweepProgress ("Sweep Progress", Range(-1, 2)) = -1
+        _SweepWidth    ("Sweep Width", Range(0.01, 0.8)) = 0.8
         _SweepColor    ("Sweep Color", Color) = (1, 1, 1, 0.6)
+        _SweepSkew     ("Sweep Skew", Range(-1, 1)) = -0.4
 
         // UI Stencil
         _StencilComp      ("Stencil Comp", Float) = 8
@@ -82,6 +83,7 @@ Shader "Custom/UIGlowPulse"
             float  _SweepProgress;
             float  _SweepWidth;
             fixed4 _SweepColor;
+            float  _SweepSkew;
 
             float4 _ClipRect;
 
@@ -99,8 +101,9 @@ Shader "Custom/UIGlowPulse"
             {
                 fixed4 col = fixed4(0, 0, 0, 0);
 
-                // ── 1. Sweep (좌→우 스캔라인) ──
-                float dist  = abs(i.uv.x - _SweepProgress);
+                // ── 1. Sweep (좌→우 사선 스캔라인) ──
+                float sweepCoord = i.uv.x + (i.uv.y - 0.5) * _SweepSkew;
+                float dist  = abs(sweepCoord - _SweepProgress);
                 float sweep = smoothstep(_SweepWidth, 0.0, dist);
                 col.rgb += _SweepColor.rgb * sweep;
                 col.a    = sweep * _SweepColor.a;
@@ -115,7 +118,7 @@ Shader "Custom/UIGlowPulse"
                 // ── 3. UI Clipping ──
                 #ifdef UNITY_UI_CLIP_RECT
                 float2 inside = step(_ClipRect.xy, i.worldPos.xy)
-                                * step(i.worldPos.xy, _ClipRect.zw);
+                              * step(i.worldPos.xy, _ClipRect.zw);
                 col.a *= inside.x * inside.y;
                 #endif
 
