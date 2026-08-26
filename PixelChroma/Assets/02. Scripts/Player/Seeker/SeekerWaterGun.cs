@@ -259,7 +259,6 @@ namespace PixelChroma
 
             _lastFireTime = Time.time;
             _currentAmmo--;        
-            _regenTimer = 0f;
 
             Vector2 mouseScreen = Mouse.current.position.ReadValue();
             Vector2 mouseWorld = _mainCam.ScreenToWorldPoint(mouseScreen);   // 조준 시 이미 사거리로 클램프된 위치
@@ -362,7 +361,6 @@ namespace PixelChroma
             Vector2 targetPoint = nearest.transform.position;
             _lastFireTime = Time.time;
             _currentAmmo--;
-            _regenTimer = 0f;
             CmdFireWaterGun(targetPoint);
         }
 #endif
