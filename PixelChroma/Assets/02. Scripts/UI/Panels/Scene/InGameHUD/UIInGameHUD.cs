@@ -17,6 +17,7 @@ namespace PixelChroma.UI
         public UIColorPicker ColorPicker => Common.ColorPicker;
         public bool IsPaintModeActive => Common.IsPaintModeActive;
 
+
         protected virtual void Update()
         {
         }
@@ -67,5 +68,7 @@ namespace PixelChroma.UI
         public void SetSpectateTarget(PlayerBase target, bool isSelf) => Common.SetSpectateTarget(target, isSelf);
 
         public void SetLikeGuide(bool canLike) => Common.SetLikeGuide(canLike);
+
+        public void SetSkipVoted() => Common.SetSkipVoted();
     }
 }

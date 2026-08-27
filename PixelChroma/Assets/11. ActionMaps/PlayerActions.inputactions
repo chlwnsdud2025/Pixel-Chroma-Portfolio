@@ -194,6 +194,15 @@
                     "processors": "",
                     "interactions": "Press(behavior=2)",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "SkipVote",
+                    "type": "Button",
+                    "id": "77483622-91b4-4aa4-ae92-a9a93186e772",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "Hold(duration=1.5)",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -568,6 +577,17 @@
                     "processors": "",
                     "groups": "",
                     "action": "FormWheel",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "7dc5dc66-c5d2-43b6-bbd8-97bd485fcaeb",
+                    "path": "<Keyboard>/y",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "SkipVote",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

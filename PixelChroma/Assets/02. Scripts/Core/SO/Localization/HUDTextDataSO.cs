@@ -21,4 +21,8 @@ public class HUDTextDataSO : ScriptableObject
     [Header("Transition")]
     public LocalizedString transitionAllCaught;   // "전원 사망!"
     public LocalizedString transitionTimeUp;      // " 시간 종료!"
+
+    [Header("Skip Vote")]
+    public LocalizedString skipVoteLabel;        // "스킵하기"
+    public LocalizedString skipVoteVotedLabel;   // "투표 완료"
 }

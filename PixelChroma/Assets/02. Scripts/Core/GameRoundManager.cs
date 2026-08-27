@@ -18,6 +18,9 @@ namespace PixelChroma
         public static event Action<TimeState, int> OnTimeStateChanged;
         public static event Action<PlayerRole> OnWinnerDecided;
         public static event Action<int> OnTimerTick;
+        public static event Action<int, int> OnSkipVoteUpdated;  // (currentVotes, requiredVotes)
+
+        private readonly HashSet<int> _skipVotes = new();
 
         private readonly Dictionary<int, PlayerRole> _assignedRoles = new();
         private bool _isLobbyReturningStarted = false;
@@ -33,6 +36,9 @@ namespace PixelChroma
         public TimeState CurrentTimeState { get; private set; } = TimeState.Waiting;
         public PlayerRole CurrentWinner { get; private set; } = PlayerRole.None;
         public int CurrentTimer { get; private set; }
+        public int CurrentSkipVotes { get; private set; }
+        public int RequiredSkipVotes { get; private set; }
+
         public GameModeRule CurrentRule
         {
             get
@@ -85,6 +91,11 @@ namespace PixelChroma
 
             if (NetworkServer.active)
                 WorkshopMapChecker.RegisterServerHandlers();
+
+            NetworkClient.RegisterHandler<SkipVoteSync>(OnClientSkipVoteSync);
+
+            if (NetworkServer.active)
+                NetworkServer.RegisterHandler<SkipVoteRequest>(OnServerSkipVoteRequest);
         }
 
         public void Cleanup()
@@ -101,6 +112,11 @@ namespace PixelChroma
 
             if (NetworkServer.active)
                 WorkshopMapChecker.UnregisterServerHandlers();
+
+            NetworkClient.UnregisterHandler<SkipVoteSync>();
+
+            if (NetworkServer.active)
+                NetworkServer.UnregisterHandler<SkipVoteRequest>();
         }
 
         [Server]
@@ -174,6 +190,26 @@ namespace PixelChroma
         public void RemovePlayer(int connectionId)
         {
             _assignedRoles.Remove(connectionId);
+
+            // 나간 플레이어의 투표를 제거하고, 남은 인원으로 만장일치 재확인
+            if (_skipVotes.Remove(connectionId) || _skipVotes.Count > 0)
+            {
+                int required = NetworkServer.connections.Count;
+                int current = _skipVotes.Count;
+
+                NetworkServer.SendToAll(new SkipVoteSync
+                {
+                    currentVotes = current,
+                    requiredVotes = required
+                });
+
+                if (current > 0 && current >= required
+                    && (CurrentTimeState == TimeState.HideTime || CurrentTimeState == TimeState.CheckTime))
+                {
+                    _skipVotes.Clear();
+                    HandleTimerExpired();
+                }
+            }
         }
 
         // ── Private ─────────────────────────────────────────────────────
@@ -181,10 +217,19 @@ namespace PixelChroma
         [Server]
         private void SetTimeState(TimeState newState, float time)
         {
+            _skipVotes.Clear();
+
             CurrentTimeState = newState;
             CurrentTimer = Mathf.CeilToInt(time);
 
             NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
+
+            NetworkServer.SendToAll(new SkipVoteSync
+            {
+                currentVotes = 0,
+                requiredVotes = NetworkServer.connections.Count
+            });
+
             Debug.Log($"[GameRound] 상태 전환: {newState}, 시간: {time}초, 승자: {CurrentWinner}");
 
             CancelTimer();
@@ -343,6 +388,8 @@ namespace PixelChroma
             CurrentTimeState = TimeState.Waiting;
             CurrentWinner = PlayerRole.None;
             CurrentTimer = 0;
+            CurrentSkipVotes = 0;
+            RequiredSkipVotes = 0;
         }
 
 
@@ -453,9 +500,50 @@ namespace PixelChroma
             Debug.Log($"[GameRound] 강제 도발 발동! 생존 러너 전원 위치 노출 (지속시간: {forcedExposeDuration}초)");
         }
 
+        [Server]
+        private void OnServerSkipVoteRequest(NetworkConnectionToClient conn, SkipVoteRequest msg)
+        {
+            // HideTime, CheckTime에서만 투표 허용
+            if (CurrentTimeState != TimeState.HideTime && CurrentTimeState != TimeState.CheckTime)
+                return;
+
+            // 이미 투표한 플레이어는 무시
+            if (!_skipVotes.Add(conn.connectionId))
+                return;
+
+            int required = NetworkServer.connections.Count;
+            int current = _skipVotes.Count;
+
+            // 전체 클라이언트에 현황 전파
+            NetworkServer.SendToAll(new SkipVoteSync
+            {
+                currentVotes = current,
+                requiredVotes = required
+            });
+
+            Debug.Log($"[SkipVote] {conn.connectionId} 투표. ({current}/{required})");
+
+            // 만장일치 달성 → 스킵 실행
+            if (current >= required)
+            {
+                Debug.Log("[SkipVote] 만장일치! 현재 타임 스킵.");
+                _skipVotes.Clear();
+                HandleTimerExpired();
+            }
+        }
+
+        private void OnClientSkipVoteSync(SkipVoteSync msg)
+        {
+            CurrentSkipVotes = msg.currentVotes;
+            RequiredSkipVotes = msg.requiredVotes;
+            OnSkipVoteUpdated?.Invoke(msg.currentVotes, msg.requiredVotes);
+        }
+
         private void OnClientRoomOptionChanged(RoomOptionSyncMessage msg)
         {
             CurrentRoomOption = RoomOption.FromData(msg.option);
         }
+
+
     }
 }

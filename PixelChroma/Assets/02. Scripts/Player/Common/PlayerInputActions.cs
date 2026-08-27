@@ -24,6 +24,7 @@ namespace PixelChroma
         private const string ActionChatToggle = "ChatToggle";
         private const string ActionLike = "Like";
         private const string ActionFormWheel = "FormWheel";
+        private const string ActionSkipVote = "SkipVote";
         private readonly InputActionMap _map;
 
         public InputAction Move { get; }
@@ -45,7 +46,7 @@ namespace PixelChroma
         public InputAction ChatToggle { get; }
         public InputAction Like { get; }
         public InputAction FormWheel { get; }
-
+        public InputAction SkipVote { get; }
         public PlayerInputActions(InputActionAsset asset)
         {
             _map = asset.FindActionMap(ActionMapName);
@@ -68,6 +69,7 @@ namespace PixelChroma
             ChatToggle = _map.FindAction(ActionChatToggle);
             Like = _map.FindAction(ActionLike);
             FormWheel = _map.FindAction(ActionFormWheel);
+            SkipVote = _map.FindAction(ActionSkipVote);
         }
 
         public void EnableAll() => _map.Enable();

@@ -55,4 +55,17 @@ namespace PixelChroma
         public bool isInstalled;
         public string playerName;   // 폴백 이름
     }
+
+
+    // ── 스킵 투표 ────────────────────────────────
+
+    // 클라 → 서버: "나 스킵에 동의할게"
+    public struct SkipVoteRequest : NetworkMessage { }
+
+    // 서버 → 전체 클라: "현재 투표 현황"
+    public struct SkipVoteSync : NetworkMessage
+    {
+        public int currentVotes;   // 현재까지 동의한 인원 수
+        public int requiredVotes;  // 스킵에 필요한 총 인원 수
+    }
 }

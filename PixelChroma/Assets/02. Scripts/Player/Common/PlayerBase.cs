@@ -60,10 +60,15 @@ namespace PixelChroma
 
         protected static event Action NicknameVisibilityChanged;
         public static event Action OnAnyPlayerNameChanged;
-
+        public static event Action<float> OnLocalSkipHoldProgress;
         public int LikeCount => _likeCount;
         public bool CanReceiveLike => role == PlayerRole.Runner;
         public bool LikedByLocal => _likedByLocal;
+
+        // ── 스킵 투표 ──
+        private const float SkipHoldDuration = 1.5f;   // Hold Time과 동일하게 맞출 것
+        private float _skipHoldTimer;
+        private bool _hasVotedSkip;
 
         // 분리된 컴포넌트(SeekerWaterGun 등)가 페인트 모드 여부만 좁게 조회할 수 있도록 공개합니다.
         public bool IsPaintMode => _paintController != null && _paintController.IsPaintMode;
@@ -96,6 +101,7 @@ namespace PixelChroma
             // OnStopLocalPlayer가 안 불린 채 파괴돼도 좀비 구독이 남지 않도록 백스톱 해제.
             UIChat.OnChatToggled -= HandleChatToggled;
             GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
+            GameRoundManager.OnTimeStateChanged -= HandleSkipVoteReset;
         }
 
         protected virtual void Update()
@@ -103,6 +109,7 @@ namespace PixelChroma
             if (!isLocalPlayer) return;
 
             UpdatePopupCursor();
+            HandleSkipVoteInput();
 
             if (IsGameplayInputBlocked)
             {
@@ -220,6 +227,7 @@ namespace PixelChroma
             CmdRequestPaintSnapshots();
 
             GameRoundManager.OnTimeStateChanged += HandleCheckTimeSpectator;
+            GameRoundManager.OnTimeStateChanged += HandleSkipVoteReset;
 
             if (GameRoundManager.Instance != null
             && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime)
@@ -233,6 +241,7 @@ namespace PixelChroma
             // 아래 정리 중 예외가 나도 구독이 남지 않도록 static 이벤트 해제를 최우선 처리.
             UIChat.OnChatToggled -= HandleChatToggled;
             GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
+            GameRoundManager.OnTimeStateChanged -= HandleSkipVoteReset;
 
             _input?.DisableAll();
 
@@ -308,6 +317,73 @@ namespace PixelChroma
         public void ApplyDefaultCursor()
         {
             _paintController?.RefreshCursor();
+        }
+
+        // ── 스킵 투표 ──────────────────────────────────────────────────
+
+        private bool CanSkipVote()
+        {
+            if (_hasVotedSkip) return false;
+            if (IsGameplayInputBlocked) return false;
+
+            var round = GameRoundManager.Instance;
+            if (round == null) return false;
+
+            return round.CurrentTimeState == TimeState.HideTime
+                || round.CurrentTimeState == TimeState.CheckTime;
+        }
+
+        private void HandleSkipVoteInput()
+        {
+            // 스킵 불가 상태이거나 이미 투표함 → 게이지 리셋
+            if (!CanSkipVote())
+            {
+                if (_skipHoldTimer > 0f)
+                {
+                    _skipHoldTimer = 0f;
+                    OnLocalSkipHoldProgress?.Invoke(0f);
+                }
+                return;
+            }
+
+            // Y키를 누르고 있는 동안 게이지 진행
+            if (_input.SkipVote.IsPressed())
+            {
+                _skipHoldTimer += Time.deltaTime;
+                float progress = Mathf.Clamp01(_skipHoldTimer / SkipHoldDuration);
+                OnLocalSkipHoldProgress?.Invoke(progress);
+            }
+            else
+            {
+                // 손을 뗌 → 게이지 리셋
+                if (_skipHoldTimer > 0f)
+                {
+                    _skipHoldTimer = 0f;
+                    OnLocalSkipHoldProgress?.Invoke(0f);
+                }
+            }
+
+            // Hold 완료 → 투표 전송
+            if (_input.SkipVote.WasPerformedThisFrame())
+            {
+                _hasVotedSkip = true;
+                _skipHoldTimer = 0f;
+                OnLocalSkipHoldProgress?.Invoke(1f);
+                SendSkipVote();
+                InGameHUD?.SetSkipVoted();
+            }
+        }
+
+        private void SendSkipVote()
+        {
+            NetworkClient.Send(new SkipVoteRequest());
+        }
+
+        private void HandleSkipVoteReset(TimeState state, int remainingSeconds)
+        {
+            _hasVotedSkip = false;
+            _skipHoldTimer = 0f;
+            OnLocalSkipHoldProgress?.Invoke(0f);
         }
 
         // ── ESC 처리 ──────────────────────────────────────────────────

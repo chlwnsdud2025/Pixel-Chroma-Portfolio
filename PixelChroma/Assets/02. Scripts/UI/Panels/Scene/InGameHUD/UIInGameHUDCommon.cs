@@ -3,6 +3,7 @@ using DG.Tweening;
 using OneText.UGUI;
 using UnityEngine;
 using UnityEngine.UI;
+using Mirror;
 
 namespace PixelChroma.UI
 {
@@ -53,6 +54,13 @@ namespace PixelChroma.UI
         [Header("Setting Button")]
         [SerializeField] private Button settingButton;
 
+        [Header("Skip Vote")]
+        [SerializeField] private GameObject skipVoteRoot;
+        [SerializeField] private Button skipButton;
+        [SerializeField] private Image skipHoldGauge;
+        [SerializeField] private OneTextLabel skipButtonText;
+        [SerializeField] private OneTextLabel skipVoteCountText;
+
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
@@ -73,6 +81,10 @@ namespace PixelChroma.UI
                 resultOverlayGroup.gameObject.SetActive(false);
             }
             if (scoreBoard != null) scoreBoard.Initialize();
+
+            if (skipButton != null) skipButton.AddClickListener(OnClickSkipVote);
+            if (skipVoteRoot != null) skipVoteRoot.SetActive(false);
+            if (skipHoldGauge != null) skipHoldGauge.fillAmount = 0f;
         }
 
         public void SubscribeEvents()
@@ -82,6 +94,8 @@ namespace PixelChroma.UI
             GameRoundManager.OnWinnerDecided += HandleWinnerDecided;
             InGameManager.OnPlayerCountChanged += HandlePlayerCountChanged;
             GameSettings.Changed += OnSettingsChanged;
+            GameRoundManager.OnSkipVoteUpdated += HandleSkipVoteUpdated;
+            PlayerBase.OnLocalSkipHoldProgress += HandleSkipHoldProgress;
         }
 
         public void UnsubscribeEvents()
@@ -91,6 +105,8 @@ namespace PixelChroma.UI
             GameRoundManager.OnWinnerDecided -= HandleWinnerDecided;
             InGameManager.OnPlayerCountChanged -= HandlePlayerCountChanged;
             GameSettings.Changed -= OnSettingsChanged;
+            GameRoundManager.OnSkipVoteUpdated -= HandleSkipVoteUpdated;
+            PlayerBase.OnLocalSkipHoldProgress -= HandleSkipHoldProgress;
         }
 
         public void SetPaintMode(bool active)
@@ -106,6 +122,9 @@ namespace PixelChroma.UI
             if (resultOverlayGroup != null) resultOverlayGroup.gameObject.SetActive(false);
             if (spectatorPanel != null) spectatorPanel.Hide();
             if (catchLog != null) catchLog.ClearAll();
+            if (skipVoteRoot != null) skipVoteRoot.SetActive(false);
+            if (skipHoldGauge != null) skipHoldGauge.fillAmount = 0f;
+            if (skipVoteCountText != null) skipVoteCountText.text = "";
         }
 
         public void SetSpectatorMode(bool active)
@@ -193,6 +212,25 @@ namespace PixelChroma.UI
             }
 
             UpdateTimerText(remainingSeconds);
+
+            // 스킵 투표 UI: HideTime, CheckTime에서만 표시
+            if (skipVoteRoot != null)
+            {
+                bool showSkip = state == TimeState.HideTime || state == TimeState.CheckTime;
+                skipVoteRoot.SetActive(showSkip);
+
+                // 상태 전환 시 UI 초기화
+                if (showSkip)
+                {
+                    if (skipButton != null) skipButton.interactable = true;
+                    if (skipButtonText != null) skipButtonText.text = textData.skipVoteLabel.GetLocalizedString();
+                    if (skipHoldGauge != null) skipHoldGauge.fillAmount = 0f;
+
+                    var round = GameRoundManager.Instance;
+                    if (skipVoteCountText != null && round != null)
+                        skipVoteCountText.text = $"(0/{round.RequiredSkipVotes})";
+                }
+            }
         }
 
         private void ShowWinnerOverlay(PlayerRole winner)
@@ -265,5 +303,35 @@ namespace PixelChroma.UI
         {
             UIManager.Instance.ShowPopup<UISetting>().Forget();
         }
+
+        // --------------------- 스킵 투표 -----------------------------------
+
+        private void HandleSkipVoteUpdated(int currentVotes, int requiredVotes)
+        {
+            if (skipVoteCountText != null)
+                skipVoteCountText.text = $"({currentVotes}/{requiredVotes})";
+        }
+
+        private void HandleSkipHoldProgress(float progress)
+        {
+            if (skipHoldGauge != null)
+                skipHoldGauge.fillAmount = progress;
+        }
+
+        public void SetSkipVoted()
+        {
+            if (skipButton != null) skipButton.interactable = false;
+            if (skipButtonText != null) skipButtonText.text = textData.skipVoteVotedLabel.GetLocalizedString();
+            if (skipHoldGauge != null) skipHoldGauge.fillAmount = 1f;
+        }
+
+        private void OnClickSkipVote()
+        {
+            NetworkClient.Send(new SkipVoteRequest());
+            SetSkipVoted();  // 공용 메서드 호출
+        }
+
+
+
     }
 }
