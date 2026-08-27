@@ -4,6 +4,6 @@ namespace PixelChroma
 {
     public struct PlayerDeadMessage : NetworkMessage
     {
-        public uint netId;
+        public int connectionId;
     }
 }

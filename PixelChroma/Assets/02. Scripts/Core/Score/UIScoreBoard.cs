@@ -1,9 +1,7 @@
 using DG.Tweening;
-using Mirror;
 using OneText.UGUI;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace PixelChroma.UI
 {
@@ -16,27 +14,20 @@ namespace PixelChroma.UI
         [Header("Header")]
         [SerializeField] private OneTextLabel refreshTimerText;
 
-        [Header("Pool")]
-        [SerializeField] private int initialPoolSize = 6;
-
         [Header("Visibility")]
         [SerializeField] private GameObject visualRoot;
 
         [Header("Animation")]
         [SerializeField] private float sweepDuration = 1f;      // 스윕 1회 시간
-        [SerializeField] private float sweepStagger = 0.3f;      // Row 간 시간차
+        [SerializeField] private float sweepStagger = 0.3f;     // Row 간 시간차
         [SerializeField] private float counterDuration = 0.6f;
 
-        //---애니매이션(효과) 용--
-        private readonly Dictionary<uint, int> _prevScoreMap = new();
-        private readonly Dictionary<uint, int> _prevRankMap = new();
+        // 애니메이션 기준값 (connectionId 키)
+        private readonly Dictionary<int, int> _prevScoreMap = new();
+        private readonly Dictionary<int, int> _prevRankMap = new();
 
         private readonly List<UIScoreRow> _pool = new();
 
-        private int _refreshCountdown;
-
-        private static ScoreEntry[] _cachedEntries;
-        private static int _cachedCountdown;
         // ── 초기화 ──
 
         public void Initialize()
@@ -57,34 +48,75 @@ namespace PixelChroma.UI
 
         private void OnEnable()
         {
-            NetworkClient.RegisterHandler<ScoreBoardMessage>(OnScoreBoardReceived);
-            NetworkClient.RegisterHandler<RevealedPixelMessage>(OnRevealedPixelReceived);
-            NetworkClient.RegisterHandler<PlayerDeadMessage>(OnPlayerDeadReceived);
-            GameRoundManager.OnTimerTick += HandleTimerTick;
+            ScoreBoardClient.OnSnapshot += HandleSnapshot;
+            ScoreBoardClient.OnPlayerDead += HandlePlayerDead;
+            ScoreBoardClient.OnPixelRevealed += HandlePixelRevealed;
+            ScoreBoardClient.OnCountdownChanged += HandleCountdownChanged;
 
-            ApplyCache();
+            RenderCurrentState();   // 인스턴스 교체 직후에도 대기 없이 즉시 반영
         }
 
         private void OnDisable()
         {
-            NetworkClient.UnregisterHandler<ScoreBoardMessage>();
-            NetworkClient.UnregisterHandler<RevealedPixelMessage>();
-            NetworkClient.UnregisterHandler<PlayerDeadMessage>();
-            GameRoundManager.OnTimerTick -= HandleTimerTick;
+            ScoreBoardClient.OnSnapshot -= HandleSnapshot;
+            ScoreBoardClient.OnPlayerDead -= HandlePlayerDead;
+            ScoreBoardClient.OnPixelRevealed -= HandlePixelRevealed;
+            ScoreBoardClient.OnCountdownChanged -= HandleCountdownChanged;
 
             DOTween.Kill(this);
         }
 
-        // ── 네트워크 수신 ──
-
-        private void OnScoreBoardReceived(ScoreBoardMessage msg)
+        public void SetVisible(bool visible)
         {
-            _refreshCountdown = Mathf.RoundToInt(msg.refreshInterval);
+            if (visualRoot != null) visualRoot.SetActive(visible);
+        }
 
-            _cachedEntries = msg.entries;
-            _cachedCountdown = _refreshCountdown;
+        // ── 이벤트 핸들러 ──
 
-            RebuildRows(msg.entries);
+        // 스냅샷 복원은 델타 갱신이 아니므로 기준값을 비워 '즉시 표시' 분기를 타게 한다.
+        private void RenderCurrentState()
+        {
+            _prevScoreMap.Clear();
+            _prevRankMap.Clear();
+
+            HandleCountdownChanged(ScoreBoardClient.RefreshCountdown);
+            HandleSnapshot(ScoreBoardClient.Entries);
+        }
+
+        private void HandleSnapshot(ScoreEntry[] entries)
+        {
+            if (entries == null || entries.Length == 0) ClearRows();
+            else RebuildRows(entries);
+        }
+
+        private void HandleCountdownChanged(int remaining)
+        {
+            if (refreshTimerText != null)
+                refreshTimerText.text = remaining > 0 ? remaining.ToString() : "";
+        }
+
+        private void HandlePlayerDead(int connectionId)
+        {
+            foreach (var row in _pool)
+            {
+                if (row.gameObject.activeSelf && row.CurrentConnectionId == connectionId)
+                {
+                    row.ApplyDeadColor();
+                    break;
+                }
+            }
+        }
+
+        private void HandlePixelRevealed(int connectionId, Color32 color)
+        {
+            foreach (var row in _pool)
+            {
+                if (row.gameObject.activeSelf && row.CurrentConnectionId == connectionId)
+                {
+                    row.PlayExposeEffect(color);
+                    break;
+                }
+            }
         }
 
         // ── UI 구축 (오브젝트 풀링) ──
@@ -92,9 +124,6 @@ namespace PixelChroma.UI
         private void RebuildRows(ScoreEntry[] entries)
         {
             DOTween.Kill(this);
-
-            uint myNetId = NetworkClient.localPlayer != null
-                ? NetworkClient.localPlayer.netId : 0;
 
             // ── 풀 확장 ──
             while (_pool.Count < entries.Length)
@@ -114,7 +143,7 @@ namespace PixelChroma.UI
                 for (int i = 0; i < entries.Length; i++)
                 {
                     _pool[i].gameObject.SetActive(true);
-                    _pool[i].SetData(entries[i], entries[i].netId == myNetId);
+                    ApplyRow(_pool[i], entries[i]);
                 }
 
                 SaveCurrentState(entries);
@@ -129,32 +158,36 @@ namespace PixelChroma.UI
 
                 _pool[idx].gameObject.SetActive(true);
 
-                // 이전 상태 조회
-                _prevScoreMap.TryGetValue(entry.netId, out int oldScore);
-                _prevRankMap.TryGetValue(entry.netId, out int oldRank);
+                _prevScoreMap.TryGetValue(entry.connectionId, out int oldScore);
+                _prevRankMap.TryGetValue(entry.connectionId, out int oldRank);
 
-                // 스윕 시작 (시간차 적용)
                 DOVirtual.DelayedCall(idx * sweepStagger, () =>
                 {
                     _pool[idx].PlaySweep(sweepDuration, onMidPoint: () =>
                     {
-                        // ── 스윕 중간 지점에서 데이터 갱신 ──
-                        _pool[idx].SetData(entry, entry.netId == myNetId);
+                        ApplyRow(_pool[idx], entry);
 
-                        // 점수 변경 → 카운터 롤
                         if (oldScore != entry.score)
                             _pool[idx].AnimateScoreCounter(oldScore, entry.score, counterDuration);
 
-                        // 순위 변경 → 글로우 펄스 + 뱃지 모핑
                         if (oldRank != entry.rank)
-                        {
                             _pool[idx].AnimateRankBadge(oldRank, entry.rank);
-                        }
                     });
                 }).SetTarget(this);
             }
 
             SaveCurrentState(entries);
+        }
+
+        // 사망 여부는 서버 스냅샷과 클라 누적 집합의 합집합으로 판정한다.
+        // 스냅샷이 낡은 경우(인스턴스 교체 직후)에도 즉시 올바른 색이 나온다.
+        private void ApplyRow(UIScoreRow row, ScoreEntry entry)
+        {
+            bool isSelf = ScoreBoardClient.MyConnectionId >= 0
+                       && entry.connectionId == ScoreBoardClient.MyConnectionId;
+            bool isDead = entry.isDead || ScoreBoardClient.IsDead(entry.connectionId);
+
+            row.SetData(entry, isSelf, isDead);
         }
 
         private void SaveCurrentState(ScoreEntry[] entries)
@@ -164,71 +197,9 @@ namespace PixelChroma.UI
 
             for (int i = 0; i < entries.Length; i++)
             {
-                _prevScoreMap[entries[i].netId] = entries[i].score;
-                _prevRankMap[entries[i].netId] = entries[i].rank;
+                _prevScoreMap[entries[i].connectionId] = entries[i].score;
+                _prevRankMap[entries[i].connectionId] = entries[i].rank;
             }
-        }
-
-
-        public void SetVisible(bool visible)
-        {
-            if (visualRoot != null) visualRoot.SetActive(visible);
-        }
-
-        private void HandleTimerTick(int remainingSeconds)
-        {
-            if (refreshTimerText != null)
-                refreshTimerText.text = _refreshCountdown.ToString();
-
-            _refreshCountdown--;
-            if (_refreshCountdown < 0) _refreshCountdown = 0;
-
-            _cachedCountdown = _refreshCountdown;
-        }
-
-        private void OnRevealedPixelReceived(RevealedPixelMessage msg)
-        {
-            foreach (var row in _pool)
-            {
-                if (row.gameObject.activeSelf && row.CurrentNetId == msg.netId)
-                {
-                    row.PlayExposeEffect(msg.color);
-                    break;
-                }
-            }
-        }
-
-        private void OnPlayerDeadReceived(PlayerDeadMessage msg)
-        {
-            foreach (var row in _pool)
-            {
-                if (row.gameObject.activeSelf && row.CurrentNetId == msg.netId)
-                {
-                    row.ApplyDeadColor();
-                    break;
-                }
-            }
-        }
-
-
-        //-----------------초기화, 복원-----------------------
-        public static void ClearCache()
-        {
-            _cachedEntries = null;
-            _cachedCountdown = 0;
-        }
-
-        private void ApplyCache()
-        {
-            _refreshCountdown = _cachedCountdown;
-
-            _prevScoreMap.Clear();
-            _prevRankMap.Clear();
-
-            if (_cachedEntries != null)
-                RebuildRows(_cachedEntries);
-            else
-                ClearRows();
         }
 
         private void ClearRows()
@@ -238,8 +209,8 @@ namespace PixelChroma.UI
                 if (row != null) row.ResetRow();
             }
 
-            _prevScoreMap.Clear();      
-            _prevRankMap.Clear();       
+            _prevScoreMap.Clear();
+            _prevRankMap.Clear();
 
             if (refreshTimerText != null) refreshTimerText.text = "";
         }

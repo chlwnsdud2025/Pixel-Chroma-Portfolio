@@ -87,15 +87,19 @@ namespace PixelChroma
             NetworkClient.RegisterHandler<RoomOptionSyncMessage>(OnClientRoomOptionChanged);
 
             WorkshopMapChecker.RegisterHandlers();
-            NetworkClient.RegisterHandler<WorkshopMapCheckResult>(WorkshopMapChecker.HandleCheckResult);
 
-            if (NetworkServer.active)
-                WorkshopMapChecker.RegisterServerHandlers();
+            NetworkClient.RegisterHandler<WorkshopMapCheckResult>(WorkshopMapChecker.HandleCheckResult);
 
             NetworkClient.RegisterHandler<SkipVoteSync>(OnClientSkipVoteSync);
 
+            ScoreBoardClient.RegisterHandlers();
+            RankClient.RegisterHandlers();
+
             if (NetworkServer.active)
+            {
+                WorkshopMapChecker.RegisterServerHandlers();
                 NetworkServer.RegisterHandler<SkipVoteRequest>(OnServerSkipVoteRequest);
+            }
         }
 
         public void Cleanup()
@@ -110,15 +114,17 @@ namespace PixelChroma
             WorkshopMapChecker.UnregisterHandlers();
             NetworkClient.UnregisterHandler<WorkshopMapCheckResult>();
 
-            if (NetworkServer.active)
-                WorkshopMapChecker.UnregisterServerHandlers();
-
             NetworkClient.UnregisterHandler<SkipVoteSync>();
 
-            if (NetworkServer.active)
-                NetworkServer.UnregisterHandler<SkipVoteRequest>();
-        }
+            ScoreBoardClient.UnregisterHandlers();
+            RankClient.UnregisterHandlers();
 
+            if (NetworkServer.active)
+            {
+                WorkshopMapChecker.UnregisterServerHandlers();
+                NetworkServer.UnregisterHandler<SkipVoteRequest>();
+            }
+        }
         [Server]
         public void StartGameWithOption(RoomOption option)
         {

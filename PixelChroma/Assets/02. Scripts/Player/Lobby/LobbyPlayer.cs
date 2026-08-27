@@ -1,7 +1,6 @@
 using Mirror;
 using PixelChroma;
 using PixelChroma.UI;
-using System;
 using UnityEngine;
 
 public class LobbyPlayer : PlayerBase
@@ -18,30 +17,29 @@ public class LobbyPlayer : PlayerBase
 
     private LobbyPlayerState _lobbyState;
 
-    private static event Action<RankMessage> _onRankReceived;
-
     protected override void Awake()
     {
         base.Awake();
+        // 같은 프리팹에 있는 상태 관리 스크립트를 찾아옵니다.
         _lobbyState = GetComponent<LobbyPlayerState>();
     }
 
     public override void OnStartClient()
     {
         base.OnStartClient();
-        LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
-        _onRankReceived += HandleRank;
 
-        NetworkClient.RegisterHandler<RankMessage>(OnRankMessage);
+        LobbyPlayerState.OnReadyChanged += UpdateReadyImage;
+        RankClient.OnRanksChanged += ApplyRankIcons;
 
         UpdateReadyImage();
-        HideAllRankIcons();
+        ApplyRankIcons();   // 순위가 이미 도착했어도 즉시 반영
     }
 
     public override void OnStopClient()
     {
         LobbyPlayerState.OnReadyChanged -= UpdateReadyImage;
-        _onRankReceived -= HandleRank;
+        RankClient.OnRanksChanged -= ApplyRankIcons;
+
         base.OnStopClient();
     }
 
@@ -64,24 +62,24 @@ public class LobbyPlayer : PlayerBase
         }
     }
 
-    private static void OnRankMessage(RankMessage msg)
-    {
-        _onRankReceived?.Invoke(msg);
-    }
+    // ── 순위 아이콘 ──────────────────────────────────────────────
 
-    private void HandleRank(RankMessage msg)
+    private void ApplyRankIcons()
     {
         HideAllRankIcons();
 
-        if (netId == msg.firstNetId && goldMedalObject != null)
+        // 아직 netId가 없으면(스폰 전) 0끼리 매칭돼 모든 아이콘이 켜지므로 방어합니다.
+        if (netId == 0) return;
+
+        if (netId == RankClient.FirstNetId && goldMedalObject != null)
             goldMedalObject.SetActive(true);
-        else if (netId == msg.secondNetId && silverMedalObject != null)
+        else if (netId == RankClient.SecondNetId && silverMedalObject != null)
             silverMedalObject.SetActive(true);
-        else if (netId == msg.thirdNetId && bronzeMedalObject != null)
+        else if (netId == RankClient.ThirdNetId && bronzeMedalObject != null)
             bronzeMedalObject.SetActive(true);
 
         // 꼴지는 1~3등과 겹치지 않으므로 별도 if
-        if (netId == msg.lastNetId && poopObject != null)
+        if (netId == RankClient.LastNetId && poopObject != null)
             poopObject.SetActive(true);
     }
 

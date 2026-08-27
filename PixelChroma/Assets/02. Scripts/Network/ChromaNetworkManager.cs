@@ -5,7 +5,6 @@ using Steamworks;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using PixelChroma.UI;
 
 namespace PixelChroma
 {
@@ -191,7 +190,8 @@ namespace PixelChroma
         {
             base.OnClientChangeScene(newSceneName, sceneOperation, customHandling);
 
-            UIScoreBoard.ClearCache();
+            ScoreBoardClient.Reset();
+            RankClient.Reset();
 
             ShowLoadingIfManagedScene(newSceneName);
         }

@@ -19,7 +19,7 @@ namespace PixelChroma.UI
         [SerializeField] private Color deadColor = new(0.4f, 0.1f, 0.1f, 0.6f);
 
         [Header("Expose Pixel")]
-        [SerializeField] private RectTransform exposePixelRoot;   
+        [SerializeField] private RectTransform exposePixelRoot;
         [SerializeField] private RawImage exposePixelImage;
         [SerializeField] private float exposeDisplayDuration = 3f;
 
@@ -28,12 +28,15 @@ namespace PixelChroma.UI
 
         private Texture2D _pixelTex;
         private Texture2D _exposeTex;
-        private uint _currentNetId;
         private RectTransform _rt;
         private Material _glowMat;
-        private Vector2 _exposeBasePos;        
+
+        private Vector2 _exposeBasePos;
         private bool _exposeBaseCaptured;
-        public uint CurrentNetId => _currentNetId;
+
+        // 행을 식별하는 키. netId는 감염 전환 시 바뀌므로 connectionId를 쓴다.
+        private int _currentConnectionId = -1;
+        public int CurrentConnectionId => _currentConnectionId;
 
         private void Awake()
         {
@@ -41,10 +44,13 @@ namespace PixelChroma.UI
             if (glowOverlay != null) EnsureGlowMat();
         }
 
-
-        public void SetData(ScoreEntry entry, bool isSelf)
+        /// <summary>
+        /// 행에 데이터를 바인딩합니다. 사망 여부는 보드가 판정해서 넘겨줍니다
+        /// (서버 스냅샷이 낡아도 클라 누적 상태로 보정할 수 있게 하기 위함).
+        /// </summary>
+        public void SetData(ScoreEntry entry, bool isSelf, bool isDead)
         {
-            _currentNetId = entry.netId;
+            _currentConnectionId = entry.connectionId;
 
             rankText.text = $"#{entry.rank}";
             nameText.text = entry.playerName;
@@ -69,23 +75,24 @@ namespace PixelChroma.UI
             // 배경색: 사망 > 본인 > 일반
             if (backgroundImage != null)
             {
-                if (entry.isDead)
-                    backgroundImage.color = deadColor;
-                else if (isSelf)
-                    backgroundImage.color = selfColor;
-                else
-                    backgroundImage.color = normalColor;
+                if (isDead) backgroundImage.color = deadColor;
+                else if (isSelf) backgroundImage.color = selfColor;
+                else backgroundImage.color = normalColor;
             }
 
+            // 순위 텍스트도 동일한 우선순위
             if (rankText != null)
             {
-                if (entry.isDead)
-                    rankText.color = deadColor;
-                else if (isSelf)
-                    rankText.color = selfColor;
-                else
-                    rankText.color = normalColor;
+                if (isDead) rankText.color = deadColor;
+                else if (isSelf) rankText.color = selfColor;
+                else rankText.color = normalColor;
             }
+        }
+
+        public void ApplyDeadColor()
+        {
+            if (backgroundImage != null) backgroundImage.color = deadColor;
+            if (rankText != null) rankText.color = deadColor;
         }
 
         public void PlayExposeEffect(Color32 color)
@@ -104,8 +111,9 @@ namespace PixelChroma.UI
             exposePixelRoot.gameObject.SetActive(true);
 
             // ── 이전 연출 정리 후 위치·스케일 모두 원복 ──
+            // DOKill은 위치를 되돌려주지 않으므로 명시적으로 대입해야 오프셋이 누적되지 않는다.
             exposePixelRoot.DOKill();
-            exposePixelRoot.anchoredPosition = _exposeBasePos;  
+            exposePixelRoot.anchoredPosition = _exposeBasePos;
             exposePixelRoot.localScale = Vector3.zero;
 
             var seq = DOTween.Sequence().SetTarget(exposePixelRoot);
@@ -117,27 +125,33 @@ namespace PixelChroma.UI
             seq.OnComplete(() => exposePixelRoot.gameObject.SetActive(false));
         }
 
+        // 풀 반환 시 초기화
         public void ResetRow()
         {
+            _currentConnectionId = -1;   // 매칭 대상에서 제외
+
             if (rankText != null) rankText.text = "";
             if (nameText != null) nameText.text = "";
             if (scoreText != null) scoreText.text = "";
             if (pixelNicknameImage != null) pixelNicknameImage.gameObject.SetActive(false);
             if (nameText != null) nameText.gameObject.SetActive(true);
+
             if (rankText != null) DOTween.Kill(rankText.GetComponent<RectTransform>());
+
             if (exposePixelRoot != null)
             {
                 exposePixelRoot.DOKill();
                 if (_exposeBaseCaptured)
-                    exposePixelRoot.anchoredPosition = _exposeBasePos;  
-                exposePixelRoot.localScale = Vector3.one;               
+                    exposePixelRoot.anchoredPosition = _exposeBasePos;
+                exposePixelRoot.localScale = Vector3.one;
                 exposePixelRoot.gameObject.SetActive(false);
             }
 
             // 애니메이션 정리
             if (_rt != null) _rt.DOKill();
             if (scoreText != null) DOTween.Kill(scoreText);
-            DOTween.Kill(this);  
+            DOTween.Kill(this);
+
             if (glowOverlay != null)
             {
                 DOTween.Kill(glowOverlay);
@@ -158,16 +172,8 @@ namespace PixelChroma.UI
             if (_glowMat != null) Object.Destroy(_glowMat);
         }
 
-        public void ApplyDeadColor()
-        {
-            if (backgroundImage != null)
-                backgroundImage.color = deadColor;
-            if (rankText != null)
-                rankText.color = deadColor;
-        }
-
-
         //-----------------------Tween + Shader 효과-----------------------------------------
+
         public void PlaySweep(float duration, System.Action onMidPoint = null)
         {
             if (glowOverlay == null) return;
@@ -181,7 +187,7 @@ namespace PixelChroma.UI
 
             var seq = DOTween.Sequence().SetTarget(this);
 
-            // 좌→우 스윕: -0.5 → 2
+            // 좌→우 스윕
             seq.Append(
                 DOVirtual.Float(-0.5f, 3f, duration, v =>
                     _glowMat.SetFloat("_SweepProgress", v))
@@ -206,35 +212,6 @@ namespace PixelChroma.UI
             })
             .SetTarget(scoreText)
             .SetEase(Ease.OutCubic);
-        }
-
-        public void PlayGlowPulse(bool isPromotion)
-        {
-            if (glowOverlay == null) return;
-
-            EnsureGlowMat();
-
-            // 색상 설정
-            Color glowColor = isPromotion
-                ? new Color(0.3f, 0.6f, 1f, 1f)     // 파란색 (순위 상승)
-                : new Color(1f, 0.3f, 0.25f, 1f);   // 빨간색 (순위 하락)
-
-            _glowMat.SetColor("_GlowColor", glowColor);
-
-            // 0 → 1 → 0 펄스
-            DOTween.Kill(glowOverlay);
-
-            var seq = DOTween.Sequence().SetTarget(glowOverlay);
-            seq.Append(
-                DOVirtual.Float(0f, 1f, 0.15f, v =>
-                    _glowMat.SetFloat("_GlowIntensity", v))
-                   .SetEase(Ease.OutQuad)
-            );
-            seq.Append(
-                DOVirtual.Float(1f, 0f, 0.5f, v =>
-                    _glowMat.SetFloat("_GlowIntensity", v))
-                   .SetEase(Ease.InQuad)
-            );
         }
 
         public void AnimateRankBadge(int oldRank, int newRank)

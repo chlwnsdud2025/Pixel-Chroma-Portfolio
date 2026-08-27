@@ -160,7 +160,7 @@ namespace PixelChroma
 
         public void ForceBroadcast()
         {
-            SendScoreBoard();
+            SendScoreBoard(0f);
         }
 
         // ── 시야 점수 시작/종료 ──
@@ -237,14 +237,17 @@ namespace PixelChroma
             _frozenPlayers.Add(connectionId);
 
             if (!NetworkServer.active) return;
-            uint netId = GetNetIdByConnectionId(connectionId);
-            NetworkServer.SendToAll(new PlayerDeadMessage { netId = netId });
+            NetworkServer.SendToAll(new PlayerDeadMessage { connectionId = connectionId });
         }
+
         public void SetRevealedColor(int connectionId, Color32 color)
         {
             if (!NetworkServer.active) return;
-            uint netId = GetNetIdByConnectionId(connectionId);
-            NetworkServer.SendToAll(new RevealedPixelMessage { netId = netId, color = color });
+            NetworkServer.SendToAll(new RevealedPixelMessage
+            {
+                connectionId = connectionId,
+                color = color
+            });
         }
 
         public void SaveRanks()

@@ -5,7 +5,7 @@ namespace PixelChroma
 {
     public struct RevealedPixelMessage : NetworkMessage
     {
-        public uint netId;
+        public int connectionId;
         public Color32 color;
     }
 }
