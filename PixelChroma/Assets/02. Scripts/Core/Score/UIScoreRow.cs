@@ -116,6 +116,7 @@ namespace PixelChroma.UI
             if (scoreText != null) scoreText.text = "";
             if (pixelNicknameImage != null) pixelNicknameImage.gameObject.SetActive(false);
             if (nameText != null) nameText.gameObject.SetActive(true);
+            if (rankText != null) DOTween.Kill(rankText.GetComponent<RectTransform>());
             if (exposePixelRoot != null)
             {
                 exposePixelRoot.DOKill();

@@ -34,6 +34,9 @@ namespace PixelChroma.UI
         private readonly List<UIScoreRow> _pool = new();
 
         private int _refreshCountdown;
+
+        private static ScoreEntry[] _cachedEntries;
+        private static int _cachedCountdown;
         // ── 초기화 ──
 
         public void Initialize()
@@ -58,6 +61,8 @@ namespace PixelChroma.UI
             NetworkClient.RegisterHandler<RevealedPixelMessage>(OnRevealedPixelReceived);
             NetworkClient.RegisterHandler<PlayerDeadMessage>(OnPlayerDeadReceived);
             GameRoundManager.OnTimerTick += HandleTimerTick;
+
+            ApplyCache();
         }
 
         private void OnDisable()
@@ -66,6 +71,8 @@ namespace PixelChroma.UI
             NetworkClient.UnregisterHandler<RevealedPixelMessage>();
             NetworkClient.UnregisterHandler<PlayerDeadMessage>();
             GameRoundManager.OnTimerTick -= HandleTimerTick;
+
+            DOTween.Kill(this);
         }
 
         // ── 네트워크 수신 ──
@@ -73,6 +80,10 @@ namespace PixelChroma.UI
         private void OnScoreBoardReceived(ScoreBoardMessage msg)
         {
             _refreshCountdown = Mathf.RoundToInt(msg.refreshInterval);
+
+            _cachedEntries = msg.entries;
+            _cachedCountdown = _refreshCountdown;
+
             RebuildRows(msg.entries);
         }
 
@@ -80,6 +91,8 @@ namespace PixelChroma.UI
 
         private void RebuildRows(ScoreEntry[] entries)
         {
+            DOTween.Kill(this);
+
             uint myNetId = NetworkClient.localPlayer != null
                 ? NetworkClient.localPlayer.netId : 0;
 
@@ -138,7 +151,7 @@ namespace PixelChroma.UI
                             _pool[idx].AnimateRankBadge(oldRank, entry.rank);
                         }
                     });
-                });
+                }).SetTarget(this);
             }
 
             SaveCurrentState(entries);
@@ -169,6 +182,8 @@ namespace PixelChroma.UI
 
             _refreshCountdown--;
             if (_refreshCountdown < 0) _refreshCountdown = 0;
+
+            _cachedCountdown = _refreshCountdown;
         }
 
         private void OnRevealedPixelReceived(RevealedPixelMessage msg)
@@ -193,6 +208,40 @@ namespace PixelChroma.UI
                     break;
                 }
             }
+        }
+
+
+        //-----------------초기화, 복원-----------------------
+        public static void ClearCache()
+        {
+            _cachedEntries = null;
+            _cachedCountdown = 0;
+        }
+
+        private void ApplyCache()
+        {
+            _refreshCountdown = _cachedCountdown;
+
+            _prevScoreMap.Clear();
+            _prevRankMap.Clear();
+
+            if (_cachedEntries != null)
+                RebuildRows(_cachedEntries);
+            else
+                ClearRows();
+        }
+
+        private void ClearRows()
+        {
+            foreach (var row in _pool)
+            {
+                if (row != null) row.ResetRow();
+            }
+
+            _prevScoreMap.Clear();      
+            _prevRankMap.Clear();       
+
+            if (refreshTimerText != null) refreshTimerText.text = "";
         }
     }
 }
