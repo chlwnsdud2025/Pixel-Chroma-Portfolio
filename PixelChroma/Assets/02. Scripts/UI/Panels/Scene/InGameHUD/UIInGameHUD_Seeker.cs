@@ -36,6 +36,9 @@ namespace PixelChroma.UI
 
         private Image[] _slotImages;
 
+        private RectTransform _ammoTextRt;     
+        private Vector2 _ammoTextBasePos;        
+        private bool _ammoTextBaseCaptured;
 
         public int SlotCount => _slotImages != null ? _slotImages.Length : 0;
 
@@ -49,7 +52,12 @@ namespace PixelChroma.UI
             if (waterGunCooldownText != null) waterGunCooldownText.gameObject.SetActive(false);
             if (seekerIndicatorPanel != null) seekerIndicatorPanel.Deactivate();
 
-            if (ammoCountText != null) ammoCountText.text = "";
+            if (ammoCountText != null)
+            {
+                ammoCountText.text = "";
+                ResetAmmoTextTransform();
+            }
+
             if (_slotImages != null)
             {
                 for (int i = 0; i < _slotImages.Length; i++)
@@ -116,24 +124,24 @@ namespace PixelChroma.UI
 
         public void UpdateAmmoDisplay(int currentAmmo, int maxAmmo, float regenFill01)
         {
-
             // 텍스트
             if (ammoCountText != null)
             {
-                ammoCountText.text = $"{currentAmmo}/{maxAmmo}";
+                ammoCountText.text = $"({currentAmmo}/{maxAmmo})";
                 ammoCountText.color = currentAmmo == 0 ? Color.red : Color.white;
-
-                // 탄 수 변동 시 효과
-                if (_prevAmmo >= 0 && currentAmmo != _prevAmmo)
-                {
-                    Transform t = ammoCountText.transform;
-                    t.DOKill();
-                    t.localScale = Vector3.one;
-                    t.DOPunchScale(Vector3.one * punchScale, punchDuration, 6, 0.5f);
-                }
             }
 
+            // 탄 수 변동 시 텍스트 펀치
+            if (_prevAmmo >= 0 && currentAmmo != _prevAmmo)
+            {
+                CaptureAmmoTextBase();
+                ResetAmmoTextTransform();
 
+                if (_ammoTextRt != null)
+                    _ammoTextRt.DOPunchScale(Vector3.one * punchScale, punchDuration, 6, 0.5f);
+            }
+
+            // 탄약 재충전 시 해당 슬롯 펀치
             if (_prevAmmo >= 0 && currentAmmo > _prevAmmo)
             {
                 int rechargedIndex = currentAmmo - 1;  // 새로 채워진 슬롯
@@ -145,9 +153,8 @@ namespace PixelChroma.UI
                     t.DOPunchScale(Vector3.one * punchScale, punchDuration, 6, 0.5f);
                 }
             }
-            _prevAmmo = currentAmmo;
 
-            
+            _prevAmmo = currentAmmo;
 
             // 슬롯별 상태
             if (_slotImages != null)
@@ -182,15 +189,39 @@ namespace PixelChroma.UI
         {
             if (ammoCountText == null) return;
 
-            Transform t = ammoCountText.transform;
-            t.DOComplete();
-            t.DOShakePosition(0.2f, 5f, 10);
+            CaptureAmmoTextBase();
+            if (_ammoTextRt == null) return;
+
+            ResetAmmoTextTransform();
+            _ammoTextRt.DOShakeAnchorPos(0.2f, 5f, 10);
         }
 
         public new void SetSpectatorMode(bool active)
         {
             base.SetSpectatorMode(active);
             if (ammoUIRoot != null) ammoUIRoot.SetActive(!active);
+        }
+
+        // 레이아웃이 자리를 잡은 뒤(첫 연출 시점) 캡처해야 정확한 원위치를 얻습니다.
+        private void CaptureAmmoTextBase()
+        {
+            if (_ammoTextBaseCaptured || ammoCountText == null) return;
+
+            _ammoTextRt = ammoCountText.GetComponent<RectTransform>();
+            if (_ammoTextRt == null) return;
+
+            _ammoTextBasePos = _ammoTextRt.anchoredPosition;
+            _ammoTextBaseCaptured = true;
+        }
+
+        // 진행 중인 연출을 끊고 위치·스케일을 원상복구합니다.
+        private void ResetAmmoTextTransform()
+        {
+            if (_ammoTextRt == null) return;
+
+            _ammoTextRt.DOKill();
+            if (_ammoTextBaseCaptured) _ammoTextRt.anchoredPosition = _ammoTextBasePos;
+            _ammoTextRt.localScale = Vector3.one;
         }
     }
 }

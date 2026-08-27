@@ -31,6 +31,8 @@ namespace PixelChroma.UI
         private uint _currentNetId;
         private RectTransform _rt;
         private Material _glowMat;
+        private Vector2 _exposeBasePos;        
+        private bool _exposeBaseCaptured;
         public uint CurrentNetId => _currentNetId;
 
         private void Awake()
@@ -88,6 +90,10 @@ namespace PixelChroma.UI
 
         public void PlayExposeEffect(Color32 color)
         {
+            if (exposePixelRoot == null || exposePixelImage == null) return;
+
+            CaptureExposeBase();
+
             if (_exposeTex == null)
                 _exposeTex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
                 { filterMode = FilterMode.Point };
@@ -97,13 +103,15 @@ namespace PixelChroma.UI
             exposePixelImage.texture = _exposeTex;
             exposePixelRoot.gameObject.SetActive(true);
 
+            // ── 이전 연출 정리 후 위치·스케일 모두 원복 ──
             exposePixelRoot.DOKill();
+            exposePixelRoot.anchoredPosition = _exposeBasePos;  
             exposePixelRoot.localScale = Vector3.zero;
 
             var seq = DOTween.Sequence().SetTarget(exposePixelRoot);
 
             seq.Append(exposePixelRoot.DOScale(1f, 0.25f).SetEase(Ease.OutBack, 1.3f));
-            seq.Append(exposePixelRoot.DOPunchPosition(new Vector3(5f, 0f, 0f), 0.3f, 10, 0.5f));
+            seq.Append(exposePixelRoot.DOPunchAnchorPos(new Vector2(5f, 0f), 0.3f, 10, 0.5f));
             seq.AppendInterval(exposeDisplayDuration);
             seq.Append(exposePixelRoot.DOScale(0f, 0.2f).SetEase(Ease.InBack));
             seq.OnComplete(() => exposePixelRoot.gameObject.SetActive(false));
@@ -120,6 +128,9 @@ namespace PixelChroma.UI
             if (exposePixelRoot != null)
             {
                 exposePixelRoot.DOKill();
+                if (_exposeBaseCaptured)
+                    exposePixelRoot.anchoredPosition = _exposeBasePos;  
+                exposePixelRoot.localScale = Vector3.one;               
                 exposePixelRoot.gameObject.SetActive(false);
             }
 
@@ -252,6 +263,14 @@ namespace PixelChroma.UI
                 _glowMat = new Material(glowOverlay.material);
                 glowOverlay.material = _glowMat;
             }
+        }
+
+        // 레이아웃이 자리를 잡은 뒤(첫 재생 시점) 캡처해야 정확한 원위치를 얻습니다.
+        private void CaptureExposeBase()
+        {
+            if (_exposeBaseCaptured || exposePixelRoot == null) return;
+            _exposeBasePos = exposePixelRoot.anchoredPosition;
+            _exposeBaseCaptured = true;
         }
     }
 }
