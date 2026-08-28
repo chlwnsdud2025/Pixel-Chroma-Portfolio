@@ -230,6 +230,9 @@ namespace PixelChroma
 
             NetworkServer.SendToAll(new TimeStateMessage { state = newState, timer = time });
 
+            if (newState == TimeState.CheckTime)
+                DisableAllRunnerColliders();
+
             NetworkServer.SendToAll(new SkipVoteSync
             {
                 currentVotes = 0,
@@ -264,6 +267,19 @@ namespace PixelChroma
                 SetTimeState(TimeState.CheckTime, OptionCheckTime);
             }
         }
+
+        [Server]
+        private void DisableAllRunnerColliders()
+        {
+            if (InGameManager.Instance == null) return;
+
+            foreach (var runner in InGameManager.Instance.Runners)
+            {
+                if (runner != null)
+                    runner.ServerDisableCollider();
+            }
+        }
+
         [Server]
         private void GrantSurvivalBonus()
         {

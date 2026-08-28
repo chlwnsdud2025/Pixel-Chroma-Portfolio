@@ -143,6 +143,10 @@ namespace PixelChroma
     Vector2 knockbackDir = default, float impulse = 0f, float drag = 5f, float rotSpeed = 720f)
         {
             if (_isDead) return;
+
+            if (GameRoundManager.Instance != null && GameRoundManager.Instance.CurrentTimeState != TimeState.SeekTime) return;
+
+
             _isDead = true;
 
             if (ScoreManager.Instance != null && connectionToClient != null)
@@ -261,6 +265,15 @@ namespace PixelChroma
         {
             if (animator != null)
                 animator.SetTrigger("Death");
+        }
+
+        [Server]
+        public void ServerDisableCollider() => RpcDisableCollider();
+
+        [ClientRpc]
+        private void RpcDisableCollider()
+        {
+            if (paintCanvas != null) paintCanvas.DisableActiveCollider();
         }
 
         //----------------------------------------------------------------------------------------------------

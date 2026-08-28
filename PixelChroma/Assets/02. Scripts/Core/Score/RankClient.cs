@@ -3,11 +3,7 @@ using Mirror;
 
 namespace PixelChroma
 {
-    /// <summary>
-    /// 클라이언트 측 최종 순위 상태의 단일 원본입니다.
-    /// 핸들러를 GameRoundManager 수명에 맞춰 한 번만 등록하고, LobbyPlayer는 C# 이벤트만 구독합니다.
-    /// 상태를 보관하므로 메시지가 도착한 뒤에 스폰된 LobbyPlayer도 올바른 아이콘을 표시합니다.
-    /// </summary>
+
     public static class RankClient
     {
         public static event Action OnRanksChanged;

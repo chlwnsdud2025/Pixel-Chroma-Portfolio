@@ -93,6 +93,7 @@ namespace PixelChroma
 
         private PaintForm _activeForm;
         private Dictionary<PaintFormType, PaintForm> _formLookup;
+        private bool _collidersLockedOff;
         private int _currentIndex = -1;
         private Material _material;
         private RuntimeAnimatorController _baseAnimatorController;
@@ -222,7 +223,7 @@ namespace PixelChroma
                     f.formCollider.enabled = false;
             }
             if (form.formCollider != null)
-                form.formCollider.enabled = true;
+                form.formCollider.enabled = !_collidersLockedOff;
 
             float topY = GetFormTopY(form);
             OnFormTopYChanged?.Invoke(topY);
@@ -251,10 +252,16 @@ namespace PixelChroma
         }
 
         //-------- 사망시 캡쳐--------------------------------------------
-        public void DisableActiveCollider() // 현재 폼 콜라이더 끄기(사망시 사용)
+        public void DisableActiveCollider()//콜라이더 끄기 및 잠그기
         {
-            if (_activeForm.formCollider != null)
-                _activeForm.formCollider.enabled = false;
+            _collidersLockedOff = true;
+
+            if (forms == null) return;
+            foreach (var f in forms)
+            {
+                if (f != null && f.formCollider != null)
+                    f.formCollider.enabled = false;
+            }
         }
 
         public int GetCurrentFrameIndex()
