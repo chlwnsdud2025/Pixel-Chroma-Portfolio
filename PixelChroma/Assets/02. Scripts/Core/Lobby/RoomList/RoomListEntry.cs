@@ -19,16 +19,10 @@ namespace PixelChroma
         public bool IsSteamRoom => steamLobbyId.IsValid();
         public bool IsJoinable => string.IsNullOrEmpty(roomStatus) || roomStatus == "Lobby";
 
-        public bool IsWorkshopMap => !string.IsNullOrEmpty(mapId) && mapId.StartsWith("workshop:");
+        public bool IsWorkshopMap => WorkshopMapId.IsWorkshop(mapId);
 
         public ulong WorkshopFileId
-        {
-            get
-            {
-                if (!IsWorkshopMap) return 0;
-                return ulong.TryParse(mapId.Substring(9), out ulong id) ? id : 0;
-            }
-        }
+            => WorkshopMapId.TryGetFileId(mapId, out ulong id) ? id : 0;
 
         private RoomListEntry(
             string roomName, string hostName, int currentPlayers, int maxPlayers, GameMode gameMode,

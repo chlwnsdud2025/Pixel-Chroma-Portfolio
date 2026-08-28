@@ -11,7 +11,6 @@ namespace PixelChroma.UI
         [SerializeField] private OneTextLabel label;
         [SerializeField] private Button button;
         [SerializeField] private GameObject focus;
-        [SerializeField] private GameObject workshopBadge;
 
         public event Action<int> OnClicked;
 
@@ -41,13 +40,12 @@ namespace PixelChroma.UI
         }
 
         /// <summary>
-        /// 창작마당 뱃지 표시 여부를 설정한다.
-        /// 창작마당 프리팹에서만 의미 있다.
+        /// 아직 내려받는 중인 창작마당 맵처럼, 목록에는 보이되 고를 수 없는 항목에 사용한다.
         /// </summary>
-        public void SetWorkshopBadge(bool visible)
+        public void SetInteractable(bool interactable)
         {
-            if (workshopBadge != null)
-                workshopBadge.SetActive(visible);
+            if (button != null)
+                button.interactable = interactable;
         }
     }
 }
