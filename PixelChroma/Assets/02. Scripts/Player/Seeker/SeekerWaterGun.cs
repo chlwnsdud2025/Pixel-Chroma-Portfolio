@@ -28,6 +28,7 @@ namespace PixelChroma
         [SerializeField] private float fireRange = 8f;
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
+        [SerializeField] private LayerMask toyLayer;
 
         [Header("Magazine")]
         [Tooltip("탄 1발이 회복되는 데 걸리는 시간(초)")]
@@ -419,7 +420,7 @@ namespace PixelChroma
             if (direction.sqrMagnitude < 0.0001f) direction = Vector2.right;
             direction.Normalize();
 
-            RaycastHit2D hit = Physics2D.Raycast(origin, direction, fireRange, obstacleLayer | runnerLayer);
+            RaycastHit2D hit = Physics2D.Raycast(origin, direction, fireRange, obstacleLayer | runnerLayer | toyLayer);
             bool didHit = hit.collider != null;
 
             Vector2 laserEndPos = didHit ? hit.point : origin + direction * fireRange;
@@ -431,32 +432,30 @@ namespace PixelChroma
                 var runner = hit.collider.GetComponentInParent<RunnerPlayer>();
                 if (runner != null)
                 {
-                    // 착탄점 → Runner 중심 방향
-                    Vector2 radial = (Vector2)runner.transform.position - hit.point;
-                    Vector2 radialDir = radial.sqrMagnitude > 0.0001f
-                        ? radial.normalized
-                        : direction;
-
-                    // 방사형 + 총알 진행방향 블렌드
-                    Vector2 knockbackDir = Vector2.Lerp(radialDir, direction, knockbackForwardBias);
-
-                    // 상쇄되어 0에 가까우면 총알 진행방향으로 폴백
-                    if (knockbackDir.sqrMagnitude < 0.01f)
-                        knockbackDir = direction;
-                    else
-                        knockbackDir = knockbackDir.normalized;
-
                     runner.ServerNotifyCaught(
-                        _seeker.playerName,
-                        _seeker.netId,
-                        knockbackDir,
-                        knockbackImpulse,
-                        knockbackDrag,
-                        knockbackRotSpeed);
+                        _seeker.playerName, _seeker.netId,
+                        BuildKnockbackDir(hit.point, direction, runner.transform.position),
+                        knockbackImpulse, knockbackDrag, knockbackRotSpeed);
+                }
+                else
+                {
+                    var toy = hit.collider.GetComponentInParent<KnockbackToy>();
+                    if (toy != null)
+                        toy.ServerApplyKnockback(BuildKnockbackDir(hit.point, direction, toy.transform.position));
                 }
             }
 
             RpcPlayFireEffect(laserEndPos, didHit, direction, hitNormal);
+        }
+
+        // 착탄점 → 대상 중심 방향과 총알 진행방향을 블렌드한다. 러너·장난감 공용.
+        private Vector2 BuildKnockbackDir(Vector2 hitPoint, Vector2 direction, Vector2 targetCenter)
+        {
+            Vector2 radial = targetCenter - hitPoint;
+            Vector2 radialDir = radial.sqrMagnitude > 0.0001f ? radial.normalized : direction;
+
+            Vector2 blended = Vector2.Lerp(radialDir, direction, knockbackForwardBias);
+            return blended.sqrMagnitude < 0.01f ? direction : blended.normalized;
         }
 
         [ClientRpc]

@@ -18,6 +18,11 @@ namespace PixelChroma
         public GameObject runnerPrefab;
         public GameObject seekerPrefab;
 
+
+        [Header("InGame Objects")]
+        [Tooltip("대기실에서 술래들이 가지고 노는 장난감(공). NetworkIdentity 필수이며 spawnPrefabs에도 등록해야 합니다.")]
+        [SerializeField] private GameObject toyPrefab;
+
         private MapRegistrySO MapRegistry => LobbyManager.Instance != null ? LobbyManager.Instance.MapRegistry : null;
 
         public override void Awake()
@@ -161,8 +166,12 @@ namespace PixelChroma
 
             base.OnServerSceneChanged(sceneName);
 
+            if (IsInGameScene(scene))
+                SpawnWaitingRoomToy();
+
             if (IsInGameScene(scene) && GameRoundManager.Instance != null)
                 GameRoundManager.Instance.BeginRound();
+
             else if (IsLobbyScene(scene))
             {
                 InGameManager.Instance?.ResetState();
@@ -283,6 +292,25 @@ namespace PixelChroma
 
             round?.RemovePlayer(conn.connectionId);
             return instance;
+        }
+
+        //--------------------------공 스폰---------------------------------
+        // 대기실 장난감을 서버가 직접 스폰한다.
+        // 씬 오브젝트로 둘 수 없는 이유는 ToySpawnPoint 주석 참고.
+        private void SpawnWaitingRoomToy()
+        {
+            if (toyPrefab == null) return;
+
+            // 씬 전환이 중복 통지되어도 공이 두 개 생기지 않게 한다.
+            if (FindAnyObjectByType<KnockbackToy>() != null) return;
+
+            var point = FindAnyObjectByType<ToySpawnPoint>();
+            Vector3 spawnPos = point != null
+                ? point.transform.position
+                : (InGameManager.Instance != null ? InGameManager.Instance.GetWaitingPosition() : Vector3.zero);
+
+            GameObject toy = Instantiate(toyPrefab, spawnPos, Quaternion.identity);
+            NetworkServer.Spawn(toy);
         }
 
         // ─────────────────────────── 커스텀 로직 / 유틸 ───────────────────────────
