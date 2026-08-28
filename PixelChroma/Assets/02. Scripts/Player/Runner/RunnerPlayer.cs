@@ -433,6 +433,7 @@ namespace PixelChroma
         {
             _runnerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Runner>();
             PaintController.BindHUD(_runnerHUD);
+            BindSpectateHUD(_runnerHUD);
         }
 
         private void TryUseExposeSkill()

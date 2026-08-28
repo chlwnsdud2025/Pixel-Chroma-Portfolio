@@ -53,6 +53,7 @@ namespace PixelChroma
         private PixelPerfectCamera _pixelPerfectCamera;
         private Tween _zoomTween;
         private SpectatorController _spectator;
+        private UIInGameHUD _boundSpectateHUD;
         private bool _isChatActive;
         private bool _wasPopupOpen;
         private bool _likedByLocal;
@@ -102,6 +103,7 @@ namespace PixelChroma
             UIChat.OnChatToggled -= HandleChatToggled;
             GameRoundManager.OnTimeStateChanged -= HandleCheckTimeSpectator;
             GameRoundManager.OnTimeStateChanged -= HandleSkipVoteReset;
+            UnbindSpectateHUD();   // HUD는 플레이어보다 오래 산다.
         }
 
         protected virtual void Update()
@@ -424,26 +426,14 @@ namespace PixelChroma
         {
             if (_spectator == null || !_spectator.IsSpectating) return;
 
-            if (_input.SpectateRunner.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Runner)
-            {
-                _spectator.EnterRunnerMode();
-                InGameHUD?.SetActiveSpectateMode(SpectateMode.Runner);
+            if (_input.SpectateRunner.WasPressedThisFrame() && TrySetSpectateMode(SpectateMode.Runner))
                 return;
-            }
 
-            if (_input.SpectateSeeker.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Seeker)
-            {
-                _spectator.EnterSeekerMode();
-                InGameHUD?.SetActiveSpectateMode(SpectateMode.Seeker);
+            if (_input.SpectateSeeker.WasPressedThisFrame() && TrySetSpectateMode(SpectateMode.Seeker))
                 return;
-            }
 
-            if (_input.SpectateFree.WasPressedThisFrame() && _spectator.Mode != SpectateMode.Free)
-            {
-                _spectator.EnterFreeMode();
-                InGameHUD?.SetActiveSpectateMode(SpectateMode.Free);
+            if (_input.SpectateFree.WasPressedThisFrame() && TrySetSpectateMode(SpectateMode.Free))
                 return;
-            }
 
             if (_spectator.Mode == SpectateMode.Runner || _spectator.Mode == SpectateMode.Seeker)
             {
@@ -451,6 +441,27 @@ namespace PixelChroma
                 if (_input.CycleNext.WasPressedThisFrame()) _spectator.CycleTarget(1);
                 if (_input.Like.WasPressedThisFrame()) TryLikeCurrentTarget();
             }
+        }
+
+        /// <summary>
+        /// 관전 모드를 전환합니다. 키 입력과 HUD 버튼 클릭이 모두 이 경로를 사용합니다.
+        /// 관전 중이 아니거나 이미 같은 모드면 아무것도 하지 않고 false를 반환합니다.
+        /// </summary>
+        protected bool TrySetSpectateMode(SpectateMode mode)
+        {
+            if (_spectator == null || !_spectator.IsSpectating) return false;
+            if (_spectator.Mode == mode) return false;
+
+            switch (mode)
+            {
+                case SpectateMode.Runner: _spectator.EnterRunnerMode(); break;
+                case SpectateMode.Seeker: _spectator.EnterSeekerMode(); break;
+                case SpectateMode.Free: _spectator.EnterFreeMode(); break;
+                default: return false;
+            }
+
+            InGameHUD?.SetActiveSpectateMode(mode);
+            return true;
         }
 
         private void TryLikeCurrentTarget()
@@ -537,11 +548,40 @@ namespace PixelChroma
 
         protected void CleanupSpectator()
         {
+            UnbindSpectateHUD();
+
             if (_spectator != null)
                 _spectator.OnTargetChanged -= HandleSpectateTargetChanged;
 
             _spectator?.Dispose();
             _spectator = null;
+        }
+
+        // HUD는 비동기로 생성되므로 InitializeSpectator 시점엔 아직 없습니다.
+        // PaintController.BindHUD와 같은 자리에서 배선합니다.
+        protected void BindSpectateHUD(UIInGameHUD hud)
+        {
+            UnbindSpectateHUD();
+            if (hud == null) return;
+
+            _boundSpectateHUD = hud;
+            _boundSpectateHUD.OnSpectateModeSelected += HandleSpectateModeSelected;
+        }
+
+        protected void UnbindSpectateHUD()
+        {
+            if (_boundSpectateHUD == null) return;
+
+            _boundSpectateHUD.OnSpectateModeSelected -= HandleSpectateModeSelected;
+            _boundSpectateHUD = null;
+        }
+
+        private void HandleSpectateModeSelected(SpectateMode mode)
+        {
+            // HUD가 플레이어보다 오래 살기 때문에 좀비 호출을 방어합니다.
+            if (this == null) return;
+
+            TrySetSpectateMode(mode);
         }
 
         private void HandleSpectateTargetChanged(PlayerBase target)

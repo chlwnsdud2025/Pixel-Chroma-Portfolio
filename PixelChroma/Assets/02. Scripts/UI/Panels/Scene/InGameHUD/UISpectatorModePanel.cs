@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using OneText.UGUI;
@@ -6,17 +7,18 @@ namespace PixelChroma.UI
 {
     public class UISpectatorModePanel : MonoBehaviour
     {
-        [SerializeField] private Image seekerButton;
-        [SerializeField] private Image runnerButton;
-        [SerializeField] private Image freeButton;
-        [SerializeField] private Sprite buttonNormal;
-        [SerializeField] private Sprite buttonSelected;
+        [SerializeField] private UIFocusButton seekerButton;
+        [SerializeField] private UIFocusButton runnerButton;
+        [SerializeField] private UIFocusButton freeButton;
         [SerializeField] private OneTextLabel targetNameText;
         [SerializeField] private RawImage targetNameImage;
         [SerializeField] private Color selfTargetNameColor = Color.yellow;
 
         [Header("Like Guide")]
         [SerializeField] private GameObject likeGuideRoot;
+
+        // 관전 모드 버튼을 눌렀을 때 발생합니다. 실제 전환은 로컬 플레이어가 처리합니다.
+        public event Action<SpectateMode> OnModeSelected;
 
         private Color _defaultTargetNameColor = Color.white;
         private Texture2D _cachedTexture;
@@ -28,12 +30,23 @@ namespace PixelChroma.UI
 
             if (likeGuideRoot != null)
                 likeGuideRoot.SetActive(false);
+
+            BindModeButton(seekerButton, SpectateMode.Seeker);
+            BindModeButton(runnerButton, SpectateMode.Runner);
+            BindModeButton(freeButton, SpectateMode.Free);
+        }
+
+        private void BindModeButton(UIFocusButton button, SpectateMode mode)
+        {
+            if (button == null) return;
+
+            button.OnClicked += () => OnModeSelected?.Invoke(mode);
         }
 
         private void OnDestroy()                               
         {
             if (_cachedTexture != null)
-                Object.Destroy(_cachedTexture);
+                Destroy(_cachedTexture);
         }
 
         public void Show()
@@ -48,12 +61,9 @@ namespace PixelChroma.UI
 
         public void SetActiveMode(SpectateMode mode)
         {
-            if (seekerButton != null)
-                seekerButton.sprite = mode == SpectateMode.Seeker ? buttonSelected : buttonNormal;
-            if (runnerButton != null)
-                runnerButton.sprite = mode == SpectateMode.Runner ? buttonSelected : buttonNormal;
-            if (freeButton != null)
-                freeButton.sprite = mode == SpectateMode.Free ? buttonSelected : buttonNormal;
+            if (seekerButton != null) seekerButton.SetSelected(mode == SpectateMode.Seeker);
+            if (runnerButton != null) runnerButton.SetSelected(mode == SpectateMode.Runner);
+            if (freeButton != null) freeButton.SetSelected(mode == SpectateMode.Free);
         }
 
         public void SetTargetName(string displayName, bool isSelf, byte[] pixelPng = null)

@@ -1,3 +1,4 @@
+using System;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using OneText.UGUI;
@@ -64,6 +65,9 @@ namespace PixelChroma.UI
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
+        // 관전 모드 버튼 클릭. 로컬 플레이어가 구독해 실제 모드 전환을 수행합니다.
+        public event Action<SpectateMode> OnSpectateModeSelected;
+
         private Vector2 resultBaseAnchoredPos;
         private PlayerBase _currentSpectateTarget; 
         private bool _currentSpectateIsSelf;
@@ -85,6 +89,18 @@ namespace PixelChroma.UI
             if (skipButton != null) skipButton.AddClickListener(OnClickSkipVote);
             if (skipVoteRoot != null) skipVoteRoot.SetActive(false);
             if (skipHoldGauge != null) skipHoldGauge.fillAmount = 0f;
+
+            if (spectatorPanel != null)
+            {
+                // Initialize가 두 번 불려도 중복 구독되지 않도록 해제 후 구독합니다.
+                spectatorPanel.OnModeSelected -= HandleSpectateModeSelected;
+                spectatorPanel.OnModeSelected += HandleSpectateModeSelected;
+            }
+        }
+
+        private void HandleSpectateModeSelected(SpectateMode mode)
+        {
+            OnSpectateModeSelected?.Invoke(mode);
         }
 
         public void SubscribeEvents()

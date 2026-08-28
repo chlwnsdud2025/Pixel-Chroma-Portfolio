@@ -154,6 +154,7 @@ namespace PixelChroma
         {
             _seekerHUD = await UIManager.Instance.ShowScene<UIInGameHUD_Seeker>();
             PaintController.BindHUD(_seekerHUD);
+            BindSpectateHUD(_seekerHUD);
 
             _seekerHUD.InitializeSlots();                    
 

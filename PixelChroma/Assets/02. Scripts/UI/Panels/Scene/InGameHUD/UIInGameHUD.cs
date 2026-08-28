@@ -1,3 +1,4 @@
+using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -59,6 +60,13 @@ namespace PixelChroma.UI
         protected virtual void ResetHUDState()
         {
             Common.ResetHUDState();
+        }
+
+        // 관전 모드 버튼 클릭. 구독/해제를 그대로 Common으로 넘깁니다.
+        public event Action<SpectateMode> OnSpectateModeSelected
+        {
+            add => Common.OnSpectateModeSelected += value;
+            remove => Common.OnSpectateModeSelected -= value;
         }
 
         public void SetSpectatorMode(bool active) => Common.SetSpectatorMode(active);
