@@ -26,7 +26,14 @@ namespace PixelChroma
         {
             base.Update();
 
+            if (isServer && _waterGun != null)
+                _waterGun.ServerTick();
+
+
             if (!isLocalPlayer) return;
+
+            if (_waterGun != null)
+                _waterGun.LocalRegenTick();
 
             if (Spectator != null && Spectator.IsSpectating)
             {
@@ -175,8 +182,5 @@ namespace PixelChroma
         {
             _seekerHUD?.ShakeAmmoText();
         }
-
-        [Server]
-        public void ServerRefillAmmo() => _waterGun?.ServerRefillAmmo();
     }
 }

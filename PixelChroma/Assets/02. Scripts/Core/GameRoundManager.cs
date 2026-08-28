@@ -229,8 +229,7 @@ namespace PixelChroma
 
             if (newState == TimeState.CheckTime)
                 DisableAllRunnerColliders();
-            if (newState == TimeState.SeekTime)
-                RefillAllSeekerAmmo();
+ 
 
             NetworkServer.SendToAll(new SkipVoteSync
             {
@@ -276,18 +275,6 @@ namespace PixelChroma
             {
                 if (runner != null)
                     runner.ServerDisableCollider();
-            }
-        }
-
-        [Server]
-        private void RefillAllSeekerAmmo()
-        {
-            if (InGameManager.Instance == null) return;
-
-            foreach (var seeker in InGameManager.Instance.Seekers)
-            {
-                if (seeker != null)
-                    seeker.ServerRefillAmmo();
             }
         }
 

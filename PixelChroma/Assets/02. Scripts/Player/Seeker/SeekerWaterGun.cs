@@ -16,7 +16,7 @@ namespace PixelChroma
         // 이 각도(도)보다 크게 변할 때만 동기화 전송. ±180° 경계에서 매 프레임 전송되는 것을 막습니다.
         private const float AimDeadzoneDeg = 5f;
         // 서버 쿨타임 검증 시 빼주는 핑 지터 여유분(초).
-        private const float ServerCooldownGrace = 0.1f;
+        private const float ServerCooldownGrace = 0.25f;   // 0.1 → 0.25
 
         [Header("References")]
         [SerializeField] private SpriteRenderer weaponRenderer;
@@ -92,12 +92,20 @@ namespace PixelChroma
 
         public float FireCooldownDuration => fireCooldown;
 
-        // HUD 쿨타임 오버레이용: 발사 직후 1 → 쿨타임이 끝나면 0.
         public float CooldownFill01 =>
             fireCooldown <= 0f ? 0f : 1f - Mathf.Clamp01((Time.time - _lastFireTime) / fireCooldown);
 
         private bool CanFireLocally => Time.time - _lastFireTime >= fireCooldown && _currentAmmo > 0;
-        // 발사·판정 기준점(총구). 미할당 시 회전 중심 → 몸통 순으로 폴백합니다.
+
+        private static bool IsHideTimeNow =>
+            GameRoundManager.Instance != null
+            && GameRoundManager.Instance.CurrentTimeState == TimeState.HideTime;
+
+     
+        private static bool IsFreeFireLocal =>
+            IsHideTimeNow && GameRoundManager.Instance.CurrentTimer > 1;
+
+
         private Vector2 FireOrigin =>
             firePoint != null ? (Vector2)firePoint.position :
             (weaponPivot != null ? (Vector2)weaponPivot.position : (Vector2)transform.position);
@@ -129,12 +137,12 @@ namespace PixelChroma
         {
             HandleAiming(isPaintMode);
             HandleShooting(isPaintMode);
-            RegenerateAmmo();
 
 #if UNITY_EDITOR
             AutoFireTick();
 #endif
         }
+        public void LocalRegenTick() => RegenerateAmmo();
 
         public void SetWeaponVisible(bool visible)
         {
@@ -258,7 +266,9 @@ namespace PixelChroma
             if (!CanFireLocally) return;
 
             _lastFireTime = Time.time;
-            _currentAmmo--;        
+
+            if (!IsFreeFireLocal)
+                _currentAmmo--;
 
             Vector2 mouseScreen = Mouse.current.position.ReadValue();
             Vector2 mouseWorld = _mainCam.ScreenToWorldPoint(mouseScreen);   // 조준 시 이미 사거리로 클램프된 위치
@@ -317,26 +327,6 @@ namespace PixelChroma
             _serverRegenTimer = 0f;
         }
 
-        [Server]
-        public void ServerRefillAmmo()
-        {
-            if (_maxAmmo <= 0) return;  
-
-            _serverCurrentAmmo = _maxAmmo;
-            _serverRegenTimer = 0f;
-
-            TargetRefillAmmo();
-        }
-
-        [TargetRpc]
-        private void TargetRefillAmmo()
-        {
-            if (_maxAmmo <= 0) return;
-
-            _currentAmmo = _maxAmmo;
-            _regenTimer = 0f;
-        }
-
         private void RegenerateAmmo()
         {
             if (_maxAmmo <= 0 || _currentAmmo >= _maxAmmo) return;
@@ -347,6 +337,20 @@ namespace PixelChroma
             {
                 _regenTimer -= ammoRegenInterval;
                 _currentAmmo = Mathf.Min(_currentAmmo + 1, _maxAmmo);
+            }
+        }
+
+        [Server]
+        public void ServerTick()
+        {
+            if (_maxAmmo <= 0 || _serverCurrentAmmo >= _maxAmmo) return;
+
+            _serverRegenTimer += Time.deltaTime;
+
+            if (_serverRegenTimer >= ammoRegenInterval)
+            {
+                _serverRegenTimer -= ammoRegenInterval;
+                _serverCurrentAmmo = Mathf.Min(_serverCurrentAmmo + 1, _maxAmmo);
             }
         }
 
@@ -391,24 +395,24 @@ namespace PixelChroma
         [Command]
         private void CmdFireWaterGun(Vector2 targetPoint)
         {
-            if (Time.time - _lastServerFireTime < fireCooldown - ServerCooldownGrace) return;
-
-            // ── 서버 탄창 회복 계산 ──
-            float elapsed = Time.time - _lastServerFireTime;
-            if (_serverCurrentAmmo < _maxAmmo && elapsed > 0f)
+            if (Time.time - _lastServerFireTime < fireCooldown - ServerCooldownGrace)
             {
-                int regenCount = Mathf.FloorToInt((_serverRegenTimer + elapsed) / ammoRegenInterval);
-                _serverCurrentAmmo = Mathf.Min(_serverCurrentAmmo + regenCount, _maxAmmo);
-                _serverRegenTimer = (_serverRegenTimer + elapsed) % ammoRegenInterval;
+                //Debug.LogWarning($"[WaterGun] 발사 거부(쿨타임): 경과 {Time.time - _lastServerFireTime:F2}s / 요구 {fireCooldown - ServerCooldownGrace:F2}s");
+                return;
             }
 
-            // ── 서버 탄창 검증 ──
-            if (_serverCurrentAmmo <= 0) return;
-            _serverCurrentAmmo--;
-            _serverRegenTimer = 0f;
+            if (_serverCurrentAmmo <= 0)
+            {
+                //Debug.LogWarning($"[WaterGun] 발사 거부(탄창): 서버 0발 / 최대 {_maxAmmo}");
+                return;
+            }
 
-
-            _lastServerFireTime = Time.time;
+            if (!IsHideTimeNow)
+            {
+                if (_serverCurrentAmmo <= 0) return;
+                _serverCurrentAmmo--;
+            }
+            _lastServerFireTime = Mathf.Max(Time.time, _lastServerFireTime + fireCooldown);
 
             Vector2 origin = FireOrigin;
             Vector2 direction = targetPoint - origin;
