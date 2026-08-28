@@ -26,9 +26,6 @@ namespace PixelChroma
         private bool _isLobbyReturningStarted = false;
         private CancellationTokenSource _timerCts;
 
-        [Header("forced Expose")]
-        [SerializeField] private float forcedExposeDuration;
-
         [Header("Timer Sound Start")]
         [SerializeField] private const int ClockSoundThreshold = 10;
 
@@ -530,10 +527,9 @@ namespace PixelChroma
             foreach (var runner in InGameManager.Instance.Runners)
             {
                 if (runner != null && !runner.IsDead)
-                    runner.ServerForceExpose(forcedExposeDuration);
+                    runner.ServerForceExpose();
             }
 
-            Debug.Log($"[GameRound] 강제 도발 발동! 생존 러너 전원 위치 노출 (지속시간: {forcedExposeDuration}초)");
         }
 
         [Server]

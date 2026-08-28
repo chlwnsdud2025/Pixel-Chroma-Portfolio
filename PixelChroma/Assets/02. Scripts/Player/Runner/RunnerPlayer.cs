@@ -25,7 +25,6 @@ namespace PixelChroma
         [SerializeField, Range(0f, 1f)] private float paintModeSpeedMultiplier = 0.2f;
 
         [Header("Expose Skill")]
-        [SerializeField] private float exposeDuration = 1f;
         [SerializeField] private float exposeCooldown = 1f;
 
         [Tooltip("사망 또는 서로 안보이게 할 때 껏다 켯다 할 렌더러")]
@@ -457,15 +456,9 @@ namespace PixelChroma
         }
 
         [Server]
-        public void ServerForceExpose(float duration)
+        public void ServerForceExpose()
         {
             if (_isDead) return;
-            if (InGameManager.Instance == null) return;
-
-            foreach (var seeker in InGameManager.Instance.Seekers)
-            {
-                seeker.TargetShowRunnerIndicator(this.netIdentity, duration);
-            }
 
             RpcPlayExposeSound();
 
@@ -475,18 +468,11 @@ namespace PixelChroma
         [Command]
         private void CmdExposeLocation()
         {
-            if (InGameManager.Instance == null) return;
-
             if (GameRoundManager.Instance != null && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime) return;
 
             if (Time.time < _lastExposeTimeServer + exposeCooldown - ServerCooldownGrace) return;
 
             _lastExposeTimeServer = Time.time;
-
-            foreach (var seeker in InGameManager.Instance.Seekers)
-            {
-                seeker.TargetShowRunnerIndicator(this.netIdentity, exposeDuration);
-            }
 
             RpcPlayExposeSound();
 
