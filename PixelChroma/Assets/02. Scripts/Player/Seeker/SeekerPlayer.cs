@@ -206,5 +206,8 @@ namespace PixelChroma
         {
             _seekerHUD?.ShakeAmmoText();
         }
+
+        [Server]
+        public void ServerRefillAmmo() => _waterGun?.ServerRefillAmmo();
     }
 }

@@ -307,12 +307,34 @@ namespace PixelChroma
             CmdSetMaxAmmo(max);
         }
 
+
+
         [Command]
         private void CmdSetMaxAmmo(int max)
         {
             _maxAmmo = max;
             _serverCurrentAmmo = max;
             _serverRegenTimer = 0f;
+        }
+
+        [Server]
+        public void ServerRefillAmmo()
+        {
+            if (_maxAmmo <= 0) return;  
+
+            _serverCurrentAmmo = _maxAmmo;
+            _serverRegenTimer = 0f;
+
+            TargetRefillAmmo();
+        }
+
+        [TargetRpc]
+        private void TargetRefillAmmo()
+        {
+            if (_maxAmmo <= 0) return;
+
+            _currentAmmo = _maxAmmo;
+            _regenTimer = 0f;
         }
 
         private void RegenerateAmmo()
