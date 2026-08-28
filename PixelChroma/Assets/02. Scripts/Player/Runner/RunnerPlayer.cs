@@ -17,6 +17,8 @@ namespace PixelChroma
     public class RunnerPlayer : PlayerBase
     {
         private const float PaintRatioSyncInterval = 0.5f;
+        private const float ServerCooldownGrace = 0.1f;
+
 
         [Header("Paint Mode Settings")]
         [Tooltip("페인트 모드를 켰을 때 적용되는 속도 배율 (예: 0.2 = 평소 속도의 20%로 매우 느려짐)")]
@@ -115,8 +117,9 @@ namespace PixelChroma
 
             if (IsGameplayInputBlocked) return;
 
-            if (Input.ExposeSkill.WasPressedThisFrame())
+            if (Input.ExposeSkill.WasPressedThisFrame() || Input.ExposeSkill.IsPressed())
                 TryUseExposeSkill();
+
 
             HandleSpectateInput();
         }
@@ -438,6 +441,8 @@ namespace PixelChroma
         {
             if (_isDead) return;
 
+            if (GameRoundManager.Instance != null && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime) return;
+
             if (Time.time < _lastExposeTime + exposeCooldown)
                 return;
 
@@ -471,7 +476,10 @@ namespace PixelChroma
         private void CmdExposeLocation()
         {
             if (InGameManager.Instance == null) return;
-            if (Time.time < _lastExposeTimeServer + exposeCooldown) return;
+
+            if (GameRoundManager.Instance != null && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime) return;
+
+            if (Time.time < _lastExposeTimeServer + exposeCooldown - ServerCooldownGrace) return;
 
             _lastExposeTimeServer = Time.time;
 
