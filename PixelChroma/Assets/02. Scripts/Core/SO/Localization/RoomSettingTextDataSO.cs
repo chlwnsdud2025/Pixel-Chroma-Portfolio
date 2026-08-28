@@ -8,6 +8,9 @@ public class RoomSettingTextDataSO : ScriptableObject
     public LocalizedString createButtonLabel;
     public LocalizedString editButtonLabel;
 
+    [Header("Map")]
+    public LocalizedString workshopDownloading;  // 목록 항목: 아직 내려받는 중인 창작마당 맵
+
     [Header("Warning")]
     public LocalizedString warningEmptyRoomName;
     public LocalizedString warningBanned;

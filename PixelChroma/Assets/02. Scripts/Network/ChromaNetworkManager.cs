@@ -344,9 +344,8 @@ namespace PixelChroma
             string mapName = roomOption.mapName;
 
             // Workshop 맵 분기
-            if (mapName.StartsWith("workshop:"))
+            if (WorkshopMapId.TryGetFileId(mapName, out ulong fileId))
             {
-                ulong fileId = ulong.Parse(mapName.Substring(9));
                 string path = WorkshopSubscriptionService.GetInstallPath(fileId);
 
                 if (!string.IsNullOrEmpty(path))

@@ -71,10 +71,10 @@ namespace PixelChroma.UI
 
         private void RefreshMapName(RoomOption option)
         {
-            // 워크숍 맵인 경우
-            if (!string.IsNullOrEmpty(option.mapName) && option.mapName.StartsWith("workshop:"))
+            // 창작마당 맵인 경우
+            if (WorkshopMapId.IsWorkshop(option.mapName))
             {
-                if (ulong.TryParse(option.mapName.Substring("workshop:".Length), out ulong fileId))
+                if (WorkshopMapId.TryGetFileId(option.mapName, out ulong fileId))
                 {
                     string installPath = WorkshopSubscriptionService.GetInstallPath(fileId);
 

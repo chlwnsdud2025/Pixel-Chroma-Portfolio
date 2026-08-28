@@ -366,11 +366,9 @@ namespace PixelChroma.UI
 
             Debug.Log($"[UILobby] OnClickStartGame | SteamActive={GameManager.SteamActive}, mapName=\"{mapName}\"");
 
-            if (GameManager.SteamActive
-                && !string.IsNullOrEmpty(mapName)
-                && mapName.StartsWith("workshop:"))
+            if (GameManager.SteamActive && WorkshopMapId.IsWorkshop(mapName))
             {
-                if (ulong.TryParse(mapName.Substring("workshop:".Length), out ulong fileId))
+                if (WorkshopMapId.TryGetFileId(mapName, out ulong fileId))
                 {
                     Debug.Log($"[UILobby] Workshop 맵 감지 → RequestCheck 호출 | fileId={fileId}");
                     if (startGameButton != null)

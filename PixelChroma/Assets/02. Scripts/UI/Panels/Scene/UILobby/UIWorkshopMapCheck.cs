@@ -129,12 +129,8 @@ namespace PixelChroma.UI
             if (_isDownloading) return;
             _isDownloading = true;
 
-            // Workshop 페이지 열기
-            string url = $"https://steamcommunity.com/sharedfiles/filedetails/?id={_fileId}";
-            if (GameManager.SteamInitialized)
-                Steamworks.SteamFriends.ActivateGameOverlayToWebPage(url);
-            else
-                Application.OpenURL(url);
+            // 창작마당 아이템 페이지 열기
+            WorkshopUrls.OpenItem(_fileId);
 
             // 버튼은 유지하되 비활성화 (다시 누르기 방지)
             if (downloadButton != null)
