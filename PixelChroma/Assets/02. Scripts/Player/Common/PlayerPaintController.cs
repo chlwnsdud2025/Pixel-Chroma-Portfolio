@@ -21,6 +21,8 @@ namespace PixelChroma
 
         private Color _eyedropperColor;
         private readonly ScreenEyedropperSampler _eyedropperSampler;
+        private BrushMode _eyedropperReturnMode = BrushMode.Brush;
+        private bool _isEyedropperActive;
         private bool _waitForMouseRelease;
 
         private Camera _cachedCamera;
@@ -49,15 +51,16 @@ namespace PixelChroma
 
         public void Tick()
         {
+            HandleEyedropperInput();
             HandleModeInput();
-            HandleHistoryInput();
 
-            if (_brushMode == BrushMode.Eyedropper)
+            if (_isEyedropperActive)
             {
                 HideBrushPreview();
-                TickEyedropper();
                 return;
             }
+
+            HandleHistoryInput();
 
             UpdateBrushPreview();
             HandlePainting();
@@ -65,6 +68,7 @@ namespace PixelChroma
 
         public void Dispose()
         {
+            CancelTransientTool();
             _eyedropperSampler.OnColorSampled -= OnEyedropperColorSampled;
             _eyedropperSampler.Dispose();
 
@@ -109,6 +113,7 @@ namespace PixelChroma
 
         public void UnbindHUD()
         {
+            CancelTransientTool();
             _boundHUD?.SetPaintMode(false);
 
             if (_boundPicker != null)
@@ -128,22 +133,17 @@ namespace PixelChroma
 
         public void SetBrushMode(BrushMode mode)
         {
+            // 스포이드는 Space 홀드로만 진입하는 임시 도구다.
+            if (mode == BrushMode.Eyedropper) return;
+
+            if (_isEyedropperActive)
+                EndEyedropper(restoreEventSystem: true);
+
             if (_brushMode == mode) return;
 
             _paintCanvas?.EndStroke();   // 도구 전환 시 진행 중 스트로크 확정
 
-            if (_brushMode == BrushMode.Eyedropper)
-            {
-                _eyedropperSampler.Stop(restoreEventSystem: !_waitForMouseRelease);
-            }
-
             _brushMode = mode;
-
-            if (mode == BrushMode.Eyedropper)
-            {
-                Color initialColor = _boundPicker != null ? _boundPicker.SelectedColor : _eyedropperColor;
-                _eyedropperSampler.Start(initialColor);
-            }
 
             _boundPicker?.SetActiveTool(mode);
             RefreshCursor();
@@ -157,13 +157,7 @@ namespace PixelChroma
             if (!_isPaintMode)
             {
                 _paintCanvas?.EndStroke();
-
-                if (_brushMode == BrushMode.Eyedropper)
-                {
-                    _eyedropperSampler.Stop(restoreEventSystem: true);
-                    _brushMode = BrushMode.Brush;
-                    _boundPicker?.SetActiveTool(BrushMode.Brush);
-                }
+                CancelTransientTool();
 
                 HideBrushPreview();
             }
@@ -203,6 +197,18 @@ namespace PixelChroma
         public void HidePreview()
         {
             HideBrushPreview();
+        }
+
+        public void CancelTransientTool()
+        {
+            if (_isEyedropperActive)
+                EndEyedropper(restoreEventSystem: true);
+
+            if (_waitForMouseRelease)
+            {
+                _waitForMouseRelease = false;
+                _eyedropperSampler.RestoreEventSystem();
+            }
         }
 
         private void HandleHistoryInput()
@@ -301,14 +307,68 @@ namespace PixelChroma
                 _brushPreview.SetActive(false);
         }
 
-        private void TickEyedropper()
+        private void HandleEyedropperInput()
         {
-            if (Mouse.current == null) return;
-            if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+            InputAction action = _input?.HoldEyedropper;
+            if (action == null) return;
 
+            if (!_isEyedropperActive)
+            {
+                if (action.WasPressedThisFrame())
+                    BeginEyedropper();
+                return;
+            }
+
+            if (Mouse.current != null
+                && Mouse.current.leftButton.wasPressedThisFrame
+                && _eyedropperSampler.HasValidSample)
+            {
+                ConfirmEyedropper(waitForMouseRelease: true);
+                return;
+            }
+
+            if (!action.WasReleasedThisFrame()) return;
+
+            if (_eyedropperSampler.HasValidSample)
+                ConfirmEyedropper(waitForMouseRelease: false);
+            else
+                EndEyedropper(restoreEventSystem: true);
+        }
+
+        private void BeginEyedropper()
+        {
+            if (!_isPaintMode || _isEyedropperActive) return;
+
+            _paintCanvas?.EndStroke();
+            _eyedropperReturnMode = _brushMode == BrushMode.Eyedropper
+                ? BrushMode.Brush
+                : _brushMode;
+            _brushMode = BrushMode.Eyedropper;
+            _isEyedropperActive = true;
+
+            Color initialColor = _boundPicker != null ? _boundPicker.SelectedColor : _eyedropperColor;
+            _eyedropperSampler.Start(initialColor);
+            HideBrushPreview();
+            RefreshCursor();
+        }
+
+        private void ConfirmEyedropper(bool waitForMouseRelease)
+        {
+            _eyedropperColor = _eyedropperSampler.CurrentColor;
             _boundPicker?.SetColor(_eyedropperColor);
-            _waitForMouseRelease = true;
-            SetBrushMode(BrushMode.Brush);
+            _waitForMouseRelease = waitForMouseRelease;
+            EndEyedropper(restoreEventSystem: !waitForMouseRelease);
+        }
+
+        private void EndEyedropper(bool restoreEventSystem)
+        {
+            if (!_isEyedropperActive) return;
+
+            _eyedropperSampler.Stop(restoreEventSystem);
+            _isEyedropperActive = false;
+            _brushMode = _eyedropperReturnMode;
+            _boundPicker?.SetActiveTool(_brushMode);
+            RefreshCursor();
         }
 
         private void HandlePainting()

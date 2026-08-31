@@ -215,6 +215,9 @@ namespace PixelChroma.UI
             if (toolSlots == null) return;
             foreach (var slot in toolSlots)
             {
+                if (slot.mode == BrushMode.Eyedropper)
+                    continue;
+
                 if (slot.button != null)
                     slot.button.SetSelected(slot.mode == mode);
             }
@@ -232,6 +235,13 @@ namespace PixelChroma.UI
             {
                 foreach (var slot in toolSlots)
                 {
+                    if (slot.mode == BrushMode.Eyedropper)
+                    {
+                        if (slot.button != null)
+                            slot.button.gameObject.SetActive(false);
+                        continue;
+                    }
+
                     if (slot.button != null)
                     {
                         var mode = slot.mode;

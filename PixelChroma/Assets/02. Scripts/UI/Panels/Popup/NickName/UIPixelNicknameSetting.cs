@@ -63,6 +63,8 @@ namespace PixelChroma.UI
         private int _brushSize = 1;
         private bool _isPainting;
         private ScreenEyedropperSampler _eyedropperSampler;
+        private BrushMode _eyedropperReturnMode = BrushMode.Brush;
+        private bool _isEyedropperActive;
         private bool _waitForMouseRelease;
 
         // ── Input System ──
@@ -149,11 +151,13 @@ namespace PixelChroma.UI
         {
             base.OnBeforeShow();
             _input?.EnableAll();
+            CancelEyedropper();
 
             LoadPresetsAndSelect();
 
             _brushMode = BrushMode.Brush;
             _brushSize = 1;
+            _isEyedropperActive = false;
             _waitForMouseRelease = false;
             _eyedropperSampler?.RestoreEventSystem();
             RefreshCursor();
@@ -177,9 +181,7 @@ namespace PixelChroma.UI
             base.OnAfterHide();
             _input?.DisableAll();
             ClearHoverOverlay();
-            _eyedropperSampler?.Stop(restoreEventSystem: false);
-            _waitForMouseRelease = false;
-            _eyedropperSampler?.RestoreEventSystem();
+            CancelEyedropper();
             ResetCursor();
 
             // ── 유저 프리셋이 선택되었는데 빈 캔버스면 기본 프리셋 0번으로 전환 및 저장 ──
@@ -213,8 +215,8 @@ namespace PixelChroma.UI
 
         private void OnDestroy()
         {
+            CancelEyedropper();
             ResetCursor();
-            _waitForMouseRelease = false;
             if (_eyedropperSampler != null)
             {
                 _eyedropperSampler.OnColorSampled -= OnEyedropperColorSampled;
@@ -243,10 +245,10 @@ namespace PixelChroma.UI
 
         private void Update()
         {
+            HandleEyedropperInput();
             UpdateHoverIndicator();
             HandleKeyboardShortcuts();
             HandleBrushSizeScroll();
-            TickEyedropper();
         }
 
         // ────────────────────── 캔버스 초기화 ──────────────────────
@@ -375,6 +377,7 @@ namespace PixelChroma.UI
         private void HandleKeyboardShortcuts()
         {
             if (_input == null) return;
+            if (_isEyedropperActive) return;
 
             // 드래그 중에는 Undo/Redo/도구전환 막음
             if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
@@ -628,19 +631,15 @@ namespace PixelChroma.UI
 
         private void OnToolChanged(BrushMode mode)
         {
-            if (_brushMode == BrushMode.Eyedropper && mode != BrushMode.Eyedropper)
-            {
-                _eyedropperSampler?.Stop(restoreEventSystem: !_waitForMouseRelease);
-            }
+            // 스포이드는 Space 홀드로만 진입하는 임시 도구다.
+            if (mode == BrushMode.Eyedropper) return;
+
+            if (_isEyedropperActive)
+                EndEyedropper(restoreEventSystem: true);
 
             _brushMode = mode;
             colorPicker?.SetActiveTool(mode);
             _lastHoverPixelX = -1; // 도구 변경 시 호버 갱신
-
-            if (mode == BrushMode.Eyedropper)
-            {
-                _eyedropperSampler?.Start(_currentColor);
-            }
 
             RefreshCursor();
         }
@@ -663,13 +662,14 @@ namespace PixelChroma.UI
                 CursorManager.Instance.SetCursorType(CursorType.Default);
         }
 
-        private void TickEyedropper()
+        private void HandleEyedropperInput()
         {
-            if (Mouse.current == null) return;
+            InputAction action = _input?.HoldEyedropper;
+            if (action == null) return;
 
             if (_waitForMouseRelease)
             {
-                if (!Mouse.current.leftButton.isPressed)
+                if (Mouse.current == null || !Mouse.current.leftButton.isPressed)
                 {
                     _waitForMouseRelease = false;
                     _eyedropperSampler?.RestoreEventSystem();
@@ -677,15 +677,75 @@ namespace PixelChroma.UI
                 return;
             }
 
-            if (_brushMode != BrushMode.Eyedropper) return;
+            if (!_isEyedropperActive)
+            {
+                if (action.WasPressedThisFrame())
+                    BeginEyedropper();
+                return;
+            }
 
-            if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+            if (Mouse.current != null
+                && Mouse.current.leftButton.wasPressedThisFrame
+                && _eyedropperSampler.HasValidSample)
+            {
+                ConfirmEyedropper(waitForMouseRelease: true);
+                return;
+            }
 
-            colorPicker?.SetColor(_currentColor);
+            if (!action.WasReleasedThisFrame()) return;
+
+            if (_eyedropperSampler.HasValidSample)
+                ConfirmEyedropper(waitForMouseRelease: false);
+            else
+                EndEyedropper(restoreEventSystem: true);
+        }
+
+        private void BeginEyedropper()
+        {
+            if (_isEyedropperActive) return;
+
             _isPainting = false;
             EndStroke();
-            _waitForMouseRelease = true;
-            OnToolChanged(BrushMode.Brush);
+            _eyedropperReturnMode = _brushMode == BrushMode.Eyedropper
+                ? BrushMode.Brush
+                : _brushMode;
+            _brushMode = BrushMode.Eyedropper;
+            _isEyedropperActive = true;
+            _eyedropperSampler?.Start(_currentColor);
+            ClearHoverOverlay();
+            RefreshCursor();
+        }
+
+        private void ConfirmEyedropper(bool waitForMouseRelease)
+        {
+            _currentColor = _eyedropperSampler.CurrentColor;
+            colorPicker?.SetColor(_currentColor);
+            _waitForMouseRelease = waitForMouseRelease;
+            EndEyedropper(restoreEventSystem: !waitForMouseRelease);
+        }
+
+        private void EndEyedropper(bool restoreEventSystem)
+        {
+            if (!_isEyedropperActive) return;
+
+            _eyedropperSampler?.Stop(restoreEventSystem);
+            _isEyedropperActive = false;
+            _brushMode = _eyedropperReturnMode;
+            colorPicker?.SetActiveTool(_brushMode);
+            _lastHoverPixelX = -1;
+            RefreshCursor();
+        }
+
+        private void CancelEyedropper()
+        {
+            if (_isEyedropperActive)
+                EndEyedropper(restoreEventSystem: true);
+
+            if (_waitForMouseRelease)
+            {
+                _waitForMouseRelease = false;
+                _eyedropperSampler?.RestoreEventSystem();
+            }
         }
 
         private void OnEyedropperColorSampled(Color color)

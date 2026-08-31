@@ -15,6 +15,7 @@ namespace PixelChroma.UI
 
         public Color CurrentColor { get; private set; } = Color.white;
         public bool IsRunning => _coroutine != null;
+        public bool HasValidSample { get; private set; }
 
         public event Action<Color> OnColorSampled;
 
@@ -29,6 +30,7 @@ namespace PixelChroma.UI
 
             Stop(restoreEventSystem: false);
             CurrentColor = initialColor;
+            HasValidSample = false;
             SetEventSystemEnabled(false);
             _coroutine = _owner.StartCoroutine(CaptureLoop());
             OnColorSampled?.Invoke(CurrentColor);
@@ -82,6 +84,7 @@ namespace PixelChroma.UI
                 _capture.ReadPixels(new Rect(x, y, 1, 1), 0, 0);
                 _capture.Apply();
                 CurrentColor = _capture.GetPixel(0, 0);
+                HasValidSample = true;
                 OnColorSampled?.Invoke(CurrentColor);
             }
         }

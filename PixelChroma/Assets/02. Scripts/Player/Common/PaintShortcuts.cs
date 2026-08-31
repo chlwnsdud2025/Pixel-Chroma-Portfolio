@@ -15,8 +15,6 @@ namespace PixelChroma
                 mode = BrushMode.Brush;
             else if (input.SelectEraser != null && input.SelectEraser.WasPressedThisFrame())
                 mode = BrushMode.Eraser;
-            else if (input.SelectEyedropper != null && input.SelectEyedropper.WasPressedThisFrame())
-                mode = BrushMode.Eyedropper;
             else if (input.SelectFill != null && input.SelectFill.WasPressedThisFrame())
                 mode = BrushMode.Fill;
             else

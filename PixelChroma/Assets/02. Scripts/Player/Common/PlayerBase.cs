@@ -116,6 +116,7 @@ namespace PixelChroma
             if (IsGameplayInputBlocked)
             {
                 StopLocalGameplayMotion();
+                _paintController?.CancelTransientTool();
                 _paintController?.HidePreview();
                 return;
             }
@@ -141,7 +142,11 @@ namespace PixelChroma
 
             UpdateAnimation();
 
-            if (formWheel != null && formWheel.IsOpen) return;
+            if (formWheel != null && formWheel.IsOpen)
+            {
+                _paintController?.CancelTransientTool();
+                return;
+            }
 
             if (CanTogglePaintMode && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
