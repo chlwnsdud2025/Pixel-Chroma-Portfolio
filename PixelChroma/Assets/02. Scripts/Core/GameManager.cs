@@ -110,33 +110,57 @@ namespace PixelChroma
 
         public void LeaveSession()
         {
+            LeaveSessionAsync().Forget();
+        }
+
+        private async UniTask LeaveSessionAsync()
+        {
             _voluntaryLeave = true;
+
+            // StopHost/StopClient가 offlineScene 로드를 시작하기 전에 화면을 먼저 덮는다.
+            await LoadingManager.Show();
+
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.LeaveLobby();
         }
 
         public void HandleDisconnect()
         {
+            HandleDisconnectAsync().Forget();
+        }
+
+        private async UniTask HandleDisconnectAsync()
+        {
             if (_handlingDisconnect) return;
             _handlingDisconnect = true;
 
-            bool voluntary = _voluntaryLeave;
-            _voluntaryLeave = false;
+            try
+            {
+                bool voluntary = _voluntaryLeave;
+                _voluntaryLeave = false;
 
-            if (!voluntary && _pendingFailure == LobbyFailureReason.None)
-                _pendingFailure = LobbyFailureReason.Disconnected;
+                if (!voluntary && _pendingFailure == LobbyFailureReason.None)
+                    _pendingFailure = LobbyFailureReason.Disconnected;
 
-            Debug.LogWarning("[GameManager] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
+                Debug.LogWarning("[GameManager] 서버와의 연결이 끊어졌습니다. 메인 메뉴로 복귀합니다.");
 
-            LoadingManager.Show().Forget();
+                // 로딩 팝업이 실제로 활성화된 뒤에 타이틀 UI 전환을 시작한다.
+                // Forget으로 병렬 실행하면 UITitle의 SetActive가 먼저 호출되어 한 프레임 노출될 수 있다.
+                await LoadingManager.Show();
 
-            if (InGameManager.Instance != null)
-                InGameManager.Instance.ResetState();
+                if (InGameManager.Instance != null)
+                    InGameManager.Instance.ResetState();
 
-            if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
-                LobbyManager.Instance.LeaveLobby();
+                if (LobbyManager.Instance != null && LobbyManager.Instance.CurrentLobbyId.IsValid())
+                    LobbyManager.Instance.LeaveLobby();
 
-            EnterMainMenu().Forget();
+                await EnterMainMenu();
+            }
+            finally
+            {
+                // 로딩 표시 자체에서 예외가 발생해도 이후 복구 시도를 막지 않는다.
+                _handlingDisconnect = false;
+            }
         }
 
         public async UniTask EnterMainMenu()

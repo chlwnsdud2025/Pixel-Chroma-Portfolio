@@ -142,7 +142,11 @@ namespace PixelChroma.UI
         public async UniTask HideAllPopups(bool instant = true)
         {
             // 진행 중인 단일 전환이 끝날 때까지 기다린 뒤 한 번에 모두 닫는다.
-            await UniTask.WaitUntil(() => !_isTransitioning);
+            // 전환 중이 아닐 때 WaitUntil을 생성하면, 닫을 팝업이 없어도 다음 PlayerLoop까지
+            // 호출자가 지연된다. 씬 전환 직전 로딩 팝업은 같은 프레임에 표시되어야 하므로
+            // 실제 전환이 진행 중인 경우에만 기다린다.
+            if (_isTransitioning)
+                await UniTask.WaitUntil(() => !_isTransitioning);
 
             _isTransitioning = true;
             try
