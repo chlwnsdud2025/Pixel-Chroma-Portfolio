@@ -83,12 +83,24 @@ namespace PixelChroma.UI
 
         protected override async UniTask OnShowAnimation()
         {
-            if (panel != null)
-            {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(panel);
-                await UniTask.NextFrame();
-                await panel.DOScale(Vector3.one, animationDuration).SetEase(Ease.OutBack).ToUniTask();
-            }
+            if (panel == null) return;
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(panel);
+            await UniTask.NextFrame();
+
+            panel.localScale = Vector3.one;
+
+            // OnBeforeShow는 gameObject가 아직 비활성이라 스크롤도 포커스도 잡히지 않는다.
+            if (roomInfoPanel != null) roomInfoPanel.ResetScroll();
+            if (gameSettingPanel != null) gameSettingPanel.ResetScroll();
+            if (mapPanel != null) mapPanel.ResetScroll();
+
+            // 편집 모드에서는 이미 채워진 이름이 전체 선택되어 첫 타건에 지워지고, 로비 채팅 단축키와도 겹친다.
+            if (!_isEditMode && roomInfoPanel != null) roomInfoPanel.FocusRoomName();
+
+            panel.localScale = Vector3.zero;
+
+            await panel.DOScale(Vector3.one, animationDuration).SetEase(Ease.OutBack).ToUniTask();
         }
 
         protected override async UniTask OnHideAnimation()
@@ -100,6 +112,9 @@ namespace PixelChroma.UI
         public override void OnAfterHide()
         {
             base.OnAfterHide();
+
+            if (roomInfoPanel != null)
+                roomInfoPanel.ReleaseRoomNameFocus();
 
             if (LobbyManager.Instance != null)
                 LobbyManager.Instance.OnLobbyFailed -= HandleLobbyFailed;

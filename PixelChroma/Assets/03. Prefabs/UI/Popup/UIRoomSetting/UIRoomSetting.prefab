@@ -1049,10 +1049,10 @@ RectTransform:
   - {fileID: 3465397776577237456}
   m_Father: {fileID: 5001398472988109268}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 25, y: -25}
-  m_SizeDelta: {x: 0, y: 50}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 50, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7823653415382316784
 CanvasRenderer:
@@ -1914,6 +1914,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIFocusButton
   button: {fileID: 6166081314870169954}
   focus: {fileID: 2769073943162790148}
+  playClickSound: 1
 --- !u!1 &538996196375954924
 GameObject:
   m_ObjectHideFlags: 0
@@ -3938,6 +3939,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIFocusButton
   button: {fileID: 5553721053932819200}
   focus: {fileID: 1974310798589294409}
+  playClickSound: 1
 --- !u!1 &1402329072401601597
 GameObject:
   m_ObjectHideFlags: 0
@@ -6981,10 +6983,10 @@ RectTransform:
   - {fileID: 4285889529289048994}
   m_Father: {fileID: 5001398472988109268}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 120, y: -25}
-  m_SizeDelta: {x: 0, y: 50}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 120.00001, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5414338872078432753
 CanvasRenderer:
@@ -7540,6 +7542,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIMapPanel
   previewImage: {fileID: 2548631410317790573}
+  listScrollRect: {fileID: 4273690656377218808}
   listContent: {fileID: 5079034995520864179}
   itemPrefab: {fileID: 1785289066500419156, guid: 3eb280123f87f5b4ab756ad1367e9bc7, type: 3}
   builtInTabButton: {fileID: 4048662784783555897}
@@ -9098,6 +9101,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIFocusButton
   button: {fileID: 280241877659833817}
   focus: {fileID: 7019162966129800637}
+  playClickSound: 1
 --- !u!1 &3012335881022957619
 GameObject:
   m_ObjectHideFlags: 0
@@ -11764,6 +11768,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIFocusButton
   button: {fileID: 2103322060577907577}
   focus: {fileID: 6802500228282078132}
+  playClickSound: 1
 --- !u!1 &3997706992671569616
 GameObject:
   m_ObjectHideFlags: 0
@@ -14686,6 +14691,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3218bf1ceba601345aca6424136ee6d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIRoomInfoPanel
+  scrollRect: {fileID: 5508919137193019531}
   roomNameInput: {fileID: 560412801056991018}
   roomNameWarningText: {fileID: 3431641936654776886}
   roomNameCountText: {fileID: 1864108351935637545}
@@ -14928,10 +14934,10 @@ RectTransform:
   - {fileID: 7285661300748955625}
   m_Father: {fileID: 5001398472988109268}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 215, y: -25}
-  m_SizeDelta: {x: 0, y: 50}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 50, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5256747259768584116
 CanvasRenderer:
@@ -23912,6 +23918,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 234d4c6f5c47d394685eea9ce9e92a37, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.UI.UIGameSettingPanel
+  scrollRect: {fileID: 4277194233102399391}
   hideTimeStepper: {fileID: 8854792483603755793}
   seekTimeStepper: {fileID: 322148392290638514}
   checkTimeStepper: {fileID: 3730133332935883838}

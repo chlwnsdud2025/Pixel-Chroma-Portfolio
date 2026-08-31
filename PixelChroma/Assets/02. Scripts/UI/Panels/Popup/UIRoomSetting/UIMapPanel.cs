@@ -34,6 +34,7 @@ namespace PixelChroma.UI
 
         [Header("Preview / List")]
         [SerializeField] private Image previewImage;
+        [SerializeField] private ScrollRect listScrollRect;
         [SerializeField] private Transform listContent;
         [SerializeField] private UIMapItem itemPrefab;
 
@@ -123,6 +124,33 @@ namespace PixelChroma.UI
             UpdateWorkshopUI();
         }
 
+        // 맨 위로 올리면 아래쪽에 있는 선택 항목이 화면 밖으로 나가므로, 선택 항목이 맨 위에 오도록 맞춘다.
+        // 선택이 다른 탭에 있거나(-1) 목록이 viewport 안에 다 들어오면 그냥 맨 위.
+        public void ResetScroll()
+        {
+            if (listScrollRect == null || listScrollRect.content == null || listScrollRect.viewport == null) return;
+
+            // 호출 시점에 따라 목록 크기가 아직 반영되지 않았을 수 있다. 재보기 전에 확정시킨다.
+            LayoutRebuilder.ForceRebuildLayoutImmediate(listScrollRect.content);
+
+            int index = IndexOf(_selectedMapId);
+            float scrollable = listScrollRect.content.rect.height - listScrollRect.viewport.rect.height;
+
+            if (index < 0 || index >= _pool.Count || scrollable <= 0f)
+            {
+                listScrollRect.verticalNormalizedPosition = 1f;
+                return;
+            }
+
+            // 인덱스 비율이 아니라 실제 좌표로 계산해야 한다.
+            // 비율은 스크롤 가능 거리(content - viewport)가 아니라 항목 수에 비례해서, 항목이 엉뚱한 높이에 걸린다.
+            var item = (RectTransform)_pool[index].transform;
+            float itemTop = listScrollRect.content.rect.max.y - (item.localPosition.y + item.rect.max.y);
+
+            // 맨 위=1, 맨 아래=0.
+            listScrollRect.verticalNormalizedPosition = Mathf.Clamp01(1f - itemTop / scrollable);
+        }
+
         // ── 스팀 이벤트 구독 ─────────────────────────────
         // 팝업이 열려 있는 동안에만 구독한다. (UIPanel.Hide가 gameObject를 끄므로 OnDisable이 확실히 온다)
 
@@ -163,6 +191,10 @@ namespace PixelChroma.UI
 
             ApplyTabVisual();
             RebuildAndKeepSelection();
+
+            // 탭을 바꾸면 목록이 통째로 달라지므로 이전 탭의 스크롤 위치는 의미가 없다.
+            // (다운로드/오버레이로 인한 갱신은 보던 자리를 유지해야 하므로 여기서만 되돌린다)
+            ResetScroll();
         }
 
         private void ApplyTabVisual()

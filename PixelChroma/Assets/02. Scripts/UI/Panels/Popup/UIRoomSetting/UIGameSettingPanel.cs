@@ -8,6 +8,9 @@ namespace PixelChroma.UI
     // RoomOption의 소유권은 UIRoomSetting에 있고, 여기서는 Bind로 받은 참조에 값만 반영한다.
     public class UIGameSettingPanel : MonoBehaviour
     {
+        [Header("Scroll")]
+        [SerializeField] private ScrollRect scrollRect;
+
         [Header("Hide Time")]
         [SerializeField] private UINumericStepper hideTimeStepper;
 
@@ -51,6 +54,11 @@ namespace PixelChroma.UI
 
             // 엠보스 설정은 같은 RoomOption 참조를 물려받아 자기 필드만 갱신한다.
             if (embossSetting != null) embossSetting.Bind(option);
+        }
+
+        public void ResetScroll()
+        {
+            if (scrollRect != null) scrollRect.verticalNormalizedPosition = 1f;
         }
 
         // 버튼(+/-)과 InputField 직접 입력이 동일한 clamp 규칙을 공유하도록 값 설정을 한곳에 모은다.

@@ -3,7 +3,9 @@ using PixelChroma.Network;
 using System;
 using System.Collections.Generic;
 using OneText.UGUI;
+using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -139,8 +141,24 @@ namespace PixelChroma.UI
             if (_chatToggleAction != null && _chatToggleAction.WasPressedThisFrame())
             {
                 if (chatInputField.isFocused) return;
+                if (IsTypingElsewhere()) return;
                 ToggleInput(!_isInputActive);
             }
+        }
+
+        // InputAction은 UI 포커스와 무관하게 발동하므로, 다른 입력창에 타이핑 중인지 직접 걸러낸다.
+        private bool IsTypingElsewhere()
+        {
+            var selected = EventSystem.current != null
+                ? EventSystem.current.currentSelectedGameObject
+                : null;
+
+            // EventSystem은 선택된 오브젝트가 비활성이 되어도 선택을 비우지 않는다.
+            if (selected == null || !selected.activeInHierarchy) return false;
+            if (selected == chatInputField.gameObject) return false;
+
+            return selected.GetComponent<OneTextInputField>() != null
+                || selected.GetComponent<TMP_InputField>() != null;
         }
 
         // ── ESC 처리: 입력창이 열려 있으면 닫고 소비.

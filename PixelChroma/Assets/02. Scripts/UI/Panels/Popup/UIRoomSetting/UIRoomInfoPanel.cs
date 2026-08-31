@@ -8,6 +8,9 @@ namespace PixelChroma.UI
     // RoomOption의 소유권은 UIRoomSetting에 있고, 여기서는 Bind로 받은 참조에 값만 반영한다.
     public class UIRoomInfoPanel : MonoBehaviour
     {
+        [Header("Scroll")]
+        [SerializeField] private ScrollRect scrollRect;
+
         [Header("Room Name")]
         [SerializeField] private OneTextInputField roomNameInput;
         [SerializeField] private UIWarningText roomNameWarningText;
@@ -94,6 +97,23 @@ namespace PixelChroma.UI
             if (gameModeSelector != null) gameModeSelector.Bind(option);
             NormalizePlayerCounts();
             RefreshAll();
+        }
+
+        public void ResetScroll()
+        {
+            if (scrollRect != null) scrollRect.verticalNormalizedPosition = 1f;
+        }
+
+        public void FocusRoomName()
+        {
+            if (roomNameInput != null) roomNameInput.ActivateInputField();
+        }
+
+        // EventSystem은 선택된 오브젝트가 비활성이 되어도 선택을 비우지 않는다.
+        // 놓아주지 않으면 닫힌 입력창이 계속 "선택됨"으로 남아 다른 곳의 단축키 판정을 망친다.
+        public void ReleaseRoomNameFocus()
+        {
+            if (roomNameInput != null) roomNameInput.DeactivateInputField();
         }
 
         // 방 이름을 검증해 option에 반영한다. 실패 시 경고를 띄우고 false.
