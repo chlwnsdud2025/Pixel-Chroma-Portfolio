@@ -69,13 +69,15 @@ namespace PixelChroma.UI
         private PlayerInputActions _input;
 
         // ── 호버 인디케이터 (인게임 EnsureBrushPreview와 동일 사양) ──
-        private const int HoverRes = 6; // 브러시 셀 1개당 서브픽셀 수 (인게임과 동일)
         private Texture2D _hoverTexture;
+        private Color32[] _hoverClearBuffer;
         private int _lastHoverPixelX = -1;
         private int _lastHoverPixelY = -1;
 
-        private static readonly Color PreviewOutline = new Color(0f, 0f, 0f, 0.8f);
-        private static readonly Color PreviewFill   = new Color(0.5f, 0.5f, 0.5f, 0.3f);
+        // ── Flood Fill 스크래치 버퍼 ──
+        private bool[] _floodVisited;
+        private readonly Stack<int> _floodStack = new Stack<int>(256);
+        private readonly List<int> _floodResult = new List<int>(256);
 
         // ── Undo / Redo ──
         private const int MaxHistory = 50;
@@ -280,16 +282,17 @@ namespace PixelChroma.UI
             if (_hoverTexture != null)
                 Destroy(_hoverTexture);
 
-            // 인게임과 동일: 캔버스 픽셀당 HoverRes(6) 서브픽셀, Bilinear 필터
-            int hoverW = canvasWidth * HoverRes;
-            int hoverH = canvasHeight * HoverRes;
+            // 인게임과 동일: 캔버스 픽셀당 SubRes 서브픽셀, Bilinear 필터
+            int hoverW = canvasWidth * PaintBrushStyle.SubRes;
+            int hoverH = canvasHeight * PaintBrushStyle.SubRes;
             _hoverTexture = new Texture2D(hoverW, hoverH, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
 
-            _hoverTexture.SetPixels32(new Color32[hoverW * hoverH]);
+            _hoverClearBuffer = new Color32[hoverW * hoverH];
+            _hoverTexture.SetPixels32(_hoverClearBuffer);
             _hoverTexture.Apply();
 
             hoverOverlay.texture = _hoverTexture;
@@ -376,22 +379,12 @@ namespace PixelChroma.UI
             // 드래그 중에는 Undo/Redo/도구전환 막음
             if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
 
-            // Redo를 먼저 검사: Ctrl+Shift+Z가 Undo(Ctrl+Z)의 OneModifier 조건도
-            // 만족하므로, Redo가 우선해야 같은 프레임 중복 발동 안 됨
-            if (_input.Redo != null && _input.Redo.WasPressedThisFrame())
-                Redo();
-            else if (_input.Undo != null && _input.Undo.WasPressedThisFrame())
-                Undo();
+            int history = PaintShortcuts.ReadHistory(_input);
+            if (history > 0) Redo();
+            else if (history < 0) Undo();
 
-            // 도구 전환: 1 → 붓, 2 → 지우개, 3 → 스포이드, 4 → 채우기
-            if (_input.SelectBrush != null && _input.SelectBrush.WasPressedThisFrame())
-                OnToolChanged(BrushMode.Brush);
-            else if (_input.SelectEraser != null && _input.SelectEraser.WasPressedThisFrame())
-                OnToolChanged(BrushMode.Eraser);
-            else if (_input.SelectEyedropper != null && _input.SelectEyedropper.WasPressedThisFrame())
-                OnToolChanged(BrushMode.Eyedropper);
-            else if (_input.SelectFill != null && _input.SelectFill.WasPressedThisFrame())
-                OnToolChanged(BrushMode.Fill);
+            if (PaintShortcuts.TryReadTool(_input, out BrushMode mode))
+                OnToolChanged(mode);
         }
 
         private void HandleBrushSizeScroll()
@@ -402,9 +395,11 @@ namespace PixelChroma.UI
 
             float scroll = Mouse.current.scroll.y.ReadValue();
             if (Mathf.Abs(scroll) < 0.01f) return;
+            int delta = PaintShortcuts.ReadSizeDelta(scroll);
+            if (delta == 0) return;
 
             int max = colorPicker != null ? colorPicker.MaxBrushSize : 5;
-            int next = scroll > 0 ? _brushSize + 1 : _brushSize - 1;
+            int next = _brushSize + delta;
             next = Mathf.Clamp(next, 1, max);
 
             if (next != _brushSize)
@@ -419,17 +414,13 @@ namespace PixelChroma.UI
 
         private void PaintPixels(int cx, int cy, Color color)
         {
-            int half = _brushSize / 2;
-
-            for (int dy = -half; dy < _brushSize - half; dy++)
+            if (PaintOps.GetBrushBounds(cx, cy, _brushSize, canvasWidth, canvasHeight,
+                out int x0, out int y0, out int x1, out int y1))
             {
-                for (int dx = -half; dx < _brushSize - half; dx++)
+                for (int y = y0; y < y1; y++)
                 {
-                    int px = cx + dx;
-                    int py = cy + dy;
-                    if (px < 0 || px >= canvasWidth || py < 0 || py >= canvasHeight)
-                        continue;
-                    _editTexture.SetPixel(px, py, color);
+                    for (int x = x0; x < x1; x++)
+                        _editTexture.SetPixel(x, y, color);
                 }
             }
 
@@ -438,37 +429,35 @@ namespace PixelChroma.UI
 
         private void FloodFill(int startX, int startY, Color fillColor)
         {
-            Color targetColor = _editTexture.GetPixel(startX, startY);
+            if (startX < 0 || startX >= canvasWidth || startY < 0 || startY >= canvasHeight)
+                return;
 
-            if (ColorsEqual(targetColor, fillColor)) return;
+            Color32[] pixels = _editTexture.GetPixels32();
+            int startIdx = startY * canvasWidth + startX;
+            Color32 fill = fillColor;
+            if (PaintColorUtil.Equals(pixels[startIdx], fill)) return;
 
-            var stack = new Stack<(int x, int y)>();
-            stack.Push((startX, startY));
+            int cellCount = canvasWidth * canvasHeight;
+            if (_floodVisited == null || _floodVisited.Length < cellCount)
+                _floodVisited = new bool[cellCount];
 
-            while (stack.Count > 0)
-            {
-                var (x, y) = stack.Pop();
-                if (x < 0 || x >= canvasWidth || y < 0 || y >= canvasHeight)
-                    continue;
+            int changedCount = PaintOps.CollectFloodRegion(
+                pixels,
+                canvasWidth,
+                canvasHeight,
+                startIdx,
+                null,
+                // 픽셀 아트의 경계를 보존하도록 인게임과 같은 Color32 정확 비교를 사용한다.
+                0,
+                _floodVisited,
+                _floodStack,
+                _floodResult);
 
-                Color current = _editTexture.GetPixel(x, y);
-                if (!ColorsEqual(current, targetColor))
-                    continue;
+            for (int i = 0; i < changedCount; i++)
+                pixels[_floodResult[i]] = fill;
 
-                _editTexture.SetPixel(x, y, fillColor);
-
-                stack.Push((x + 1, y));
-                stack.Push((x - 1, y));
-                stack.Push((x, y + 1));
-                stack.Push((x, y - 1));
-            }
-
+            _editTexture.SetPixels32(pixels);
             _editTexture.Apply();
-        }
-
-        private static bool ColorsEqual(Color a, Color b)
-        {
-            return PaintColorUtil.Approximately(a, b);
         }
 
         // ────────────────────── Undo / Redo ──────────────────────
@@ -608,31 +597,14 @@ namespace PixelChroma.UI
 
         private void DrawBrushOutline(int cx, int cy, int size)
         {
-            int hoverW = canvasWidth * HoverRes;
-            int hoverH = canvasHeight * HoverRes;
-            _hoverTexture.SetPixels32(new Color32[hoverW * hoverH]);
-
-            // 캔버스 좌표 → 서브픽셀 좌표 변환 (인게임 EnsureBrushPreview와 동일 구조)
-            int half = size / 2;
-            int minX = (cx - half) * HoverRes;
-            int minY = (cy - half) * HoverRes;
-            int maxX = minX + size * HoverRes - 1;
-            int maxY = minY + size * HoverRes - 1;
-
-            for (int y = minY; y <= maxY; y++)
-            {
-                for (int x = minX; x <= maxX; x++)
-                {
-                    if (x < 0 || x >= hoverW || y < 0 || y >= hoverH)
-                        continue;
-
-                    // 최외곽 1 서브픽셀만 외곽선, 나머지는 채움
-                    bool isBorder = (x == minX || x == maxX || y == minY || y == maxY);
-                    _hoverTexture.SetPixel(x, y, isBorder ? PreviewOutline : PreviewFill);
-                }
-            }
-
-            _hoverTexture.Apply();
+            PaintBrushStyle.StampBrush(
+                _hoverTexture,
+                _hoverClearBuffer,
+                cx,
+                cy,
+                size,
+                canvasWidth,
+                canvasHeight);
 
             if (!hoverOverlay.gameObject.activeSelf)
                 hoverOverlay.gameObject.SetActive(true);

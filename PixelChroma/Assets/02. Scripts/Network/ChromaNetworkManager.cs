@@ -230,7 +230,10 @@ namespace PixelChroma
 
             GameObject playerInstance = null;
             if (IsLobbyScene(currentScene))
-                playerInstance = Instantiate(lobbyPlayerPrefab);
+                playerInstance = Instantiate(
+                    lobbyPlayerPrefab,
+                    LobbySpawnPoint.GetSpawnPosition(lobbyPlayerPrefab.transform.position),
+                    Quaternion.identity);
             else if (IsInGameScene(currentScene))
                 playerInstance = CreateInGamePlayer(conn);
 

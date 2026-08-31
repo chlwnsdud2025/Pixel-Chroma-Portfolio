@@ -103,8 +103,10 @@ namespace PixelChroma
         private Vector2 _cachedLightDir;
         private float _cachedLightAngle = -1f;
 
-        // 채우기(flood fill) 작업용 스택. 매 클릭마다 새로 할당하지 않도록 재사용한다.
+        // 채우기(flood fill) 작업용 스크래치 버퍼. 매 클릭마다 새로 할당하지 않도록 재사용한다.
+        private bool[] _floodVisited;
         private Stack<int> _floodStack;
+        private List<int> _floodResult;
 
         // ── Public 프로퍼티 ─────────────────────────────────────────────────────
 
@@ -460,31 +462,31 @@ namespace PixelChroma
             Color32 fill = PaintColorUtil.ToOpaqueColor32(color);
             if (PaintColorUtil.Equals(target, fill)) return false;   // 같은 색 → 채울 것 없음
 
-            // 칠한 셀은 더 이상 target과 같지 않으므로 방문 배열 없이도 재방문되지 않는다.
+            int cellCount = form.texWidth * form.texHeight;
+            if (_floodVisited == null || _floodVisited.Length < cellCount)
+                _floodVisited = new bool[cellCount];
             _floodStack ??= new Stack<int>(256);
-            _floodStack.Clear();
-            _floodStack.Push(startIdx);
+            _floodResult ??= new List<int>(256);
 
-            int w = form.texWidth;
-            int h = form.texHeight;
+            int changedCount = PaintOps.CollectFloodRegion(
+                form.maskPixels,
+                form.texWidth,
+                form.texHeight,
+                startIdx,
+                form.unionOpaque,
+                0,
+                _floodVisited,
+                _floodStack,
+                _floodResult);
 
-            while (_floodStack.Count > 0)
+            for (int i = 0; i < changedCount; i++)
             {
-                int idx = _floodStack.Pop();
-                if (!form.unionOpaque[idx]) continue;
-                if (!PaintColorUtil.Equals(form.maskPixels[idx], target)) continue;
-
+                int idx = _floodResult[i];
                 RecordBefore(form, idx);
                 SetMaskCell(form, idx, color);
-
-                int x = idx % w;
-                int y = idx / w;
-                if (x > 0) _floodStack.Push(idx - 1);
-                if (x < w - 1) _floodStack.Push(idx + 1);
-                if (y > 0) _floodStack.Push(idx - w);
-                if (y < h - 1) _floodStack.Push(idx + w);
             }
 
+            if (changedCount == 0) return false;
             form.isDirty = true;
             return true;
         }
@@ -636,9 +638,9 @@ namespace PixelChroma
 
             var form = _activeForm;
             float ppu = PixelsPerUnit;
-            int half = size / 2;
-            float localX = (px - half + 0.5f * size) / ppu - 0.5f * form.texWidth / ppu;
-            float localY = (py - half + 0.5f * size) / ppu - 0.5f * form.texHeight / ppu;
+            PaintOps.GetBrushRect(px, py, size, out int minX, out int minY, out int maxX, out int maxY);
+            float localX = (minX + 0.5f * (maxX - minX)) / ppu - 0.5f * form.texWidth / ppu;
+            float localY = (minY + 0.5f * (maxY - minY)) / ppu - 0.5f * form.texHeight / ppu;
             return targetRenderer.transform.TransformPoint(new Vector3(localX, localY, 0f));
         }
 
@@ -675,11 +677,8 @@ namespace PixelChroma
         private void GetBrushBounds(PaintForm form, int px, int py, int size,
             out int x0, out int y0, out int x1, out int y1)
         {
-            int half = size / 2;
-            x0 = Mathf.Max(px - half, 0);
-            y0 = Mathf.Max(py - half, 0);
-            x1 = Mathf.Min(px + size - half, form.texWidth);
-            y1 = Mathf.Min(py + size - half, form.texHeight);
+            PaintOps.GetBrushBounds(px, py, size, form.texWidth, form.texHeight,
+                out x0, out y0, out x1, out y1);
         }
 
         // ── 에디터 전용 ─────────────────────────────────────────────────────────

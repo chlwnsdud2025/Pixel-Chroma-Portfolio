@@ -10,10 +10,6 @@ namespace PixelChroma
 
     public class PlayerPaintController
     {
-        private static readonly Color PreviewFill = new Color(0.5f, 0.5f, 0.5f, 0.3f);
-        private static readonly Color PreviewOutline = new Color(0f, 0f, 0f, 0.8f);
-        private static readonly Color EraserFill = new Color(1f, 0.2f, 0.2f, 0.3f);
-
         private readonly PlayerBase _owner;
         private readonly PlayerPaintCanvas _paintCanvas;
         private readonly PlayerInputActions _input;
@@ -179,9 +175,12 @@ namespace PixelChroma
         {
             if (_boundPicker == null || _paintCanvas == null) return;
 
+            int delta = PaintShortcuts.ReadSizeDelta(scroll);
+            if (delta == 0) return;
+
             int max = _boundPicker.MaxBrushSize;
             int current = _paintCanvas.BrushSize;
-            int next = scroll > 0 ? current + 1 : current - 1;
+            int next = current + delta;
             next = Mathf.Clamp(next, 1, max);
             _paintCanvas.BrushSize = next;
             OnBrushSizeScrolled?.Invoke(next);
@@ -212,14 +211,13 @@ namespace PixelChroma
             // 드래그(색칠) 중에는 되돌리기를 막는다 — 진행 중 스트로크와 꼬이지 않도록
             if (Mouse.current != null && Mouse.current.leftButton.isPressed) return;
 
-            // Redo를 먼저 검사: Ctrl+Shift+Z는 Undo(Ctrl+Z)의 OneModifier 조건도
-            // 만족하므로, Redo가 우선하도록 해 같은 프레임 중복 발동을 막는다.
-            if (_input.Redo != null && _input.Redo.WasPressedThisFrame())
+            int history = PaintShortcuts.ReadHistory(_input);
+            if (history > 0)
             {
                 _paintCanvas.EndStroke();   // 혹시 남은 스트로크가 있으면 먼저 확정
                 _paintCanvas.Redo();
             }
-            else if (_input.Undo != null && _input.Undo.WasPressedThisFrame())
+            else if (history < 0)
             {
                 _paintCanvas.EndStroke();
                 _paintCanvas.Undo();
@@ -228,14 +226,8 @@ namespace PixelChroma
 
         private void HandleModeInput()
         {
-            if (_input.SelectBrush != null && _input.SelectBrush.WasPressedThisFrame())
-                SetBrushMode(BrushMode.Brush);
-            else if (_input.SelectEraser != null && _input.SelectEraser.WasPressedThisFrame())
-                SetBrushMode(BrushMode.Eraser);
-            else if (_input.SelectEyedropper != null && _input.SelectEyedropper.WasPressedThisFrame())
-                SetBrushMode(BrushMode.Eyedropper);
-            else if (_input.SelectFill != null && _input.SelectFill.WasPressedThisFrame())
-                SetBrushMode(BrushMode.Fill);
+            if (PaintShortcuts.TryReadTool(_input, out BrushMode mode))
+                SetBrushMode(mode);
         }
 
         private void UpdateBrushPreview()
@@ -270,7 +262,7 @@ namespace PixelChroma
             _brushPreview.transform.localScale = new Vector3(worldSize, worldSize, 1f);
 
             _brushPreviewRenderer.color = _brushMode == BrushMode.Eraser
-                ? EraserFill   // 지우개: 빨간 반투명 (외곽선은 텍스처에 내장)
+                ? PaintBrushStyle.EraserFill   // 지우개: 빨간 반투명 (외곽선은 텍스처에 내장)
                 : Color.white; // 브러시: 텍스처 원색 그대로 (회색 내부 + 검정 외곽선)
 
             if (!_brushPreview.activeSelf)
@@ -292,22 +284,8 @@ namespace PixelChroma
             if (_previewLastSize == size) return;
             _previewLastSize = size;
 
-            const int res = 6;
-            int brushPx = Mathf.Max(size, 1);
-            int texSize = brushPx * res;
-            var tex = new Texture2D(texSize, texSize, TextureFormat.RGBA32, false);
-            tex.filterMode = FilterMode.Bilinear;
-            tex.wrapMode = TextureWrapMode.Clamp;
-
-            for (int y = 0; y < texSize; y++)
-            {
-                for (int x = 0; x < texSize; x++)
-                {
-                    bool isBorder = x == 0 || y == 0 || x == texSize - 1 || y == texSize - 1;
-                    tex.SetPixel(x, y, isBorder ? PreviewOutline : PreviewFill);
-                }
-            }
-            tex.Apply();
+            Texture2D tex = PaintBrushStyle.CreateBrushTexture(size);
+            int texSize = tex.width;
 
             if (_brushPreviewRenderer.sprite != null)
                 UnityEngine.Object.Destroy(_brushPreviewRenderer.sprite.texture);
