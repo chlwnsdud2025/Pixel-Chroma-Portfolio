@@ -64,6 +64,7 @@ namespace PixelChroma
             PaintController.OnPaintModeChanged += HandleLocalPaintModeChanged;
             ShowHUDAsync().Forget();
             InitializeSpectator();
+            ApplyDefaultCursor();
         }
 
         protected override void OnLocalPlayerStopped()

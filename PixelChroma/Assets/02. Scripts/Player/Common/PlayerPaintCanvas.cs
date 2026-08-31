@@ -103,6 +103,9 @@ namespace PixelChroma
         private Vector2 _cachedLightDir;
         private float _cachedLightAngle = -1f;
 
+        // 채우기(flood fill) 작업용 스택. 매 클릭마다 새로 할당하지 않도록 재사용한다.
+        private Stack<int> _floodStack;
+
         // ── Public 프로퍼티 ─────────────────────────────────────────────────────
 
         public int BrushSize { get => brushSize; set => brushSize = value; }
@@ -403,13 +406,15 @@ namespace PixelChroma
             return painted;
         }
 
-        public bool FillAll(Color color)
+        // 채우기(페인트통): 클릭한 셀과 같은 색으로 이어진 영역만 칠한다.
+        // (닉네임 편집기의 채우기와 동일 규칙 — 빈 칸을 찍으면 그 빈 영역만 채워짐)
+        public bool FloodFill(int px, int py, Color color)
         {
-            bool painted = FillAllLocal(color);
+            bool painted = FloodFillLocal(px, py, color);
             if (painted)
             {
                 ApplyChanges();
-                CmdFillAll(color);
+                CmdFloodFill(px, py, color);
             }
             return painted;
         }
@@ -440,27 +445,48 @@ namespace PixelChroma
             return anyPainted;
         }
 
-        private bool FillAllLocal(Color color)
+        // 4방향 flood fill. 시작 셀의 현재 마스크 색(알파 0 = 아직 안 칠한 빈 칸)과 같은
+        // 셀만 따라가고, 실루엣 밖(unionOpaque == false)은 벽으로 취급해 넘지 않는다.
+        private bool FloodFillLocal(int px, int py, Color color)
         {
             var form = _activeForm;
             if (form == null || form.maskPixels == null || form.unionOpaque == null) return false;
+            if (px < 0 || px >= form.texWidth || py < 0 || py >= form.texHeight) return false;
 
-            bool anyPainted = false;
-            var target = PaintColorUtil.ToOpaqueColor32(color);
-            int count = Mathf.Min(form.maskPixels.Length, form.unionOpaque.Length);
+            int startIdx = py * form.texWidth + px;
+            if (!form.unionOpaque[startIdx]) return false;   // 몸통 밖을 찍으면 아무 일도 안 함
 
-            for (int idx = 0; idx < count; idx++)
+            Color32 target = form.maskPixels[startIdx];
+            Color32 fill = PaintColorUtil.ToOpaqueColor32(color);
+            if (PaintColorUtil.Equals(target, fill)) return false;   // 같은 색 → 채울 것 없음
+
+            // 칠한 셀은 더 이상 target과 같지 않으므로 방문 배열 없이도 재방문되지 않는다.
+            _floodStack ??= new Stack<int>(256);
+            _floodStack.Clear();
+            _floodStack.Push(startIdx);
+
+            int w = form.texWidth;
+            int h = form.texHeight;
+
+            while (_floodStack.Count > 0)
             {
+                int idx = _floodStack.Pop();
                 if (!form.unionOpaque[idx]) continue;
-                if (PaintColorUtil.Equals(form.maskPixels[idx], target)) continue;
+                if (!PaintColorUtil.Equals(form.maskPixels[idx], target)) continue;
 
                 RecordBefore(form, idx);
                 SetMaskCell(form, idx, color);
-                anyPainted = true;
+
+                int x = idx % w;
+                int y = idx / w;
+                if (x > 0) _floodStack.Push(idx - 1);
+                if (x < w - 1) _floodStack.Push(idx + 1);
+                if (y > 0) _floodStack.Push(idx - w);
+                if (y < h - 1) _floodStack.Push(idx + w);
             }
 
-            if (anyPainted) form.isDirty = true;
-            return anyPainted;
+            form.isDirty = true;
+            return true;
         }
 
         private static void SetMaskCell(PaintForm form, int idx, Color color)
@@ -485,17 +511,18 @@ namespace PixelChroma
         }
 
         [Command]
-        private void CmdFillAll(Color color)
+        private void CmdFloodFill(int px, int py, Color color)
         {
-            RpcFillAll(color);
+            RpcFloodFill(px, py, color);
         }
 
         [ClientRpc]
-        private void RpcFillAll(Color color)
+        private void RpcFloodFill(int px, int py, Color color)
         {
             if (isOwned) return;
 
-            if (FillAllLocal(color))
+            // 원격도 같은 마스크 상태에서 같은 시드로 재실행 → 동일한 영역이 칠해진다.
+            if (FloodFillLocal(px, py, color))
                 ApplyChanges();
         }
 

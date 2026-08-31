@@ -72,7 +72,12 @@ namespace PixelChroma
             _eyedropperSampler.OnColorSampled -= OnEyedropperColorSampled;
             _eyedropperSampler.Dispose();
 
-            if (_owner != null && _owner.isLocalPlayer && CursorManager.Instance != null)
+            // 플레이어 교체 시에는 새 로컬 플레이어가 이미 커서를 넘겨받았을 수 있다.
+            // 이전 플레이어의 정리가 새 역할의 커서를 덮어쓰지 않도록 현재 로컬 플레이어일 때만 초기화한다.
+            if (_owner != null
+                && _owner.isLocalPlayer
+                && Mirror.NetworkClient.localPlayer == _owner.netIdentity
+                && CursorManager.Instance != null)
                 CursorManager.Instance.SetCursorType(CursorType.Default);
 
             if (_brushPreview != null)
@@ -358,7 +363,7 @@ namespace PixelChroma
 
                 Color color = _boundPicker != null ? _boundPicker.SelectedColor : Color.white;
                 _paintCanvas.BeginStroke();
-                _paintCanvas.FillAll(color);
+                _paintCanvas.FloodFill(pixel.x, pixel.y, color);   // 클릭 지점과 이어진 같은 색 영역만
                 _paintCanvas.EndStroke();
                 return;
             }
