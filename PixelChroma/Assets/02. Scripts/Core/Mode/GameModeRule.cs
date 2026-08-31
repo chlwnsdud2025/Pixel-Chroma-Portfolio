@@ -20,5 +20,23 @@ namespace PixelChroma
         public abstract IReadOnlyList<RunnerPlayer> GetSpectatableRunners(RunnerPlayer viewer, TimeState currentState);
         //팀 위치 확인용 indicator 
         public abstract bool ShouldShowTeammateIndicator(PlayerRole role);
+
+        // 현재 타임스테이트에서 viewerRole 플레이어가 "어떤 역할"의 인디케이터를 볼지 결정한다.
+        // PlayerRole.None을 반환하면 아무것도 표시하지 않는다.
+        public virtual PlayerRole GetIndicatorTargetRole(PlayerRole viewerRole, TimeState currentState)
+        {
+            if (viewerRole == PlayerRole.None) return PlayerRole.None;
+
+            // CheckTime(정산)에는 역할과 무관하게 Runner들의 위치를 공개한다.
+            if (currentState == TimeState.CheckTime) return PlayerRole.Runner;
+
+            // 그 외에는 기존 규칙 그대로: 같은 역할끼리 표시할지 여부만 판단.
+            return ShouldShowTeammateIndicator(viewerRole) ? viewerRole : PlayerRole.None;
+        }
+
+        // 인디케이터에 거리 제한을 적용할지 결정한다.
+        // CheckTime(정산)에는 맵 전체의 위치를 공개하므로 제한을 풀어준다.
+        public virtual bool ShouldLimitIndicatorDistance(TimeState currentState)
+            => currentState != TimeState.CheckTime;
     }
 }

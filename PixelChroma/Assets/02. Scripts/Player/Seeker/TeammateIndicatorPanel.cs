@@ -1,25 +1,39 @@
 using Mirror;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace PixelChroma.UI
 {
     public class TeammateIndicatorPanel : MonoBehaviour
     {
         [SerializeField] private RectTransform indicatorRoot;
-        [SerializeField] private GameObject indicatorIconPrefab;
         [SerializeField] private float edgePadding = 60f;
 
-        [Header("Target Settings")]
-        [Tooltip("어떤 역할의 팀원을 추적할지 (Seeker → 다른 Seeker 표시, Runner → 다른 Runner 표시)")]
-        [SerializeField] private PlayerRole targetRole = PlayerRole.Seeker;
+        [Header("Indicator Prefabs")]
+        [Tooltip("Seeker 위치를 표시할 아이콘 프리팹")]
+        [SerializeField] private GameObject seekerIndicatorPrefab;
+        [Tooltip("Runner 위치를 표시할 아이콘 프리팹")]
+        [SerializeField] private GameObject runnerIndicatorPrefab;
+
+        [Header("Viewer Settings")]
+        [Tooltip("이 패널이 붙은 HUD의 주인 역할. 실제로 추적할 역할은 GameModeRule이 TimeState를 보고 결정합니다.")]
+        [FormerlySerializedAs("targetRole")]
+        [SerializeField] private PlayerRole viewerRole = PlayerRole.Seeker;
 
         [Header("Distance Filter")]
-        [Tooltip("이 거리 이내의 팀원만 인디케이터를 표시합니다 (0 = 제한 없음)")]
+        [Tooltip("이 거리 이내의 팀원만 인디케이터를 표시합니다 (0 = 제한 없음). CheckTime에는 무시됩니다.")]
         [SerializeField] private float maxTrackingDistance = 30f;
 
         private Camera targetCamera;
-        private readonly List<IndicatorIconView> _pool = new();
+
+        // 아이콘은 프리팹에 종속되므로 역할별로 풀을 따로 유지한다.
+        private readonly List<IndicatorIconView> _seekerPool = new();
+        private readonly List<IndicatorIconView> _runnerPool = new();
+
+        // 이번 Refresh가 사용할 풀/프리팹. Refresh가 배치 전에 반드시 채운다.
+        private List<IndicatorIconView> _activePool;
+        private GameObject _activePrefab;
 
         private void OnEnable()
         {
@@ -40,26 +54,40 @@ namespace PixelChroma.UI
         {
             if (targetCamera == null) { HideAll(); return; }
 
-            // GameModeRule 체크: 현재 모드에서 이 역할의 인디케이터를 표시해야 하는가?
-            var rule = GameRoundManager.Instance?.CurrentRule;
-            if (rule != null && !rule.ShouldShowTeammateIndicator(targetRole))
-            {
-                HideAll();
-                return;
-            }
+            // 현재 모드 + 타임스테이트에서 "내가 어떤 역할의 위치를 볼지" 결정.
+            // CheckTime에는 Seeker가 Runner를 보게 되므로 매 프레임 다시 물어본다.
+            var round = GameRoundManager.Instance;
+            var rule = round?.CurrentRule;
+
+            PlayerRole trackRole = rule != null
+                ? rule.GetIndicatorTargetRole(viewerRole, round.CurrentTimeState)
+                : viewerRole;
+
+            if (trackRole == PlayerRole.None) { HideAll(); return; }
+
+            // CheckTime에는 거리와 무관하게 전원을 표시한다.
+            bool limitDistance = rule == null || rule.ShouldLimitIndicatorDistance(round.CurrentTimeState);
+
+            // 이번 프레임에 쓸 아이콘 종류를 확정하고, 반대 역할 풀은 전부 숨긴다(역할 전환 시 잔상 방지).
+            bool trackingRunner = trackRole == PlayerRole.Runner;
+            _activePool = trackingRunner ? _runnerPool : _seekerPool;
+            _activePrefab = trackingRunner ? runnerIndicatorPrefab : seekerIndicatorPrefab;
+            HidePool(trackingRunner ? _seekerPool : _runnerPool, 0);
+
+            if (_activePrefab == null) { HideAll(); return; }
 
             //거리체크
             Transform localTransform = NetworkClient.localPlayer != null
                 ? NetworkClient.localPlayer.transform
                 : null;
 
-            if (localTransform == null) { HideAll(); return; }
+            // 거리 제한을 쓸 때만 기준점이 필요하다.
+            if (limitDistance && localTransform == null) { HideAll(); return; }
 
-
-            // targetRole에 따라 추적할 플레이어 리스트 결정
+            // trackRole에 따라 추적할 플레이어 리스트 결정
             int used = 0;
 
-            if (targetRole == PlayerRole.Seeker)
+            if (trackRole == PlayerRole.Seeker)
             {
                 var seekers = InGameManager.Instance != null ? InGameManager.Instance.Seekers : null;
                 if (seekers == null) { HideAll(); return; }
@@ -67,12 +95,12 @@ namespace PixelChroma.UI
                 foreach (var seeker in seekers)
                 {
                     if (seeker == null || seeker.isLocalPlayer) continue;
-                    if (!IsWithinRange(localTransform, seeker.transform)) continue;
+                    if (!IsWithinRange(localTransform, seeker.transform, limitDistance)) continue;
                     TryPlaceIndicator(seeker.transform, seeker.playerName,
                                       seeker.pixelNicknamePng, ref used);
                 }
             }
-            else if (targetRole == PlayerRole.Runner)
+            else if (trackRole == PlayerRole.Runner)
             {
                 var runners = InGameManager.Instance != null ? InGameManager.Instance.Runners : null;
                 if (runners == null) { HideAll(); return; }
@@ -81,14 +109,13 @@ namespace PixelChroma.UI
                 {
                     if (runner == null || runner.isLocalPlayer) continue;
                     if (runner.IsDead) continue; // 사망한 Runner는 표시하지 않음
-                    if (!IsWithinRange(localTransform, runner.transform)) continue;
+                    if (!IsWithinRange(localTransform, runner.transform, limitDistance)) continue;
                     TryPlaceIndicator(runner.transform, runner.playerName,
                                       runner.pixelNicknamePng, ref used);
                 }
             }
 
-            for (int i = used; i < _pool.Count; i++)
-                _pool[i].gameObject.SetActive(false);
+            HidePool(_activePool, used);
         }
 
         // 화면 밖에 있으면 가장자리에 배치, 화면 안이면 스킵. 배치했으면 used 증가.
@@ -111,14 +138,14 @@ namespace PixelChroma.UI
 
         private IndicatorIconView GetIcon(int index)
         {
-            if (index < _pool.Count)
+            if (index < _activePool.Count)
             {
-                _pool[index].gameObject.SetActive(true);
-                return _pool[index];
+                _activePool[index].gameObject.SetActive(true);
+                return _activePool[index];
             }
 
-            var view = Instantiate(indicatorIconPrefab, indicatorRoot).GetComponent<IndicatorIconView>();
-            _pool.Add(view);
+            var view = Instantiate(_activePrefab, indicatorRoot).GetComponent<IndicatorIconView>();
+            _activePool.Add(view);
             return view;
         }
 
@@ -154,14 +181,21 @@ namespace PixelChroma.UI
 
         private void HideAll()
         {
-            foreach (var icon in _pool)
-                icon.gameObject.SetActive(false);
+            HidePool(_seekerPool, 0);
+            HidePool(_runnerPool, 0);
         }
-    
 
-        private bool IsWithinRange(Transform local, Transform target)
+        private static void HidePool(List<IndicatorIconView> pool, int fromIndex)
         {
-            if (maxTrackingDistance <= 0f) return true; // 0이면 무제한
+            for (int i = fromIndex; i < pool.Count; i++)
+                pool[i].gameObject.SetActive(false);
+        }
+
+
+        private bool IsWithinRange(Transform local, Transform target, bool limitDistance)
+        {
+            if (!limitDistance) return true;              // CheckTime 등 제한 해제 구간
+            if (maxTrackingDistance <= 0f) return true;   // 0이면 무제한
             float sqrDist = (target.position - local.position).sqrMagnitude;
             return sqrDist <= maxTrackingDistance * maxTrackingDistance;
         }
