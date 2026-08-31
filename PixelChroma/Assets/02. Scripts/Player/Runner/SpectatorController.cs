@@ -39,6 +39,11 @@ namespace PixelChroma
         public bool IsSpectating => _mode != SpectateMode.None;
         public PlayerBase CurrentTarget => _currentTarget;
 
+        private static TimeState CurrentTimeState =>
+    GameRoundManager.Instance != null ? GameRoundManager.Instance.CurrentTimeState : TimeState.Waiting;
+
+        private static bool IsCheckTime => CurrentTimeState == TimeState.CheckTime;
+
         private int _savedRunnerIndex = -1;
         private int _savedSeekerIndex = -1;
 
@@ -99,10 +104,8 @@ namespace PixelChroma
                 if (runners != null && _savedRunnerIndex < runners.Count)
                 {
                     var saved = runners[_savedRunnerIndex];
-                    bool isCheckTime = GameRoundManager.Instance != null
-                        && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
 
-                    if (saved != null && (!saved.IsDead || isCheckTime))
+                    if (saved != null && (!saved.IsDead || IsCheckTime))
                     {
                         // 저장된 대상이 생존 → 그대로 복원
                         _targetIndex = _savedRunnerIndex;
@@ -169,6 +172,34 @@ namespace PixelChroma
                 CycleSeeker(direction);
         }
 
+        // 관전 대상 명부가 바뀌는 시점(감염모드의 CheckTime 진입 등)에 호출합니다.
+        // 이전 명부 기준으로 잡힌 인덱스를 새 명부에 맞춰 다시 앵커링합니다.
+        public void RefreshSpectatableTargets()
+        {
+            var runners = GetSpectatableRunnerList();
+            if (runners == null || runners.Count == 0) return;
+
+            // 저장 인덱스는 이전 명부 기준이라 그대로 두면 나중에 복원할 때 엉뚱한 대상을 가리킵니다.
+            _savedRunnerIndex = -1;
+
+            // 러너 관전 중이 아니면(자유/시커 시점) 저장 인덱스만 버리고 끝냅니다.
+            if (_mode != SpectateMode.Runner) return;
+
+            // 지금 보고 있는 대상을 새 명부에서 다시 찾습니다.
+            for (int i = 0; i < runners.Count; i++)
+            {
+                if (runners[i] == null || runners[i] != _currentTarget) continue;
+
+                _targetIndex = i;
+                _savedRunnerIndex = i;
+                return;
+            }
+
+            // 새 명부에 없는 대상이면 유효한 대상으로 이동
+            _targetIndex = -1;
+            CycleTarget(1);
+        }
+
         public void HandleFreeCamMovement(Vector2 input)
         {
             if (_mode != SpectateMode.Free) return;
@@ -178,7 +209,7 @@ namespace PixelChroma
         private IReadOnlyList<RunnerPlayer> GetSpectatableRunnerList()
         {
             return (_owner is RunnerPlayer runnerOwner
-                    ? GameRoundManager.Instance?.CurrentRule?.GetSpectatableRunners(runnerOwner)
+                    ? GameRoundManager.Instance?.CurrentRule?.GetSpectatableRunners(runnerOwner, CurrentTimeState)
                     : null)
                 ?? InGameManager.Instance?.Runners;
         }
@@ -197,10 +228,7 @@ namespace PixelChroma
                 _targetIndex = (_targetIndex + direction + runners.Count) % runners.Count;
                 var target = runners[_targetIndex];
 
-                bool isCheckTime = GameRoundManager.Instance != null
-                    && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
-
-                if (target != null && (!target.IsDead || isCheckTime))
+                if (target != null && (!target.IsDead || IsCheckTime))
                 {
                     SetTarget(target, target.transform);
                     _savedRunnerIndex = _targetIndex;

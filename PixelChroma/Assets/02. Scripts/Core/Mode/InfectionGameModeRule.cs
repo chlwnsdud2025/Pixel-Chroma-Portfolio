@@ -11,11 +11,17 @@ namespace PixelChroma
         public override bool CanSeeRunnerBody(TimeState currentState)//Runner끼리 Hide때 서로 몸 안보임
             => currentState != TimeState.HideTime;
 
-        //Runner관전 본인만 가능
-        public override IReadOnlyList<RunnerPlayer> GetSpectatableRunners(RunnerPlayer viewer)
+        //Runner관전: HideTime/SeekTime에는 본인만, CheckTime(정산)부터는 전원 관전 가능
+        public override IReadOnlyList<RunnerPlayer> GetSpectatableRunners(RunnerPlayer viewer, TimeState currentState)
         {
-            return viewer != null ? new[] { viewer } : System.Array.Empty<RunnerPlayer>();
+            if (currentState != TimeState.HideTime && currentState != TimeState.SeekTime)
+            {
+                return InGameManager.Instance != null
+                    ? InGameManager.Instance.Runners
+                    : (IReadOnlyList<RunnerPlayer>)System.Array.Empty<RunnerPlayer>();
+            }
 
+            return viewer != null ? new[] { viewer } : System.Array.Empty<RunnerPlayer>();
         }
 
         public override bool ShouldShowTeammateIndicator(PlayerRole role) => role == PlayerRole.Seeker;

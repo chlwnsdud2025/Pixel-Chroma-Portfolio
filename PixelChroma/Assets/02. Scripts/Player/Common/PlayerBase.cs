@@ -521,6 +521,11 @@ namespace PixelChroma
                     InGameHUD?.SetSpectatorMode(true);
                     InGameHUD?.SetActiveSpectateMode(SpectateMode.Runner);
                 }
+                else if (_spectator.IsSpectating)
+                {
+                    // 이미 관전 중이었다면 CheckTime 기준으로 명부가 넓어졌으니 인덱스를 다시 맞춘다.
+                    _spectator.RefreshSpectatableTargets();
+                }
 
                 RefreshLikeGuide();
                 OnCheckTimeSpectatorEnter();
