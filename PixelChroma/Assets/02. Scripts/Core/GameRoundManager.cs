@@ -439,7 +439,12 @@ namespace PixelChroma
             var conns = NetworkServer.connections.Values.ToList();
             if (conns.Count == 0) return;
 
-            var seekerConnIds = DetermineSeekerConnectionIds(conns, OptionSeekerCount);
+            // 설정값이 접속 인원 이상이면 크로마가 0명이 되므로 실제 인원에 맞춰 줄인다.
+            int seekerCount = RoomOption.GetEffectiveSeekerCount(OptionSeekerCount, conns.Count);
+            if (seekerCount != OptionSeekerCount)
+                Debug.Log($"[GameRound] 인원 부족으로 술래 수 조정: {OptionSeekerCount} → {seekerCount} (접속 {conns.Count}명)");
+
+            var seekerConnIds = DetermineSeekerConnectionIds(conns, seekerCount);
 
             foreach (var conn in conns)
             {

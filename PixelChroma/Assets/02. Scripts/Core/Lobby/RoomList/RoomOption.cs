@@ -65,6 +65,13 @@ namespace PixelChroma
             return Mathf.Max(MinSeekerCount, maxPlayers - 1);
         }
 
+        // 실제 배정되는 술래 수. 크로마가 최소 1명은 남도록 인원에 맞춰 줄인다. (1인 방은 설정값 유지)
+        public static int GetEffectiveSeekerCount(int seekerCount, int playerCount)
+        {
+            if (playerCount <= 1) return seekerCount;
+            return Mathf.Clamp(seekerCount, MinSeekerCount, playerCount - 1);
+        }
+
         public static float GetMaxForcedExposeInterval(float seekTime)
         {
             return Mathf.Max(MinForcedExposeInterval, Mathf.Round(seekTime));

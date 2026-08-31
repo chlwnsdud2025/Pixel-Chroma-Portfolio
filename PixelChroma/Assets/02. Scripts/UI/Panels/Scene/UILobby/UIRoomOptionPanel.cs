@@ -20,6 +20,10 @@ namespace PixelChroma.UI
         [SerializeField] private OneTextLabel mapNameText;
         [SerializeField] private Image mapPreviewImage;
 
+        [Header("Player Count")]
+        [SerializeField] private OneTextLabel maxPlayersText;
+        [SerializeField] private OneTextLabel seekerCountText;
+
         [Header("Time Settings")]
         [SerializeField] private OneTextLabel hideTimeText;
         [SerializeField] private OneTextLabel seekTimeText;
@@ -47,7 +51,15 @@ namespace PixelChroma.UI
 
             RefreshGameMode(option);
             RefreshMapName(option);
+            RefreshPlayerCounts(option);
             RefreshTimeSettings(option);
+        }
+
+        // 설정값을 그대로 보여준다. 인원에 따른 실제 축소는 GameRoundManager.AssignRoles가 처리한다.
+        private void RefreshPlayerCounts(RoomOption option)
+        {
+            if (maxPlayersText != null) maxPlayersText.text = option.maxPlayers.ToString();
+            if (seekerCountText != null) seekerCountText.text = option.seekerCount.ToString();
         }
 
         private void RefreshGameMode(RoomOption option)
