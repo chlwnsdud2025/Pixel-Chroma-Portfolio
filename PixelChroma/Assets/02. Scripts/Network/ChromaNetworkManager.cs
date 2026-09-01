@@ -65,6 +65,9 @@ namespace PixelChroma
         {
             base.OnStartServer();
 
+            ScoreManager.Instance?.ResetAll();
+            ScoreManager.Instance?.ClearRanks();
+
             if (!GameManager.SteamActive && ChromaNetworkDiscovery.Instance != null)
                 ChromaNetworkDiscovery.Instance.AdvertiseServer();
         }
@@ -92,6 +95,9 @@ namespace PixelChroma
         public override void OnStartClient()
         {
             base.OnStartClient();
+
+            RankClient.Reset();
+            ScoreBoardClient.Reset();
 
             if (GameRoundManager.Instance != null)
                 GameRoundManager.Instance.Initialize();
