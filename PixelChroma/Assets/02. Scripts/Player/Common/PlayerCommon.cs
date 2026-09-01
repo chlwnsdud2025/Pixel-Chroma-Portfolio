@@ -48,9 +48,6 @@ namespace PixelChroma
         [SerializeField] private float freeCamSpeed = 15f;
 
         private PlayerNicknameDisplay _nicknameDisplay;
-        private GameObject _worldLikeGuide;
-        private OneTextLabel _worldLikeKeyText;
-
         public InputActionAsset InputActions => inputActions;
         public Animator Animator => animator;
         public PlayerPaintCanvas PaintCanvas => paintCanvas;
@@ -102,54 +99,6 @@ namespace PixelChroma
         public void HandlePaintModeChanged(bool isPaintMode) => _nicknameDisplay?.HandlePaintModeChanged(isPaintMode);
 
         public void PlayLikeRise(int delta) => likeRiseEffect?.Play(delta);
-
-        /// <summary>
-        /// 기존 좋아요 카운트 패널의 외형을 복제해 대상 캐릭터 위에 입력 안내를 표시합니다.
-        /// 프리팹별 중복 배선 없이 PlayerBase 프리팹의 공통 월드 캔버스를 그대로 사용합니다.
-        /// </summary>
-        public void SetWorldLikeGuide(bool visible, string bindingDisplay)
-        {
-            if (visible && _worldLikeGuide == null)
-                CreateWorldLikeGuide();
-
-            if (_worldLikeGuide == null)
-                return;
-
-            if (visible && _worldLikeKeyText != null)
-            {
-                string key = string.IsNullOrWhiteSpace(bindingDisplay) ? "♥" : $"[{bindingDisplay}]";
-                _worldLikeKeyText.text = key;
-            }
-
-            _worldLikeGuide.SetActive(visible);
-        }
-
-        private void CreateWorldLikeGuide()
-        {
-            if (nicknameRoot == null || likeCountText == null)
-                return;
-
-            Transform sourcePanel = likeCountText.transform.parent;
-            if (sourcePanel == null)
-                return;
-
-            _worldLikeGuide = Instantiate(sourcePanel.gameObject, nicknameRoot.transform);
-            _worldLikeGuide.name = "WorldLikeGuide";
-
-            var copiedEffect = _worldLikeGuide.GetComponent<LikeRiseEffect>();
-            if (copiedEffect != null)
-                Destroy(copiedEffect);
-
-            _worldLikeKeyText = _worldLikeGuide.GetComponentInChildren<OneTextLabel>(true);
-
-            if (_worldLikeGuide.transform is RectTransform rect)
-            {
-                rect.anchoredPosition = new Vector2(0f, 85f);
-                rect.sizeDelta = new Vector2(100f, 30f);
-            }
-
-            _worldLikeGuide.SetActive(false);
-        }
 
         private void AdjustNicknamePosition(float formTopY)
         {

@@ -16,7 +16,7 @@ namespace PixelChroma
         private readonly float _viewportMargin;
         private readonly string _bindingDisplay;
 
-        private PlayerBase _currentTarget;
+        private RunnerPlayer _currentTarget;
 
         public LikeInteractionController(
             PlayerBase viewer,
@@ -35,7 +35,7 @@ namespace PixelChroma
 
         public void Tick(bool inputEnabled)
         {
-            PlayerBase nextTarget = inputEnabled ? FindBestTarget() : null;
+            RunnerPlayer nextTarget = inputEnabled ? FindBestTarget() : null;
             SetTarget(nextTarget);
 
             if (_currentTarget != null && _input.Like.WasPressedThisFrame())
@@ -47,7 +47,7 @@ namespace PixelChroma
             SetTarget(null);
         }
 
-        private PlayerBase FindBestTarget()
+        private RunnerPlayer FindBestTarget()
         {
             if (!PlayerBase.IsLikeAllowedNow || _camera == null)
                 return null;
@@ -57,7 +57,7 @@ namespace PixelChroma
                 return null;
 
             Vector2 cameraPosition = _camera.transform.position;
-            PlayerBase bestTarget = null;
+            RunnerPlayer bestTarget = null;
             float bestScore = float.MaxValue;
 
             for (int i = 0; i < runners.Count; i++)
@@ -89,18 +89,18 @@ namespace PixelChroma
             return bestTarget;
         }
 
-        private void SetTarget(PlayerBase target)
+        private void SetTarget(RunnerPlayer target)
         {
             if (_currentTarget == target)
                 return;
 
             if (_currentTarget != null)
-                _currentTarget.SetWorldLikeGuide(false, _bindingDisplay);
+                _currentTarget.HideWorldLikeGuide();
 
             _currentTarget = target;
 
             if (_currentTarget != null)
-                _currentTarget.SetWorldLikeGuide(true, _bindingDisplay);
+                _currentTarget.ShowWorldLikeGuide(_bindingDisplay);
         }
     }
 }

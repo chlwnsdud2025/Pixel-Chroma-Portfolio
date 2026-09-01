@@ -29,6 +29,10 @@ namespace PixelChroma
         [Tooltip("사망 또는 서로 안보이게 할 때 껏다 켯다 할 렌더러")]
         [SerializeField] private SpriteRenderer visualRenderer;
 
+        [Header("Like Interaction UI")]
+        [Tooltip("RunnerPlayer 프리팹의 World Space 좋아요 캔버스에 붙인 View입니다. 비워두면 자식에서 자동 탐색합니다.")]
+        [SerializeField] private WorldLikeGuideView likeGuideView;
+
         // 넉백~소멸 연출 구간. 이 동안엔 관전 입력이 카메라를 다시 뺏지 못하게 잠급니다.
         private bool _isDeathCamActive;
 
@@ -70,6 +74,19 @@ namespace PixelChroma
 
             _netTransform = GetComponent<NetworkTransformBase>();
             _netAnimator = GetComponent<Mirror.NetworkAnimator>();
+
+            if (likeGuideView == null)
+                likeGuideView = GetComponentInChildren<WorldLikeGuideView>(true);
+        }
+
+        internal void ShowWorldLikeGuide(string bindingDisplay)
+        {
+            likeGuideView?.Show(bindingDisplay);
+        }
+
+        internal void HideWorldLikeGuide()
+        {
+            likeGuideView?.Hide();
         }
 
         public override void OnStartClient()

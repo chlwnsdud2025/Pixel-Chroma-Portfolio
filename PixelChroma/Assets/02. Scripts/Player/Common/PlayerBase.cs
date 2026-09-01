@@ -501,11 +501,6 @@ namespace PixelChroma
             target.CmdAddLike();
         }
 
-        internal void SetWorldLikeGuide(bool visible, string bindingDisplay)
-        {
-            Common.SetWorldLikeGuide(visible, bindingDisplay);
-        }
-
         private bool IsSameOwner(PlayerBase other)
         {
             if (other == this) return true;
