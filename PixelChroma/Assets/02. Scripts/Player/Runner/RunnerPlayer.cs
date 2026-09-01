@@ -59,6 +59,7 @@ namespace PixelChroma
         protected override bool CanTogglePaintMode => !_isDead && !IsCheckTimeSpectatorLocked;// 사망여부를 Paint 진입 가능 여부로 설정
         protected override bool CanUseFormWheel => !_isDead;
         public bool IsDead => _isDead;
+        public bool IsVisuallyDead => _isVisuallyDead;
         public bool IsKnockedBack => _deathEffects != null && _deathEffects.IsKnockedBack;
         protected override bool CanEnterCheckTimeSpectator => !_isDead;
 

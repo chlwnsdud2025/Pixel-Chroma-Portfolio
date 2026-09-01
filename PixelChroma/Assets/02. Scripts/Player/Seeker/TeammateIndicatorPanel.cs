@@ -108,7 +108,7 @@ namespace PixelChroma.UI
                 foreach (var runner in runners)
                 {
                     if (runner == null || runner.isLocalPlayer) continue;
-                    if (runner.IsDead) continue; // 사망한 Runner는 표시하지 않음
+                    if (runner.IsVisuallyDead) continue;
                     if (!IsWithinRange(localTransform, runner.transform, limitDistance)) continue;
                     TryPlaceIndicator(runner.transform, runner.playerName,
                                       runner.pixelNicknamePng, ref used);
