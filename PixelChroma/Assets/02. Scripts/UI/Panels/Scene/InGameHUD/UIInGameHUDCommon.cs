@@ -27,10 +27,12 @@ namespace PixelChroma.UI
         [Header("Result UI")]
         [SerializeField] private CanvasGroup resultOverlayGroup;
         [SerializeField] private OneTextLabel gameResultOverlayText;
-        [SerializeField] private float resultAppearDuration = 0.5f;
-        [SerializeField] private float resultRiseOffset = 40f;
-        [SerializeField] private float resultAppearStartScale = 0.8f;
+        [SerializeField] private float resultAppearDuration = 0.35f;
+        [SerializeField] private float resultAppearStartScale = 0.5f;
+        [SerializeField] private float resultPopOvershoot = 2.5f;
         [SerializeField] private float resultHoldDuration = 2f;
+        [SerializeField] private float resultExitDuration = 0.2f;
+        [SerializeField] private float resultExitScale = 0.9f;
 
         [Header("Score Board")]
         [SerializeField] private UIScoreBoard scoreBoard;
@@ -81,6 +83,8 @@ namespace PixelChroma.UI
         [SerializeField] private float bandOutDuration = 0.30f;
         [Tooltip("밴드가 완전히 들어온 뒤 머무는 시간. 사운드 길이와 무관하게 이 값을 그대로 씁니다.")]
         [SerializeField] private float bandHoldDuration = 0.5f;
+        [Tooltip("밴드가 퇴장을 시작한 뒤 결과 팝이 터지기까지의 지연(초). bandOutDuration - (0.45 * resultAppearDuration)")]
+        [SerializeField] private float resultRevealOffset = 0.14f;
 
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
@@ -89,8 +93,9 @@ namespace PixelChroma.UI
         public event Action<SpectateMode> OnSpectateModeSelected;
 
         private Vector2 resultBaseAnchoredPos;
-        private PlayerBase _currentSpectateTarget; 
+        private PlayerBase _currentSpectateTarget;
         private bool _currentSpectateIsSelf;
+        private PlayerRole? _pendingWinner;
 
         public void Initialize()
         {
@@ -162,8 +167,11 @@ namespace PixelChroma.UI
             if (skipHoldGauge != null) skipHoldGauge.fillAmount = 0f;
             if (skipVoteCountText != null) skipVoteCountText.text = "";
 
+            _pendingWinner = null;
+
             if (transitionBandRoot != null)
             {
+                DOTween.Kill(transitionBandRoot);
                 bandTop?.DOKill();
                 bandBottom?.DOKill();
                 bandWordGroup?.DOKill();
@@ -279,28 +287,24 @@ namespace PixelChroma.UI
                 ? textData.resultSeekerWin.GetLocalizedString()
                 : textData.resultRunnerWin.GetLocalizedString();
 
-            // 시작 상태: 투명 + 아래로 살짝 + 작은 스케일
             var rect = (RectTransform)resultOverlayGroup.transform;
-            var startPos = resultBaseAnchoredPos + Vector2.down * resultRiseOffset;
-            var startScale = Vector3.one * resultAppearStartScale;
 
             resultOverlayGroup.DOKill();
             rect.DOKill();
 
             resultOverlayGroup.gameObject.SetActive(true);
             resultOverlayGroup.alpha = 0f;
-            rect.anchoredPosition = startPos;
-            rect.localScale = startScale;
+            rect.anchoredPosition = resultBaseAnchoredPos;
+            rect.localScale = Vector3.one * resultAppearStartScale;
 
-            // 등장(페이드/라이즈/스케일 업) → N초 유지 → 퇴장(반대로) → 비활성화
             DOTween.Sequence().SetTarget(resultOverlayGroup)
-                .Append(resultOverlayGroup.DOFade(1f, resultAppearDuration).SetEase(Ease.OutCubic))
-                .Join(rect.DOAnchorPos(resultBaseAnchoredPos, resultAppearDuration).SetEase(Ease.OutCubic))
-                .Join(rect.DOScale(Vector3.one, resultAppearDuration).SetEase(Ease.OutCubic))
+                .Append(rect.DOScale(Vector3.one, resultAppearDuration)
+                    .SetEase(Ease.OutBack, resultPopOvershoot))
+                .Join(resultOverlayGroup.DOFade(1f, resultAppearDuration * 0.5f))
                 .AppendInterval(resultHoldDuration)
-                .Append(resultOverlayGroup.DOFade(0f, resultAppearDuration).SetEase(Ease.InCubic))
-                .Join(rect.DOAnchorPos(startPos, resultAppearDuration).SetEase(Ease.InCubic))
-                .Join(rect.DOScale(startScale, resultAppearDuration).SetEase(Ease.InCubic))
+                .Append(rect.DOScale(Vector3.one * resultExitScale, resultExitDuration)
+                    .SetEase(Ease.InBack))
+                .Join(resultOverlayGroup.DOFade(0f, resultExitDuration))
                 .OnComplete(() => resultOverlayGroup.gameObject.SetActive(false));
         }
 
@@ -331,6 +335,15 @@ namespace PixelChroma.UI
 
         private void HandleWinnerDecided(PlayerRole winner)
         {
+            _pendingWinner = winner;
+        }
+
+        private void FlushPendingWinner()
+        {
+            if (_pendingWinner == null) return;
+
+            var winner = _pendingWinner.Value;
+            _pendingWinner = null;
             ShowWinnerOverlay(winner);
         }
         private void OnSettingsChanged()
@@ -376,14 +389,23 @@ namespace PixelChroma.UI
 
         private void ShowTransitionBand(TimeState state)
         {
-            if (transitionBandRoot == null || bandTop == null || bandBottom == null) return;
-            if (!TryGetBandContent(state, out string message, out Color color)) return;
+            if (transitionBandRoot == null || bandTop == null || bandBottom == null)
+            {
+                FlushPendingWinner();
+                return;
+            }
+            if (!TryGetBandContent(state, out string message, out Color color))
+            {
+                FlushPendingWinner();
+                return;
+            }
 
             bandText.text = message;
             if (bandTopImage != null) bandTopImage.color = color;
             if (bandBottomImage != null) bandBottomImage.color = color;
 
             // 진행 중인 연출을 끊고 시작 상태로 되돌립니다(연속 전환 시 잔상 방지).
+            DOTween.Kill(transitionBandRoot);
             bandTop.DOKill();
             bandBottom.DOKill();
             bandWordGroup.DOKill();
@@ -394,6 +416,8 @@ namespace PixelChroma.UI
             bandBottom.anchoredPosition = new Vector2(enterX, bandBottom.anchoredPosition.y);
             bandWordGroup.alpha = 0f;
 
+            float revealAt = bandInDuration + bandHoldDuration + resultRevealOffset;
+
             DOTween.Sequence().SetTarget(transitionBandRoot)
                 .Append(bandTop.DOAnchorPosX(0f, bandInDuration).SetEase(Ease.OutCubic))
                 .Join(bandBottom.DOAnchorPosX(0f, bandInDuration).SetEase(Ease.OutCubic))
@@ -402,6 +426,7 @@ namespace PixelChroma.UI
                 .Append(bandTop.DOAnchorPosX(enterX, bandOutDuration).SetEase(Ease.InCubic))
                 .Join(bandBottom.DOAnchorPosX(-enterX, bandOutDuration).SetEase(Ease.InCubic))
                 .Join(bandWordGroup.DOFade(0f, bandOutDuration * 0.7f))
+                .InsertCallback(revealAt, FlushPendingWinner)
                 .OnComplete(() => transitionBandRoot.SetActive(false));
         }
 
