@@ -111,13 +111,12 @@ namespace PixelChroma
                 elapsed += 0.5f;
             }
 
-            // 첫 갱신 간격: 대기 시간만큼 보정
-            float firstInterval = Mathf.Max(1f, broadcastInterval - elapsed);
+            SendScoreBoard(0f);
 
-            SendScoreBoard(firstInterval);
-
-            await UniTask.Delay(
-                System.TimeSpan.FromSeconds(firstInterval),
+            // 주기 갱신은 SeekTime 진입 시점부터 시작
+            await UniTask.WaitUntil(
+                () => GameRoundManager.Instance != null
+                   && GameRoundManager.Instance.CurrentTimeState == TimeState.SeekTime,
                 cancellationToken: token
             );
 
