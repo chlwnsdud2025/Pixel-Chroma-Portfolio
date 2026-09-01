@@ -11,6 +11,9 @@ namespace PixelChroma
         // 로딩창 최소 표시 시간(초). 실제 로드가 더 빨리 끝나도 이 시간만큼은 유지한다.
         private const float MinDisplayTime = 3f;
 
+        // 로딩 진입 시 이전 씬 BGM이 사라지는 시간(초).
+        private const float BgmFadeOutDuration = 0.4f;
+
         // 로딩이 어떤 이유로든(씬 로드 행, 콜백 예외 등) 끝나지 않을 때의 최종 안전망(초).
         public const float WatchdogTimeout = 30f;
 
@@ -26,8 +29,9 @@ namespace PixelChroma
         {
             if (IsShowing) return;
 
+            // 로딩 팝업은 즉시 띄우고, 이전 씬 BGM은 전환 초반에 짧게 Fade-out한다.
             if (SoundManager.Instance != null)
-                SoundManager.Instance.StopBgm().Forget();
+                SoundManager.Instance.StopBgm(BgmFadeOutDuration).Forget();
 
             // 로딩창을 띄우기 전에 열려 있던 팝업을 모두 닫는다.
             await UIManager.Instance.HideAllPopups();
