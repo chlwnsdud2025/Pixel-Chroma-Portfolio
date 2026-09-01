@@ -14,9 +14,6 @@ namespace PixelChroma.UI
         [SerializeField] private RawImage targetNameImage;
         [SerializeField] private Color selfTargetNameColor = Color.yellow;
 
-        [Header("Like Guide")]
-        [SerializeField] private GameObject likeGuideRoot;
-
         // 관전 모드 버튼을 눌렀을 때 발생합니다. 실제 전환은 로컬 플레이어가 처리합니다.
         public event Action<SpectateMode> OnModeSelected;
 
@@ -27,9 +24,6 @@ namespace PixelChroma.UI
         {
             if (targetNameText != null)
                 _defaultTargetNameColor = targetNameText.color;
-
-            if (likeGuideRoot != null)
-                likeGuideRoot.SetActive(false);
 
             BindModeButton(seekerButton, SpectateMode.Seeker);
             BindModeButton(runnerButton, SpectateMode.Runner);
@@ -89,13 +83,5 @@ namespace PixelChroma.UI
             }
         }
 
-        /// <summary>
-        /// 지금 보고 있는 대상에게 좋아요를 줄 수 있는지 여부를 받아 안내를 표시합니다.
-        /// </summary>
-        public void SetLikeGuide(bool canLike)
-        {
-            if (likeGuideRoot != null)
-                likeGuideRoot.SetActive(canLike);
-        }
     }
 }

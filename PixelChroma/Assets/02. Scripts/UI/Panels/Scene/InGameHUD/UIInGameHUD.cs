@@ -75,8 +75,6 @@ namespace PixelChroma.UI
 
         public void SetSpectateTarget(PlayerBase target, bool isSelf) => Common.SetSpectateTarget(target, isSelf);
 
-        public void SetLikeGuide(bool canLike) => Common.SetLikeGuide(canLike);
-
         public void SetSkipVoted() => Common.SetSkipVoted();
     }
 }

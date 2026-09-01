@@ -53,10 +53,12 @@ namespace PixelChroma
         private PixelPerfectCamera _pixelPerfectCamera;
         private Tween _zoomTween;
         private SpectatorController _spectator;
+        private LikeInteractionController _likeInteraction;
         private UIInGameHUD _boundSpectateHUD;
         private bool _isChatActive;
         private bool _wasPopupOpen;
         private bool _likedByLocal;
+        private bool _likeRequestPending;
         [SyncVar] private int _ownerConnectionId = -1;
 
         protected static event Action NicknameVisibilityChanged;
@@ -88,7 +90,7 @@ namespace PixelChroma
         protected virtual bool CanUseFormWheel => true;      // Form(변신) 휠 사용 가능 여부. Seeker 등은 오버라이드로 제한.
         protected virtual bool CanEnterCheckTimeSpectator => true;
         // CheckTime 동안에만 좋아요를 주고받을 수 있습니다. 클라이언트 입력 차단과 서버 검증에 함께 씁니다.
-        private static bool IsLikeAllowedNow =>
+        internal static bool IsLikeAllowedNow =>
             GameRoundManager.Instance != null
             && GameRoundManager.Instance.CurrentTimeState == TimeState.CheckTime;
 
@@ -115,6 +117,7 @@ namespace PixelChroma
 
             if (IsGameplayInputBlocked)
             {
+                _likeInteraction?.Tick(false);
                 StopLocalGameplayMotion();
                 _paintController?.CancelTransientTool();
                 _paintController?.HidePreview();
@@ -144,9 +147,12 @@ namespace PixelChroma
 
             if (formWheel != null && formWheel.IsOpen)
             {
+                _likeInteraction?.Tick(false);
                 _paintController?.CancelTransientTool();
                 return;
             }
+
+            _likeInteraction?.Tick(true);
 
             if (CanTogglePaintMode && _input.TogglePaint.WasPressedThisFrame())
                 _paintController.TogglePaintMode();
@@ -217,6 +223,12 @@ namespace PixelChroma
             UIChat.OnChatToggled += HandleChatToggled;
 
             SetupCinemachineFollow();
+            _likeInteraction = new LikeInteractionController(
+                this,
+                _mainCamera,
+                _input,
+                Common.LikeInteractionDistance,
+                Common.LikeViewportMargin);
             OnLocalPlayerStarted();
 
             RaiseNicknameVisibilityChanged();
@@ -266,6 +278,8 @@ namespace PixelChroma
             }
 
             _paintController?.Dispose();
+            _likeInteraction?.Dispose();
+            _likeInteraction = null;
 
             OnLocalPlayerStopped();
         }
@@ -444,7 +458,6 @@ namespace PixelChroma
             {
                 if (_input.CyclePrev.WasPressedThisFrame()) _spectator.CycleTarget(-1);
                 if (_input.CycleNext.WasPressedThisFrame()) _spectator.CycleTarget(1);
-                if (_input.Like.WasPressedThisFrame()) TryLikeCurrentTarget();
             }
         }
 
@@ -469,20 +482,28 @@ namespace PixelChroma
             return true;
         }
 
-        private void TryLikeCurrentTarget()
+        internal bool CanRequestLike(PlayerBase target)
         {
-            if (_spectator == null) return;
-            if (!IsLikeAllowedNow) return;   // 좋아요는 CheckTime에만 가능합니다.
+            return IsLikeAllowedNow
+                && target != null
+                && !IsSameOwner(target)
+                && target.CanReceiveLike
+                && !target._likedByLocal
+                && !target._likeRequestPending;
+        }
 
-            var target = _spectator.CurrentTarget;
-            if (target == null || IsSameOwner(target)) return;
-            if (!target.CanReceiveLike) return;    // 시커 관전 중에는 좋아요를 줄 수 없습니다.
-            if (target.LikedByLocal) return;       // 이미 준 대상이면 서버까지 갈 필요가 없습니다.
+        internal void TryRequestLike(PlayerBase target)
+        {
+            if (!CanRequestLike(target))
+                return;
 
+            target._likeRequestPending = true;
             target.CmdAddLike();
-            target._likedByLocal = true;   // 기록은 대상 오브젝트와 수명을 같이 합니다.
+        }
 
-            RefreshLikeGuide();
+        internal void SetWorldLikeGuide(bool visible, string bindingDisplay)
+        {
+            Common.SetWorldLikeGuide(visible, bindingDisplay);
         }
 
         private bool IsSameOwner(PlayerBase other)
@@ -491,21 +512,6 @@ namespace PixelChroma
             return _ownerConnectionId >= 0
                 && other._ownerConnectionId >= 0
                 && _ownerConnectionId == other._ownerConnectionId;
-        }
-
-        // 좋아요 안내는 "지금 보고 있는 대상 한 명"에 대한 것이라 로컬 플레이어 HUD에서만 판정합니다.
-        private void RefreshLikeGuide()
-        {
-            if (!isLocalPlayer) return;
-
-            var target = _spectator?.CurrentTarget;
-
-            InGameHUD?.SetLikeGuide(
-                IsLikeAllowedNow
-                && target != null
-                && !IsSameOwner(target)
-                && target.CanReceiveLike
-                && !target.LikedByLocal);
         }
 
         private void HandleCheckTimeSpectator(TimeState state, int remainingSeconds) // CheckTime 전용
@@ -532,13 +538,10 @@ namespace PixelChroma
                     _spectator.RefreshSpectatableTargets();
                 }
 
-                RefreshLikeGuide();
                 OnCheckTimeSpectatorEnter();
             }
             else
             {
-                RefreshLikeGuide();
-
                 if (IsCheckTimeSpectatorLocked)
                 {
                     IsCheckTimeSpectatorLocked = false;
@@ -597,7 +600,6 @@ namespace PixelChroma
         private void HandleSpectateTargetChanged(PlayerBase target)
         {
             InGameHUD?.SetSpectateTarget(target, target == this);
-            RefreshLikeGuide();
         }
 
         // 스폰된 다른 플레이어 캔버스들이 각자의 현재 페인트를 요청자에게 보내도록 한다.
@@ -638,21 +640,32 @@ namespace PixelChroma
         public void CmdAddLike(NetworkConnectionToClient sender = null)
         {
             if (sender == null) return;
-            if (!IsLikeAllowedNow) return;
-            if (!CanReceiveLike) return;
-            if (_ownerConnectionId < 0) return;
+            bool accepted = IsLikeAllowedNow && CanReceiveLike && _ownerConnectionId >= 0;
             var senderPlayer = sender.identity?.GetComponent<PlayerBase>();
-            if (senderPlayer == this) return;
-            if (sender.connectionId == _ownerConnectionId) return;
+            accepted &= senderPlayer != null
+                && senderPlayer != this
+                && sender.connectionId != _ownerConnectionId;
 
-            // 변경: AddLike → TryAddRecord (중복 검사만)
-            if (!LikeManager.TryAddRecord(sender.connectionId, _ownerConnectionId))
-                return;
+            if (accepted)
+                accepted = LikeManager.TryAddRecord(sender.connectionId, _ownerConnectionId);
 
-            _likeCount++;
+            if (accepted)
+            {
+                _likeCount++;
 
-            // 실제 좋아요가 성사된 경우에만 연출을 재생시킵니다.
-            RpcPlayLikeRise();
+                // 실제 좋아요가 성사된 경우에만 연출을 재생시킵니다.
+                RpcPlayLikeRise();
+            }
+
+            TargetLikeResult(sender, accepted);
+        }
+
+        [TargetRpc]
+        private void TargetLikeResult(NetworkConnectionToClient targetConnection, bool accepted)
+        {
+            _likeRequestPending = false;
+            if (accepted)
+                _likedByLocal = true;
         }
 
         // CmdAddLike가 성사됐을 때만 서버가 관측자(관전자 포함) 전원에게 연출을 재생시킵니다.

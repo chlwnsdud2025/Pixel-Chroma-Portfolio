@@ -173,12 +173,6 @@ namespace PixelChroma.UI
             spectatorPanel.SetTargetName(displayName, isSelf, pixelPng);
         }
 
-        public void SetLikeGuide(bool canLike)
-        {
-            if (spectatorPanel != null)
-                spectatorPanel.SetLikeGuide(canLike);
-        }
-
         public void SyncToCurrentState()
         {
             var round = GameRoundManager.Instance;
