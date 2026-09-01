@@ -1,5 +1,4 @@
 using DG.Tweening;
-using OneText.UGUI;
 using UnityEngine;
 
 namespace PixelChroma.UI
@@ -14,19 +13,18 @@ namespace PixelChroma.UI
         [Header("References")]
         [SerializeField] private RectTransform animatedRoot;
         [SerializeField] private CanvasGroup canvasGroup;
-        [SerializeField] private OneTextLabel keyText;
+
+        [Header("Position")]
+        [Tooltip("현재 캐릭터 폼의 하단에서 좋아요 캔버스를 더 아래로 내릴 거리(월드 유닛)")]
+        [SerializeField, Min(0f)] private float bottomOffset = 0.5f;
 
         [Header("Show")]
         [SerializeField, Min(0f)] private float showDuration = 0.2f;
-        [SerializeField, Range(0f, 1f)] private float showStartScale = 0.75f;
-        [SerializeField] private Vector2 showStartOffset = new(0f, -12f);
         [SerializeField] private Ease showEase = Ease.OutBack;
 
         [Header("Hide")]
         [SerializeField, Min(0f)] private float hideDuration = 0.15f;
-        [SerializeField, Range(0f, 1f)] private float hideEndScale = 0.85f;
-        [SerializeField] private Vector2 hideEndOffset = new(0f, 8f);
-        [SerializeField] private Ease hideEase = Ease.InQuad;
+        [SerializeField] private Ease hideEase = Ease.InBack;
 
         private Sequence _sequence;
         private Vector2 _visiblePosition;
@@ -60,7 +58,7 @@ namespace PixelChroma.UI
             KillSequence();
         }
 
-        public void Show(string bindingDisplay)
+        public void Show()
         {
             if (!gameObject.activeSelf)
                 gameObject.SetActive(true);
@@ -69,9 +67,6 @@ namespace PixelChroma.UI
             if (animatedRoot == null || canvasGroup == null)
                 return;
 
-            if (keyText != null)
-                keyText.text = string.IsNullOrWhiteSpace(bindingDisplay) ? "♥" : $"[{bindingDisplay}]";
-
             if (_isVisible)
                 return;
 
@@ -79,12 +74,11 @@ namespace PixelChroma.UI
             KillSequence();
 
             canvasGroup.alpha = 0f;
-            animatedRoot.anchoredPosition = _visiblePosition + showStartOffset;
-            animatedRoot.localScale = _visibleScale * showStartScale;
+            animatedRoot.anchoredPosition = _visiblePosition;
+            animatedRoot.localScale = Vector3.zero;
 
             _sequence = DOTween.Sequence().SetLink(gameObject);
             _sequence.Join(canvasGroup.DOFade(1f, showDuration).SetEase(Ease.OutQuad));
-            _sequence.Join(animatedRoot.DOAnchorPos(_visiblePosition, showDuration).SetEase(Ease.OutQuad));
             _sequence.Join(animatedRoot.DOScale(_visibleScale, showDuration).SetEase(showEase));
             _sequence.OnComplete(() => _sequence = null);
         }
@@ -100,14 +94,31 @@ namespace PixelChroma.UI
 
             _sequence = DOTween.Sequence().SetLink(gameObject);
             _sequence.Join(canvasGroup.DOFade(0f, hideDuration).SetEase(Ease.InQuad));
-            _sequence.Join(animatedRoot.DOAnchorPos(_visiblePosition + hideEndOffset, hideDuration).SetEase(hideEase));
-            _sequence.Join(animatedRoot.DOScale(_visibleScale * hideEndScale, hideDuration).SetEase(hideEase));
+            _sequence.Join(animatedRoot.DOScale(Vector3.zero, hideDuration).SetEase(hideEase));
             _sequence.OnComplete(() =>
             {
                 _sequence = null;
                 ApplyHiddenImmediately();
                 gameObject.SetActive(false);
             });
+        }
+
+        /// <summary>
+        /// 현재 폼의 피벗 기준 하단 Y를 받아 캔버스를 하단보다 offset만큼 아래에 배치합니다.
+        /// </summary>
+        public void SetFormBottomY(float formBottomY)
+        {
+            Initialize();
+            if (animatedRoot == null || canvasGroup == null)
+                return;
+
+            KillSequence();
+            _visiblePosition.y = formBottomY - bottomOffset;
+
+            if (_isVisible)
+                ApplyVisibleImmediately();
+            else
+                ApplyHiddenImmediately();
         }
 
         private void Initialize()
@@ -118,9 +129,6 @@ namespace PixelChroma.UI
                 animatedRoot = transform as RectTransform;
             if (canvasGroup == null)
                 canvasGroup = GetComponent<CanvasGroup>();
-            if (keyText == null)
-                keyText = GetComponentInChildren<OneTextLabel>(true);
-
             if (animatedRoot != null)
             {
                 _visiblePosition = animatedRoot.anchoredPosition;

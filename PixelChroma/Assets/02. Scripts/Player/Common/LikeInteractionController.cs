@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace PixelChroma
 {
@@ -14,8 +13,6 @@ namespace PixelChroma
         private readonly PlayerInputActions _input;
         private readonly float _maxDistanceSqr;
         private readonly float _viewportMargin;
-        private readonly string _bindingDisplay;
-
         private RunnerPlayer _currentTarget;
 
         public LikeInteractionController(
@@ -30,7 +27,6 @@ namespace PixelChroma
             _input = input;
             _maxDistanceSqr = maxDistance * maxDistance;
             _viewportMargin = Mathf.Clamp(viewportMargin, 0f, 0.49f);
-            _bindingDisplay = input?.Like?.GetBindingDisplayString() ?? string.Empty;
         }
 
         public void Tick(bool inputEnabled)
@@ -100,7 +96,7 @@ namespace PixelChroma
             _currentTarget = target;
 
             if (_currentTarget != null)
-                _currentTarget.ShowWorldLikeGuide(_bindingDisplay);
+                _currentTarget.ShowWorldLikeGuide();
         }
     }
 }

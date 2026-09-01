@@ -99,6 +99,7 @@ namespace PixelChroma
         private RuntimeAnimatorController _baseAnimatorController;
 
         public event System.Action<float> OnFormTopYChanged;
+        public event System.Action<float> OnFormBottomYChanged;
 
         private Vector2 _cachedLightDir;
         private float _cachedLightAngle = -1f;
@@ -232,6 +233,9 @@ namespace PixelChroma
 
             float topY = GetFormTopY(form);
             OnFormTopYChanged?.Invoke(topY);
+
+            float bottomY = GetFormBottomY(form);
+            OnFormBottomYChanged?.Invoke(bottomY);
         }
 
         private float GetFormTopY(PaintForm form)
@@ -241,6 +245,15 @@ namespace PixelChroma
             // Sprite.bounds.max.y = 피벗 기준 스프라이트 상단까지의 거리 (월드 유닛, 스케일 1 기준)
             // 예: 16×16 @PPU16 중앙피벗 → 0.5,  32×32 @PPU16 중앙피벗 → 1.0
             return form.sprites[0].bounds.max.y;
+        }
+
+        private float GetFormBottomY(PaintForm form)
+        {
+            if (form.sprites == null || form.sprites.Length == 0) return -0.5f;
+
+            // Sprite.bounds.min.y = 피벗 기준 스프라이트 하단까지의 거리 (월드 유닛, 스케일 1 기준)
+            // 피벗이 중앙이 아닌 폼도 실제 하단 위치를 그대로 반영합니다.
+            return form.sprites[0].bounds.min.y;
         }
 
         [Command]

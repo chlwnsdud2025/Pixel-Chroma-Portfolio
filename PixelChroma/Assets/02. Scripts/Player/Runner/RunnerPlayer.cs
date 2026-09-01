@@ -77,16 +77,24 @@ namespace PixelChroma
 
             if (likeGuideView == null)
                 likeGuideView = GetComponentInChildren<WorldLikeGuideView>(true);
+
+            if (paintCanvas != null)
+                paintCanvas.OnFormBottomYChanged += HandleFormBottomYChanged;
         }
 
-        internal void ShowWorldLikeGuide(string bindingDisplay)
+        internal void ShowWorldLikeGuide()
         {
-            likeGuideView?.Show(bindingDisplay);
+            likeGuideView?.Show();
         }
 
         internal void HideWorldLikeGuide()
         {
             likeGuideView?.Hide();
+        }
+
+        private void HandleFormBottomYChanged(float formBottomY)
+        {
+            likeGuideView?.SetFormBottomY(formBottomY);
         }
 
         public override void OnStartClient()
@@ -114,6 +122,8 @@ namespace PixelChroma
             // OnStopClient가 안 불린 채 파괴돼도 좀비 구독이 남지 않도록 백스톱 해제.
             NicknameVisibilityChanged -= RefreshVisualVisibilityForLocalViewer;
             GameRoundManager.OnTimeStateChanged -= HandleTimeStateChangedForVisibility;
+            if (paintCanvas != null)
+                paintCanvas.OnFormBottomYChanged -= HandleFormBottomYChanged;
             base.OnDestroy();
         }
         protected override void UpdateAnimation()
