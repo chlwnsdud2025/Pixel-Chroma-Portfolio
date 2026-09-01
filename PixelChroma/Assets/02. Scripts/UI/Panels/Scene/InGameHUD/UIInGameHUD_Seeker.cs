@@ -127,7 +127,7 @@ namespace PixelChroma.UI
             // 텍스트
             if (ammoCountText != null)
             {
-                ammoCountText.text = $"({currentAmmo}/{maxAmmo})";
+                ammoCountText.text = $"{currentAmmo}/{maxAmmo}";
                 ammoCountText.color = currentAmmo == 0 ? Color.red : Color.white;
             }
 
