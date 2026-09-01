@@ -494,6 +494,9 @@ namespace PixelChroma
             if (CurrentTimer > 0)
                 RunTimerAsync().Forget();
 
+            if (msg.state == TimeState.SeekTime || msg.state == TimeState.CheckTime)
+                SoundManager.Instance?.PlaySfx(SfxType.TimeStateChange);
+
             OnTimeStateChanged?.Invoke(msg.state, CurrentTimer);
         }
 

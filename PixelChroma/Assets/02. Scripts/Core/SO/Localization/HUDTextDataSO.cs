@@ -19,6 +19,7 @@ public class HUDTextDataSO : ScriptableObject
     public LocalizedString spectateFreeView;
 
     [Header("Transition")]
+    public LocalizedString transitionSeekTime;    // "술래 출발!"
     public LocalizedString transitionAllCaught;   // "전원 사망!"
     public LocalizedString transitionTimeUp;      // " 시간 종료!"
 

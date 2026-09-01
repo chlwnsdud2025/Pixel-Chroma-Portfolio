@@ -21,6 +21,7 @@ namespace PixelChroma
         Clock,
         GunShoot,
         Expose,
+        TimeStateChange,
     }
 
     // 볼륨/음소거를 제어하는 믹서 채널. AudioMixer의 exposed 파라미터와 1:1 대응한다.
