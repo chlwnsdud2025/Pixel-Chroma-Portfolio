@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 5018923631404050490}
   - component: {fileID: 3171265962673903460}
   - component: {fileID: 7312335543700191906}
+  - component: {fileID: 5911984702935122134}
   m_Layer: 0
   m_Name: CinemachineCamera
   m_TagString: Untagged
@@ -186,3 +187,18 @@ MonoBehaviour:
     DissipationDistance: 100
     PropagationSpeed: 343
   DefaultVelocity: {x: 0, y: -1, z: 0}
+--- !u!114 &5911984702935122134
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1628877696493878607}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f04dc62809428044e8657a52795e3444, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.TimeStateShake
+  seekTimeStrength: 0.5
+  checkTimeStrength: 0.5
+  shakeDelay: 0.1
