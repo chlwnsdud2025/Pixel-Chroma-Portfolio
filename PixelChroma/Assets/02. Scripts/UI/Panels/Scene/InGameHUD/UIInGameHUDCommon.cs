@@ -62,6 +62,26 @@ namespace PixelChroma.UI
         [SerializeField] private OneTextLabel skipButtonText;
         [SerializeField] private OneTextLabel skipVoteCountText;
 
+
+        [Header("Transition Band")]
+        [SerializeField] private GameObject transitionBandRoot;
+        [SerializeField] private RectTransform bandTop;
+        [SerializeField] private RectTransform bandBottom;
+        [SerializeField] private Image bandTopImage;
+        [SerializeField] private Image bandBottomImage;
+        [SerializeField] private CanvasGroup bandWordGroup;
+        [SerializeField] private OneTextLabel bandText;
+
+        [Header("Transition Band Color")]
+        [SerializeField] private Color seekTimeBandColor = new Color(0.85f, 0.27f, 0.18f);
+        [SerializeField] private Color checkTimeBandColor = new Color(0.35f, 0.45f, 0.6f);
+
+        [Header("Transition Band Timing")]
+        [SerializeField] private float bandInDuration = 0.26f;
+        [SerializeField] private float bandOutDuration = 0.30f;
+        [Tooltip("밴드가 완전히 들어온 뒤 머무는 시간. 사운드 길이와 무관하게 이 값을 그대로 씁니다.")]
+        [SerializeField] private float bandHoldDuration = 0.5f;
+
         public UIColorPicker ColorPicker => colorPicker;
         public bool IsPaintModeActive => paintModeRoot != null && paintModeRoot.activeSelf;
 
@@ -141,6 +161,14 @@ namespace PixelChroma.UI
             if (skipVoteRoot != null) skipVoteRoot.SetActive(false);
             if (skipHoldGauge != null) skipHoldGauge.fillAmount = 0f;
             if (skipVoteCountText != null) skipVoteCountText.text = "";
+
+            if (transitionBandRoot != null)
+            {
+                bandTop?.DOKill();
+                bandBottom?.DOKill();
+                bandWordGroup?.DOKill();
+                transitionBandRoot.SetActive(false);
+            }
         }
 
         public void SetSpectatorMode(bool active)
@@ -285,7 +313,10 @@ namespace PixelChroma.UI
         private void HandleTimeStateChanged(TimeState state, int remainingSeconds)
         {
             UpdateStateUI(state, remainingSeconds);
+            ShowTransitionBand(state);
         }
+
+        
 
         private void HandleTimerTick(int remainingSeconds)
         {
@@ -341,6 +372,66 @@ namespace PixelChroma.UI
             SetSkipVoted();  // 공용 메서드 호출
         }
 
+        //----------------------------------------TimeStateChange 연출-----------------------------------
+
+        private void ShowTransitionBand(TimeState state)
+        {
+            if (transitionBandRoot == null || bandTop == null || bandBottom == null) return;
+            if (!TryGetBandContent(state, out string message, out Color color)) return;
+
+            bandText.text = message;
+            if (bandTopImage != null) bandTopImage.color = color;
+            if (bandBottomImage != null) bandBottomImage.color = color;
+
+            // 진행 중인 연출을 끊고 시작 상태로 되돌립니다(연속 전환 시 잔상 방지).
+            bandTop.DOKill();
+            bandBottom.DOKill();
+            bandWordGroup.DOKill();
+            transitionBandRoot.SetActive(true);
+
+            float enterX = bandTop.rect.width;   // 밴드 자신의 폭 = 화면 밖 시작점. 해상도에 안전.
+            bandTop.anchoredPosition = new Vector2(-enterX, bandTop.anchoredPosition.y);
+            bandBottom.anchoredPosition = new Vector2(enterX, bandBottom.anchoredPosition.y);
+            bandWordGroup.alpha = 0f;
+
+            DOTween.Sequence().SetTarget(transitionBandRoot)
+                .Append(bandTop.DOAnchorPosX(0f, bandInDuration).SetEase(Ease.OutCubic))
+                .Join(bandBottom.DOAnchorPosX(0f, bandInDuration).SetEase(Ease.OutCubic))
+                .Join(bandWordGroup.DOFade(1f, bandInDuration * 0.8f))
+                .AppendInterval(bandHoldDuration)
+                .Append(bandTop.DOAnchorPosX(enterX, bandOutDuration).SetEase(Ease.InCubic))
+                .Join(bandBottom.DOAnchorPosX(-enterX, bandOutDuration).SetEase(Ease.InCubic))
+                .Join(bandWordGroup.DOFade(0f, bandOutDuration * 0.7f))
+                .OnComplete(() => transitionBandRoot.SetActive(false));
+        }
+
+        private bool TryGetBandContent(TimeState state, out string message, out Color color)
+        {
+            message = string.Empty;
+            color = seekTimeBandColor;
+
+            switch (state)
+            {
+                case TimeState.SeekTime:
+                    message = textData.transitionSeekTime.GetLocalizedString();
+                    color = seekTimeBandColor;
+                    return true;
+
+                case TimeState.CheckTime:
+                    // 승자가 술래면 전원 사망, 러너면 시간 종료로 끝난 라운드입니다.
+                    // WinnerDecidedMessage가 TimeStateMessage보다 먼저 도착하므로 여기서 이미 확정입니다.
+                    bool wipeout = GameRoundManager.Instance != null
+                        && GameRoundManager.Instance.CurrentWinner == PlayerRole.Seeker;
+                    message = wipeout
+                        ? textData.transitionAllCaught.GetLocalizedString()
+                        : textData.transitionTimeUp.GetLocalizedString();
+                    color = checkTimeBandColor;
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
 
 
     }

@@ -44,6 +44,8 @@ namespace PixelChroma
         private readonly float[] _volumes = { 1f, 1f, 1f };
         private readonly bool[] _mutes = { false, false, false };
 
+
+
         // ==========================================================
         // Lifecycle
         // ==========================================================
@@ -294,5 +296,7 @@ namespace PixelChroma
 
         private static string VolumeKey(AudioChannel channel) => PrefPrefix + MixerParam(channel);
         private static string MuteKey(AudioChannel channel) => PrefPrefix + "Mute" + channel;
+
     }
+
 }
