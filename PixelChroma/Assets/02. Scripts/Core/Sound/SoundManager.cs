@@ -88,9 +88,65 @@ namespace PixelChroma
             {
                 // 더 최근의 PlayBgm 요청으로 대체됨 — 정상 흐름.
             }
+            finally
+            {
+                if (_bgmCts == cts)
+                {
+                    _bgmCts.Dispose();
+                    _bgmCts = null;
+                }
+            }
         }
 
-        public UniTask StopBgm(float fade = 1f) => PlayBgm(BgmType.None, fade);
+        // 새 BGM 전환 요청을 취소하고 현재 사용 중인 두 소스를 함께 Fade-out한다.
+        // 로딩 팝업은 이 작업을 기다리지 않고 바로 표시하므로 전환 초반에만 이전 BGM이 짧게 남는다.
+        public async UniTask StopBgm(float fade = 1f)
+        {
+            CancelBgmTransition();
+            var cts = _bgmCts = new CancellationTokenSource();
+
+            try
+            {
+                float activeStart = _activeBgm.volume;
+                float idleStart = _idleBgm.volume;
+
+                if (fade > 0f)
+                {
+                    float elapsed = 0f;
+                    while (elapsed < fade)
+                    {
+                        elapsed += Time.unscaledDeltaTime;
+                        float k = Mathf.Clamp01(elapsed / fade);
+                        _activeBgm.volume = Mathf.Lerp(activeStart, 0f, k);
+                        _idleBgm.volume = Mathf.Lerp(idleStart, 0f, k);
+                        await UniTask.Yield(PlayerLoopTiming.Update, cts.Token);
+                    }
+                }
+
+                _activeBgm.Stop();
+                _activeBgm.clip = null;
+                _activeBgm.volume = 0f;
+
+                _idleBgm.Stop();
+                _idleBgm.clip = null;
+                _idleBgm.volume = 0f;
+
+                ReleaseBgmHandle();
+                _currentBgm = BgmType.None;
+            }
+            catch (OperationCanceledException)
+            {
+                // 로딩이 끝나 새 BGM 요청으로 대체됨 — 정상 흐름.
+            }
+            finally
+            {
+                if (_bgmCts == cts)
+                {
+                    _bgmCts.Dispose();
+                    _bgmCts = null;
+                }
+            }
+        }
 
         private async UniTask TransitionBgm(BgmType type, float fade, CancellationToken token)
         {

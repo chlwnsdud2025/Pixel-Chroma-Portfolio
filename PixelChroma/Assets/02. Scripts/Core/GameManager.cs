@@ -13,6 +13,7 @@ namespace PixelChroma
     public class GameManager : MonoSingleton<GameManager>
     {
         private const float NetworkLoadTimeout = 15f;
+        private const float InitialTitleBgmFadeInDuration = 0.3f;
 
         [Header("Localization")]
         [SerializeField] private FontTableSO fontTable;
@@ -84,7 +85,7 @@ namespace PixelChroma
 
             // 초기 로딩 화면을 숨깁니다.
             if (initialLoading != null)
-                initialLoading.Hide().Forget();
+                await initialLoading.Hide();
 
             await EnterMainMenu();
         }
@@ -167,14 +168,12 @@ namespace PixelChroma
         {
             try
             {
+                bool isInitialEntry = CurrentState == GameState.Boot;
                 CurrentState = GameState.MainMenu;
                 EnsureSceneEssentials();
 
                 if (CursorManager.Instance != null)
                     CursorManager.Instance.SetCursorType(CursorType.Default);
-
-                if (SoundManager.Instance != null)
-                    SoundManager.Instance.PlayBgm(BgmType.Title).Forget();
 
                 await UIManager.Instance.ShowScene<UITitle>();
 
@@ -185,6 +184,15 @@ namespace PixelChroma
 
                     await WaitForActiveScene(titleScene);
                     await LoadingManager.Hide();
+                }
+
+                // 로딩 화면이 완전히 닫힌 뒤 현재 씬 BGM을 시작한다.
+                if (SoundManager.Instance != null)
+                {
+                    if (isInitialEntry)
+                        SoundManager.Instance.PlayBgm(BgmType.Title, InitialTitleBgmFadeInDuration).Forget();
+                    else
+                        SoundManager.Instance.PlayBgm(BgmType.Title).Forget();
                 }
 
                 // 로딩 이후 실패로 복귀한 경우: 로딩을 완전히 내린 뒤 공통 경고 팝업으로 사유를 명확히 알린다.
