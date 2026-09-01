@@ -128,6 +128,9 @@ namespace PixelChroma.UI
             _option = option?.Clone() ?? new RoomOption();
             _isEditMode = isEditMode;
 
+            if (!_isEditMode)
+                RoomOptionPreferences.ApplyCreationDefaults(_option);
+
             // 패널들은 이 인스턴스를 참조로 들고 자기 담당 필드만 갱신한다.
             if (roomInfoPanel != null) roomInfoPanel.Bind(_option, _isEditMode);
             if (gameSettingPanel != null) gameSettingPanel.Bind(_option);
@@ -177,6 +180,8 @@ namespace PixelChroma.UI
                 UIManager.Instance.HidePopup().Forget();
                 return;
             }
+
+            RoomOptionPreferences.SaveCreationDefaults(_option);
 
             _creating = true;
             if (createButton != null) createButton.interactable = false;
