@@ -32,7 +32,7 @@ namespace PixelChroma.UI
         [SerializeField] private float resultPopOvershoot = 2.5f;
         [SerializeField] private float resultHoldDuration = 2f;
         [SerializeField] private float resultExitDuration = 0.2f;
-        [SerializeField] private float resultExitScale = 0.9f;
+        [SerializeField] private float resultExitScale = 0f;
 
         [Header("Score Board")]
         [SerializeField] private UIScoreBoard scoreBoard;
@@ -293,18 +293,16 @@ namespace PixelChroma.UI
             rect.DOKill();
 
             resultOverlayGroup.gameObject.SetActive(true);
-            resultOverlayGroup.alpha = 0f;
+            resultOverlayGroup.alpha = 1f;
             rect.anchoredPosition = resultBaseAnchoredPos;
             rect.localScale = Vector3.one * resultAppearStartScale;
 
             DOTween.Sequence().SetTarget(resultOverlayGroup)
                 .Append(rect.DOScale(Vector3.one, resultAppearDuration)
                     .SetEase(Ease.OutBack, resultPopOvershoot))
-                .Join(resultOverlayGroup.DOFade(1f, resultAppearDuration * 0.5f))
                 .AppendInterval(resultHoldDuration)
                 .Append(rect.DOScale(Vector3.one * resultExitScale, resultExitDuration)
                     .SetEase(Ease.InBack))
-                .Join(resultOverlayGroup.DOFade(0f, resultExitDuration))
                 .OnComplete(() => resultOverlayGroup.gameObject.SetActive(false));
         }
 
