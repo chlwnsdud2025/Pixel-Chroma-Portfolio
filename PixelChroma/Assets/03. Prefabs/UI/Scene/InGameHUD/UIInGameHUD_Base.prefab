@@ -3871,9 +3871,11 @@ MonoBehaviour:
   resultOverlayGroup: {fileID: 951627613984718755}
   gameResultOverlayText: {fileID: 4674396380860505820}
   resultAppearDuration: 2
-  resultRiseOffset: 20
   resultAppearStartScale: 0.8
+  resultPopOvershoot: 2.5
   resultHoldDuration: 3
+  resultExitDuration: 0.2
+  resultExitScale: 0.9
   scoreBoard: {fileID: 1004009225736218990}
   modeText: {fileID: 8944158566929360881}
   gameModeRegistry: {fileID: 11400000, guid: 7a20d15800b91c64487e0fca355826a6, type: 2}
@@ -3900,6 +3902,7 @@ MonoBehaviour:
   bandInDuration: 0.5
   bandOutDuration: 0.3
   bandHoldDuration: 1
+  resultRevealOffset: 0.14
 --- !u!1 &8000837511482362457
 GameObject:
   m_ObjectHideFlags: 0
