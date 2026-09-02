@@ -627,6 +627,10 @@ namespace PixelChroma.UI
         private void OnColorChanged(Color color)
         {
             _currentColor = color;
+
+            // 통 커서를 쓰는 중이면 물감 색이 바로 따라오도록 한다.
+            if (CursorManager.Instance != null)
+                CursorManager.Instance.SetPaintColor(color);
         }
 
         private void OnToolChanged(BrushMode mode)
@@ -653,7 +657,7 @@ namespace PixelChroma.UI
 
         private void RefreshCursor()
         {
-            PaintToolCursor.Apply(_brushMode, _brushSize);
+            PaintToolCursor.Apply(_brushMode, _brushSize, _currentColor);
         }
 
         private static void ResetCursor()

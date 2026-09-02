@@ -40,6 +40,10 @@ namespace PixelChroma.UI
         public Sprite crosshairCursor;
         public Vector2 crosshairPivot = new Vector2(0.5f, 0.5f);
 
+        [Header("Fill Paint")]
+        [Tooltip("통 커서의 물감 레이어. 통 커서일 때만 보이며 선택한 색으로 칠해진다.")]
+        public Image fillPaintOverlay;
+
         [Header("Eyedropper Preview")]
         public RectTransform eyedropperPreview;
         public Image eyedropperColorSwatch;
@@ -100,6 +104,16 @@ namespace PixelChroma.UI
                 eyedropperHexLabel.text = $"#{ColorUtility.ToHtmlStringRGB(color)}";
         }
 
+        /// <summary>
+        /// 페인트 통 커서의 물감 색을 지정한다.
+        /// 물감 레이어는 통 커서일 때만 보이므로 어느 타이밍에 불러도 안전하다.
+        /// </summary>
+        public void SetPaintColor(Color color)
+        {
+            if (fillPaintOverlay != null)
+                fillPaintOverlay.color = color;
+        }
+
         public void SetCursorType(CursorType type, float brushScale = 1f)
         {
             if (cursorImage == null || cursorRect == null) return;
@@ -127,6 +141,7 @@ namespace PixelChroma.UI
                     cursorRect.pivot = eyedropperPivot;
                     break;
                 case CursorType.Fill:
+                    // 물감은 fillPaintOverlay가 따로 그리므로 여기서는 통 몸체만 세팅한다.
                     cursorImage.sprite = fillCursor != null ? fillCursor : brushCursor;
                     cursorRect.pivot = fillPivot;
                     break;
@@ -136,7 +151,10 @@ namespace PixelChroma.UI
                     break;
             }
 
-            // 미리보기는 스포이드 커서일 때만 보이도록 커서 타입에 종속시킨다.
+            // 물감 레이어와 스포이드 미리보기는 각자의 커서일 때만 보이도록 커서 타입에 종속시킨다.
+            if (fillPaintOverlay != null)
+                fillPaintOverlay.gameObject.SetActive(type == CursorType.Fill);
+
             if (eyedropperPreview != null)
                 eyedropperPreview.gameObject.SetActive(type == CursorType.Eyedropper);
         }

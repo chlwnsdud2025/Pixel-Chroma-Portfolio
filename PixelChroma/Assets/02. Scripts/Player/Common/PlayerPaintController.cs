@@ -103,6 +103,7 @@ namespace PixelChroma
             {
                 OnBrushSizeScrolled += _boundPicker.SetBrushSize;
                 _boundPicker.OnBrushSizeChanged += OnUIBrushSizeChanged;
+                _boundPicker.OnColorChanged += OnUIColorChanged;
                 _boundPicker.OnToolButtonClicked += OnUIToolButtonClicked;
                 _boundPicker.OnUndoButtonClicked += OnUIUndoClicked;
                 _boundPicker.OnRedoButtonClicked += OnUIRedoClicked;
@@ -120,6 +121,7 @@ namespace PixelChroma
             {
                 OnBrushSizeScrolled -= _boundPicker.SetBrushSize;
                 _boundPicker.OnBrushSizeChanged -= OnUIBrushSizeChanged;
+                _boundPicker.OnColorChanged -= OnUIColorChanged;
                 _boundPicker.OnToolButtonClicked -= OnUIToolButtonClicked;
                 _boundPicker.OnUndoButtonClicked -= OnUIUndoClicked;
                 _boundPicker.OnRedoButtonClicked -= OnUIRedoClicked;
@@ -191,7 +193,8 @@ namespace PixelChroma
             }
 
             int brushSize = _boundPicker != null ? _boundPicker.BrushSize : 1;
-            PaintToolCursor.Apply(_brushMode, brushSize);
+            Color paintColor = _boundPicker != null ? _boundPicker.SelectedColor : Color.white;
+            PaintToolCursor.Apply(_brushMode, brushSize, paintColor);
         }
 
         public void HidePreview()
@@ -452,6 +455,13 @@ namespace PixelChroma
                 _paintCanvas.BrushSize = size;
 
             RefreshCursor();
+        }
+
+        private void OnUIColorChanged(Color color)
+        {
+            // 통 커서를 쓰는 중이면 물감 색이 바로 따라오도록 한다.
+            if (_owner == null || !_owner.isLocalPlayer || CursorManager.Instance == null) return;
+            CursorManager.Instance.SetPaintColor(color);
         }
 
         private void OnUIToolButtonClicked(BrushMode mode)
