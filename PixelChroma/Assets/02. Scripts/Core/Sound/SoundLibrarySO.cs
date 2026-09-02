@@ -27,6 +27,13 @@ namespace PixelChroma
             public SfxType type;
             public AudioClip clip;                      // 직접 참조(상시 상주)
             [Range(0f, 1f)] public float volume;        // 효과음별 기준 볼륨(0이면 무음)
+
+            // 3D 재생(PlaySfxAt) 전용 감쇠 거리. z는 무시되므로 XY 평면 거리(월드 유닛)다.
+            [Tooltip("이 거리까지는 원음 그대로 들린다. 0이면 SoundManager 기본값 사용.")]
+            public float minDistance;
+
+            [Tooltip("이 거리에서 완전히 안 들린다. 0이면 SoundManager 기본값 사용.")]
+            public float maxDistance;
         }
 
         [SerializeField] private BgmEntry[] bgmEntries;

@@ -14,6 +14,13 @@ namespace PixelChroma
         private const string PrefPrefix = "Sound.";
         private const float MinVolumeDb = -80f;   // 0(선형) → -80dB(무음)
 
+        // AudioSource.priority는 0이 가장 높고 256이 가장 낮다(기본 128).
+        // 실제 보이스(AudioManager의 Real Voice Count = 32)가 모자라면 Unity가 낮은 쪽부터 가상화해 소리를 죽이므로,
+        // 끊기면 가장 티가 나는 BGM을 맨 위에 두고 3D 효과음을 맨 아래에 둔다.
+        private const int BgmPriority = 0;
+        private const int SfxPriority = 128;
+        private const int Sfx3DPriority = 160;
+
         private static readonly AudioChannel[] AllChannels =
             { AudioChannel.Master, AudioChannel.Bgm, AudioChannel.Sfx };
 
@@ -27,6 +34,13 @@ namespace PixelChroma
         [Tooltip("3D 위치 효과음 동시 재생용 소스 풀 크기")]
         [SerializeField] private int sfx3DPoolSize = 12;
 
+        [Tooltip("3D 효과음 기본 감쇠 거리(월드 유닛). SoundLibrary 엔트리 값이 0일 때 쓰인다. 화면 반경 ≈ 12")]
+        [SerializeField] private float defaultSfx3DMinDistance = 4f;
+        [SerializeField] private float defaultSfx3DMaxDistance = 20f;
+
+        [Tooltip("3D 효과음 스테레오 확산 각도. 낮을수록 좌우 쏠림이 심해진다.")]
+        [SerializeField, Range(0f, 360f)] private float sfx3DSpread = 120f;
+
         // ── BGM (A/B 크로스페이드) ────────────────────────────────
         private AudioSource _activeBgm;   // 현재 재생 중
         private AudioSource _idleBgm;     // 다음 트랙 준비용
@@ -39,6 +53,7 @@ namespace PixelChroma
         private AudioSource _sfx2D;       // 2D one-shot(PlayOneShot로 겹침 처리)
         private AudioSource[] _sfx3DPool;
         private int _sfx3DIndex;
+        private AudioListener _listener;  // 3D 재생 z 평면 기준
 
         // ── 볼륨 상태 ─────────────────────────────────────────────
         private readonly float[] _volumes = { 1f, 1f, 1f };
@@ -238,6 +253,7 @@ namespace PixelChroma
         }
 
         // 3D 위치 효과음(페인트 튐·피격 등). 풀에서 라운드로빈으로 소스를 사용한다.
+        // 소스를 돌려 쓰므로 거리 값은 매 재생마다 다시 지정해야 이전 효과음 설정이 남지 않는다.
         public void PlaySfxAt(SfxType type, Vector3 position)
         {
             if (library == null || !library.TryGetSfx(type, out var entry) || entry.clip == null)
@@ -246,10 +262,29 @@ namespace PixelChroma
             var src = _sfx3DPool[_sfx3DIndex];
             _sfx3DIndex = (_sfx3DIndex + 1) % _sfx3DPool.Length;
 
-            src.transform.position = position;
+            float min = entry.minDistance > 0f ? entry.minDistance : defaultSfx3DMinDistance;
+            float max = entry.maxDistance > 0f ? entry.maxDistance : defaultSfx3DMaxDistance;
+
+            src.transform.position = FlattenToListenerPlane(position);
             src.clip = entry.clip;
             src.volume = entry.volume;
+            src.minDistance = min;
+            src.maxDistance = Mathf.Max(max, min + 0.01f);   // max <= min이면 감쇠 구간이 사라진다
             src.Play();
+        }
+
+        // 리스너(메인 카메라)는 vcam의 CameraDistance 때문에 z=-10에 있어, 그대로 두면
+        // 화면 정중앙 소리도 10유닛 떨어진 것으로 계산된다. 같은 z 평면으로 눌러 거리를 순수 XY로 만든다.
+        private Vector3 FlattenToListenerPlane(Vector3 world)
+        {
+            // 씬 전환 때 카메라가 새로 생성되므로, 파괴됐으면 다시 찾는다.
+            if (_listener == null)
+                _listener = FindFirstObjectByType<AudioListener>();
+
+            if (_listener != null)
+                world.z = _listener.transform.position.z;
+
+            return world;
         }
 
         // ==========================================================
@@ -302,18 +337,28 @@ namespace PixelChroma
 
         private void BuildAudioSources()
         {
-            _activeBgm = CreateSource("BGM_A", bgmGroup, loop: true, spatialBlend: 0f);
-            _idleBgm = CreateSource("BGM_B", bgmGroup, loop: true, spatialBlend: 0f);
+            _activeBgm = CreateSource("BGM_A", bgmGroup, loop: true, spatialBlend: 0f, priority: BgmPriority);
+            _idleBgm = CreateSource("BGM_B", bgmGroup, loop: true, spatialBlend: 0f, priority: BgmPriority);
 
-            _sfx2D = CreateSource("SFX_2D", sfxGroup, loop: false, spatialBlend: 0f);
+            _sfx2D = CreateSource("SFX_2D", sfxGroup, loop: false, spatialBlend: 0f, priority: SfxPriority);
 
             int size = Mathf.Max(1, sfx3DPoolSize);
             _sfx3DPool = new AudioSource[size];
             for (int i = 0; i < size; i++)
-                _sfx3DPool[i] = CreateSource($"SFX_3D_{i}", sfxGroup, loop: false, spatialBlend: 1f);
+            {
+                var src = CreateSource($"SFX_3D_{i}", sfxGroup, loop: false, spatialBlend: 1f, priority: Sfx3DPriority);
+
+                // Logarithmic은 maxDistance 바깥에서 감쇠를 멈추고 그 볼륨을 유지해 맵 전체에 소리가 깔린다.
+                // Linear여야 maxDistance가 "여기서 완전히 안 들림"이 된다.
+                src.rolloffMode = AudioRolloffMode.Linear;
+                src.spread = sfx3DSpread;
+
+                _sfx3DPool[i] = src;
+            }
         }
 
-        private AudioSource CreateSource(string name, AudioMixerGroup group, bool loop, float spatialBlend)
+        private AudioSource CreateSource(
+            string name, AudioMixerGroup group, bool loop, float spatialBlend, int priority)
         {
             var go = new GameObject(name);
             go.transform.SetParent(transform, false);
@@ -322,6 +367,7 @@ namespace PixelChroma
             src.playOnAwake = false;
             src.loop = loop;
             src.spatialBlend = spatialBlend;
+            src.priority = priority;
             src.outputAudioMixerGroup = group;
             return src;
         }
