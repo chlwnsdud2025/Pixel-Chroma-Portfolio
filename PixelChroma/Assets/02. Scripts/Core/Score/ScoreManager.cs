@@ -21,6 +21,12 @@ namespace PixelChroma
         [Header("Survival Bonus")]
         [SerializeField] private float survivalBonusPercent = 0.3f;  // 생존 보너스 30%
 
+        [Header("Distance Multiplier")]
+        [Tooltip("x축: 0 = 시야 경계, 1 = 시커와 밀착 / y축: 그 거리에서의 점수 배율")]
+        [SerializeField]
+        private AnimationCurve distanceMultiplierCurve
+    = AnimationCurve.Linear(0f, 1f, 1f, 3f);
+
         private readonly Dictionary<int, int> _scores = new();
         private readonly HashSet<int> _frozenPlayers = new();
         private CancellationTokenSource _cts;
@@ -215,8 +221,14 @@ namespace PixelChroma
                         runner.transform.position,
                         seeker.transform.position
                     );
-                    if (dist <= visionRange)
-                        AddScore(connId, scorePerSeekerVisible);   // Runner에게 점수
+                    if (dist > visionRange) continue;
+
+                    // 시커마다 거리에 따른 개별 배율을 적용해 합산 가산한다.
+                    int gain = Mathf.RoundToInt(
+                        scorePerSeekerVisible * EvaluateDistanceMultiplier(dist)
+                    );
+                    if (gain > 0)
+                        AddScore(connId, gain);   // Runner에게 점수
                 }
             }
         }
@@ -271,6 +283,16 @@ namespace PixelChroma
         public void ClearRanks()
         {
             _firstConnId = _secondConnId = _thirdConnId = _lastConnId = -1;
+        }
+
+        // 시야 경계에 걸칠수록 낮고, 시커에 밀착할수록 높은 배율을 돌려줍니다.
+        // 커브를 상수 1로 두면 거리 배율 도입 이전과 완전히 동일하게 동작합니다.
+        private float EvaluateDistanceMultiplier(float dist)
+        {
+            if (visionRange <= 0f) return 0f;
+
+            float t = 1f - Mathf.Clamp01(dist / visionRange);   // 0 = 경계, 1 = 밀착
+            return Mathf.Max(0f, distanceMultiplierCurve.Evaluate(t));
         }
     }
 }

@@ -88,7 +88,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f12d54a31572824abea9baa3868be35, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.GameRoundManager
-  forcedExposeDuration: 0
 --- !u!114 &5277658847543754760
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -101,10 +100,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84bfe5c84b9b8044c960d022d531bf3c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PixelChroma.ScoreManager
-  broadcastInterval: 10
-  visionCheckInterval: 1
-  scorePerSeekerVisible: 10
-  visionRange: 6.5
-  catchBaseScore: 100
-  catchScorePercent: 0.2
+  broadcastInterval: 30
+  visionCheckInterval: 0.5
+  scorePerSeekerVisible: 5
+  visionRange: 7
   survivalBonusPercent: 0.3
+  distanceMultiplierCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 3
+      inSlope: 2
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
