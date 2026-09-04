@@ -38,5 +38,8 @@ namespace PixelChroma
         // CheckTime(정산)에는 맵 전체의 위치를 공개하므로 제한을 풀어준다.
         public virtual bool ShouldLimitIndicatorDistance(TimeState currentState)
             => currentState != TimeState.CheckTime;
+
+        // Runner가 다른 Runner의 도발(노출) 사운드를 들을 수 있는지
+        public virtual bool CanHearRunnerTauntSound(TimeState currentState) => true;
     }
 }

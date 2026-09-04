@@ -516,9 +516,23 @@ namespace PixelChroma
         [ClientRpc]
         private void RpcPlayExposeSound()
         {
+            if (!ShouldHearTauntSound()) return;
             SoundManager.Instance?.PlaySfxAt(SfxType.Expose, transform.position);
         }
+        private bool ShouldHearTauntSound()
+        {
+            if (isLocalPlayer) return true;   // 본인 스킬 피드백은 유지
 
+            var localIdentity = NetworkClient.localPlayer;
+            if (localIdentity == null) return true;
+
+            var localPlayer = localIdentity.GetComponent<PlayerBase>();
+            if (localPlayer == null || localPlayer.role != PlayerRole.Runner) return true;
+
+            var round = GameRoundManager.Instance;
+            return round?.CurrentRule == null
+                || round.CurrentRule.CanHearRunnerTauntSound(round.CurrentTimeState);
+        }
 
         [Server]
         private void RevealRandomPaintedPixel()

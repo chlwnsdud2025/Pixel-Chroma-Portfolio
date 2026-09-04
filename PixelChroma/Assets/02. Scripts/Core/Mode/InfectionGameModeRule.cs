@@ -25,5 +25,8 @@ namespace PixelChroma
         }
 
         public override bool ShouldShowTeammateIndicator(PlayerRole role) => role == PlayerRole.Seeker;
+
+        public override bool CanHearRunnerTauntSound(TimeState currentState)// Runner끼리 Hide때 도발 사운드 안들림
+    => currentState != TimeState.HideTime;
     }
 }
