@@ -61,6 +61,9 @@ namespace PixelChroma.UI
         private bool _isInputActive;
         // ActivateInputField 후 실제 포커스가 잡힐 때까지 대기 중인지
         private bool _waitingForFocus;
+        // 제출로 닫힌 프레임 기록: 같은 엔터 입력이 창을 다시 여는 것 방지
+        private int _lastCloseFrame = -1;
+
 
         private float _lastMessageTime = -100f;
         private float _bgBaseAlpha;
@@ -140,6 +143,8 @@ namespace PixelChroma.UI
         {
             if (_chatToggleAction != null && _chatToggleAction.WasPressedThisFrame())
             {
+                // 이번 프레임에 제출로 닫혔다면, 그 엔터 입력으로 다시 열리는 것 방지
+                if (Time.frameCount == _lastCloseFrame) return;
                 if (chatInputField.isFocused) return;
                 if (IsTypingElsewhere()) return;
                 ToggleInput(!_isInputActive);
@@ -300,6 +305,8 @@ namespace PixelChroma.UI
             else
             {
                 chatInputField.DeactivateInputField();
+                _waitingForFocus = false;
+                _lastCloseFrame = Time.frameCount;
                 _lastMessageTime = Time.time;
             }
 
@@ -372,6 +379,7 @@ namespace PixelChroma.UI
         }
 
         // ── 메시지 전송 ──
+        // ── 메시지 전송 ──
         private void OnChatSubmit(string message)
         {
             PlayerChat localPlayerChat = NetworkClient.localPlayer?.GetComponent<PlayerChat>();
@@ -380,11 +388,9 @@ namespace PixelChroma.UI
                 localPlayerChat.SendChat(message);
 
             chatInputField.text = string.Empty;
-            chatInputField.ActivateInputField();
-            chatInputField.Select();
 
-            // 제출 후 재활성화도 포커스 반영에 시간이 걸리므로 유예
-            _waitingForFocus = true;
+            // 엔터로 전송한 뒤에는 채팅창에서 빠져나온다
+            ToggleInput(false);
         }
 
         // ── 씬 전환 시 정리 ──
