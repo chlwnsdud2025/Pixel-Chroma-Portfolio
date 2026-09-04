@@ -28,7 +28,6 @@ namespace PixelChroma
         [SerializeField] private float fireRange = 8f;
         [SerializeField] private LayerMask runnerLayer;
         [SerializeField] private LayerMask obstacleLayer;
-        [SerializeField] private LayerMask toyLayer;
 
         [Header("Magazine")]
         [Tooltip("탄 1발이 회복되는 데 걸리는 시간(초)")]
@@ -420,7 +419,7 @@ namespace PixelChroma
             if (direction.sqrMagnitude < 0.0001f) direction = Vector2.right;
             direction.Normalize();
 
-            RaycastHit2D hit = Physics2D.Raycast(origin, direction, fireRange, obstacleLayer | runnerLayer | toyLayer);
+            RaycastHit2D hit = Physics2D.Raycast(origin, direction, fireRange, obstacleLayer | runnerLayer);
             bool didHit = hit.collider != null;
 
             Vector2 laserEndPos = didHit ? hit.point : origin + direction * fireRange;
@@ -437,18 +436,12 @@ namespace PixelChroma
                         BuildKnockbackDir(hit.point, direction, runner.transform.position),
                         knockbackImpulse, knockbackDrag, knockbackRotSpeed);
                 }
-                else
-                {
-                    var toy = hit.collider.GetComponentInParent<KnockbackToy>();
-                    if (toy != null)
-                        toy.ServerApplyKnockback(BuildKnockbackDir(hit.point, direction, toy.transform.position));
-                }
             }
 
             RpcPlayFireEffect(laserEndPos, didHit, direction, hitNormal);
         }
 
-        // 착탄점 → 대상 중심 방향과 총알 진행방향을 블렌드한다. 러너·장난감 공용.
+        // 착탄점 → 대상 중심 방향과 총알 진행방향을 블렌드한다.
         private Vector2 BuildKnockbackDir(Vector2 hitPoint, Vector2 direction, Vector2 targetCenter)
         {
             Vector2 radial = targetCenter - hitPoint;

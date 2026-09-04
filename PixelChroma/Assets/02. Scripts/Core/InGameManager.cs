@@ -8,7 +8,6 @@ namespace PixelChroma
     public class InGameManager : MonoSingleton<InGameManager>
     {
         private Transform _spawnPoint;
-        private Transform _toySpawnPoint;
 
 
         private readonly List<RunnerPlayer> _runners = new();
@@ -19,10 +18,6 @@ namespace PixelChroma
 
         public IReadOnlyList<RunnerPlayer> Runners => _runners;
         public IReadOnlyList<SeekerPlayer> Seekers => _seekers;
-
-        public void RegisterToySpawnPoint(Transform t) => _toySpawnPoint = t;
-        public Vector3 GetToySpawnPosition() =>
-    _toySpawnPoint != null ? _toySpawnPoint.position : GetWaitingPosition();
 
         public void RegisterPlayer(PlayerBase player)
         {
@@ -89,7 +84,6 @@ namespace PixelChroma
         public void ResetState()
         {
             _spawnPoint = null;
-            _toySpawnPoint = null;
 
             _runners.Clear();
             _seekers.Clear();

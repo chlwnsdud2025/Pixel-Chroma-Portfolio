@@ -230,11 +230,6 @@ namespace PixelChroma
             if (newState == TimeState.CheckTime)
                 DisableAllRunnerColliders();
 
-            if (newState == TimeState.HideTime)
-            {
-                foreach (var toy in FindObjectsByType<KnockbackToy>(FindObjectsSortMode.None))
-                    toy.ServerResetToHome();
-            }
 
             NetworkServer.SendToAll(new SkipVoteSync
             {
