@@ -34,12 +34,25 @@ namespace PixelChroma
         [Tooltip("3D 위치 효과음 동시 재생용 소스 풀 크기")]
         [SerializeField] private int sfx3DPoolSize = 12;
 
-        [Tooltip("3D 효과음 기본 감쇠 거리(월드 유닛). SoundLibrary 엔트리 값이 0일 때 쓰인다. 화면 반경 ≈ 12")]
-        [SerializeField] private float defaultSfx3DMinDistance = 4f;
+        // 참고 스케일: 화면 크기는 vcam이 아니라 PixelPerfectCamera가 정한다(PPU 16, 320x180).
+        // orthoSize = 180 / (2*16) = 5.625 → 화면 세로 반경 ≈ 5.6, 가로 ≈ 10, 모서리까지 ≈ 11.5.
+        // max 20은 화면 모서리의 약 1.7배다. min은 작아야 근처에서 볼륨·음색이 변한다.
+        [Tooltip("3D 효과음 기본 감쇠 거리(월드 유닛). SoundLibrary 엔트리 값이 0일 때 쓰인다.")]
+        [SerializeField] private float defaultSfx3DMinDistance = 2f;
         [SerializeField] private float defaultSfx3DMaxDistance = 20f;
 
         [Tooltip("3D 효과음 스테레오 확산 각도. 낮을수록 좌우 쏠림이 심해진다.")]
-        [SerializeField, Range(0f, 360f)] private float sfx3DSpread = 120f;
+        [SerializeField, Range(0f, 360f)] private float sfx3DSpread = 60f;
+
+        [Tooltip("패닝 기준 깊이(월드 유닛). 클수록 목표 근처에서 좌우가 덜 튄다. 0이면 하드 좌/우로 포화한다.")]
+        [SerializeField, Min(0f)] private float sfx3DPanDepth = 6f;
+
+        // 화면 세로 반경(≈5.6) 근처에서 단서가 최대에 닿아야 화면 안에서 위/아래가 확실히 갈린다.
+        [Tooltip("피치 상하 단서가 최대가 되는 높이차(월드 유닛). 작을수록 가까이서도 확실히 구분된다.")]
+        [SerializeField, Min(0f)] private float sfx3DVerticalCueRange = 6f;
+
+        [Tooltip("maxDistance에서의 저역 통과 컷오프(Hz). 멀수록 먹먹해진다. 0이면 사용 안 함.")]
+        [SerializeField, Range(0f, 22000f)] private float sfx3DFarCutoff = 900f;
 
         // ── BGM (A/B 크로스페이드) ────────────────────────────────
         private AudioSource _activeBgm;   // 현재 재생 중
@@ -52,6 +65,7 @@ namespace PixelChroma
         // ── SFX ───────────────────────────────────────────────────
         private AudioSource _sfx2D;       // 2D one-shot(PlayOneShot로 겹침 처리)
         private AudioSource[] _sfx3DPool;
+        private AudioLowPassFilter[] _sfx3DLowPass;   // 인덱스가 _sfx3DPool과 1:1 대응
         private int _sfx3DIndex;
         private AudioListener _listener;  // 3D 재생 z 평면 기준
 
@@ -259,30 +273,80 @@ namespace PixelChroma
             if (library == null || !library.TryGetSfx(type, out var entry) || entry.clip == null)
                 return;
 
-            var src = _sfx3DPool[_sfx3DIndex];
+            int slot = _sfx3DIndex;
+            var src = _sfx3DPool[slot];
             _sfx3DIndex = (_sfx3DIndex + 1) % _sfx3DPool.Length;
 
             float min = entry.minDistance > 0f ? entry.minDistance : defaultSfx3DMinDistance;
             float max = entry.maxDistance > 0f ? entry.maxDistance : defaultSfx3DMaxDistance;
 
-            src.transform.position = FlattenToListenerPlane(position);
+            // _listener를 갱신하므로 이후 계산보다 먼저 호출한다.
+            Vector3 pos = PlaceOnPanPlane(position);
+
+            // 감쇠·단서는 모두 XY 평면 거리 기준이다(패닝용 깊이 제외).
+            float dy = 0f;
+            float planar = 0f;
+            if (_listener != null)
+            {
+                Vector3 lp = _listener.transform.position;
+                dy = pos.y - lp.y;
+                planar = new Vector2(pos.x - lp.x, dy).magnitude;
+            }
+
+            src.transform.position = pos;
             src.clip = entry.clip;
             src.volume = entry.volume;
-            src.minDistance = min;
-            src.maxDistance = Mathf.Max(max, min + 0.01f);   // max <= min이면 감쇠 구간이 사라진다
+
+            // Unity가 쓰는 거리는 √(planar² + depth²)라, 끝점도 같은 식으로 변환해야
+            // 평면 거리 기준으로 잡아 둔 튜닝이 유지된다.
+            float depth = sfx3DPanDepth;
+            src.minDistance = Mathf.Sqrt(min * min + depth * depth);
+            src.maxDistance = Mathf.Max(Mathf.Sqrt(max * max + depth * depth), src.minDistance + 0.01f);
+
+            // 소스를 돌려 쓰므로 아래 값들은 매 재생마다 반드시 다시 지정한다.
+            src.spread = sfx3DSpread;
+            src.pitch = VerticalCuePitch(entry, dy);
+            _sfx3DLowPass[slot].cutoffFrequency = DistanceCutoff(planar, min, max);
+
             src.Play();
         }
 
-        // 리스너(메인 카메라)는 vcam의 CameraDistance 때문에 z=-10에 있어, 그대로 두면
-        // 화면 정중앙 소리도 10유닛 떨어진 것으로 계산된다. 같은 z 평면으로 눌러 거리를 순수 XY로 만든다.
-        private Vector3 FlattenToListenerPlane(Vector3 world)
+        // 스테레오 패너는 좌우만 표현해 위/아래가 똑같이 정중앙으로 들린다.
+        // 대신 높이차를 피치로 기울여 알린다(위=높게, 아래=낮게).
+        // 기준이 maxDistance가 아닌 이유: 감쇠 거리로 나누면 화면 안에서 단서가 몇 %밖에 안 붙는다.
+        private float VerticalCuePitch(SoundLibrarySO.SfxEntry entry, float dy)
+        {
+            if (entry.verticalPitchCue <= 0f || sfx3DVerticalCueRange <= 0f)
+                return 1f;
+
+            return 1f + Mathf.Clamp(dy / sfx3DVerticalCueRange, -1f, 1f) * entry.verticalPitchCue;
+        }
+
+        // 멀수록 고역을 깎는다. minDistance 안쪽은 볼륨이 전부 같아 거리감이 없는데, 음색은 잘 잡힌다.
+        private float DistanceCutoff(float planar, float min, float max)
+        {
+            const float OpenCutoff = 22000f;   // 사실상 필터가 꺼진 상태
+            if (sfx3DFarCutoff <= 0f || max <= min)
+                return OpenCutoff;
+
+            float t = Mathf.Clamp01((planar - min) / (max - min));
+
+            // 주파수는 로그로 인지되므로 로그 공간에서 보간해야 거리에 따라 고르게 변한다.
+            float logCutoff = Mathf.Lerp(Mathf.Log(OpenCutoff), Mathf.Log(sfx3DFarCutoff), t);
+            return Mathf.Exp(logCutoff);
+        }
+
+        // 리스너(메인 카메라)와 같은 평면에 소스를 두면 방향이 (Δx, Δy, 0)이 되어 팬이
+        // 거리와 무관한 각도 Δx/√(Δx²+Δy²)가 되고, 가로로 조금만 벗어나도 하드 좌/우로 포화한다.
+        // 앞쪽으로 depth만큼 밀어 (Δx, Δy, depth)를 만들면 근거리에서 팬이 완만해진다.
+        private Vector3 PlaceOnPanPlane(Vector3 world)
         {
             // 씬 전환 때 카메라가 새로 생성되므로, 파괴됐으면 다시 찾는다.
             if (_listener == null)
                 _listener = FindFirstObjectByType<AudioListener>();
 
             if (_listener != null)
-                world.z = _listener.transform.position.z;
+                world.z = _listener.transform.position.z + sfx3DPanDepth;   // forward = +Z
 
             return world;
         }
@@ -344,6 +408,7 @@ namespace PixelChroma
 
             int size = Mathf.Max(1, sfx3DPoolSize);
             _sfx3DPool = new AudioSource[size];
+            _sfx3DLowPass = new AudioLowPassFilter[size];
             for (int i = 0; i < size; i++)
             {
                 var src = CreateSource($"SFX_3D_{i}", sfxGroup, loop: false, spatialBlend: 1f, priority: Sfx3DPriority);
@@ -351,9 +416,13 @@ namespace PixelChroma
                 // Logarithmic은 maxDistance 바깥에서 감쇠를 멈추고 그 볼륨을 유지해 맵 전체에 소리가 깔린다.
                 // Linear여야 maxDistance가 "여기서 완전히 안 들림"이 된다.
                 src.rolloffMode = AudioRolloffMode.Linear;
-                src.spread = sfx3DSpread;
+
+                // 거리별 음색 변화용. 컷오프는 재생할 때마다 지정하므로 여기서는 열어만 둔다.
+                var lowPass = src.gameObject.AddComponent<AudioLowPassFilter>();
+                lowPass.cutoffFrequency = 22000f;
 
                 _sfx3DPool[i] = src;
+                _sfx3DLowPass[i] = lowPass;
             }
         }
 

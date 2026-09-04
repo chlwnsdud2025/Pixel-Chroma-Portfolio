@@ -34,6 +34,10 @@ namespace PixelChroma
 
             [Tooltip("이 거리에서 완전히 안 들린다. 0이면 SoundManager 기본값 사용.")]
             public float maxDistance;
+
+            // 스테레오 패너로는 상하를 표현할 수 없어 피치 기울기로 대신 준다(위=높게, 아래=낮게).
+            [Tooltip("위/아래를 피치로 알린다. 0이면 사용 안 함. 0.18 = 최대 ±18%.")]
+            [Range(0f, 0.3f)] public float verticalPitchCue;
         }
 
         [SerializeField] private BgmEntry[] bgmEntries;
@@ -57,6 +61,15 @@ namespace PixelChroma
                 foreach (var e in sfxEntries)
                     _sfxMap[e.type] = e;
         }
+
+#if UNITY_EDITOR
+        // 조회 캐시는 도메인 리로드 전까지 유지된다. 버리지 않으면 플레이 중 인스펙터 수정이 반영되지 않는다.
+        private void OnValidate()
+        {
+            _bgmMap = null;
+            _sfxMap = null;
+        }
+#endif
 
         public bool TryGetBgm(BgmType type, out BgmEntry entry)
         {
