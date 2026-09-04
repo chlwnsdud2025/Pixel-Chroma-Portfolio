@@ -34,9 +34,8 @@ namespace PixelChroma
         [Tooltip("3D 위치 효과음 동시 재생용 소스 풀 크기")]
         [SerializeField] private int sfx3DPoolSize = 12;
 
-        // 참고 스케일: 화면 크기는 vcam이 아니라 PixelPerfectCamera가 정한다(PPU 16, 320x180).
-        // orthoSize = 180 / (2*16) = 5.625 → 화면 세로 반경 ≈ 5.6, 가로 ≈ 10, 모서리까지 ≈ 11.5.
-        // max 20은 화면 모서리의 약 1.7배다. min은 작아야 근처에서 볼륨·음색이 변한다.
+        // 화면 크기는 vcam이 아니라 PixelPerfectCamera가 정한다(PPU 16, 320x180).
+        // orthoSize = 180/(2*16) = 5.625 → 화면 세로 반경 ≈ 5.6, 가로 ≈ 10, 모서리 ≈ 11.5.
         [Tooltip("3D 효과음 기본 감쇠 거리(월드 유닛). SoundLibrary 엔트리 값이 0일 때 쓰인다.")]
         [SerializeField] private float defaultSfx3DMinDistance = 2f;
         [SerializeField] private float defaultSfx3DMaxDistance = 20f;
@@ -47,12 +46,19 @@ namespace PixelChroma
         [Tooltip("패닝 기준 깊이(월드 유닛). 클수록 목표 근처에서 좌우가 덜 튄다. 0이면 하드 좌/우로 포화한다.")]
         [SerializeField, Min(0f)] private float sfx3DPanDepth = 6f;
 
-        // 화면 세로 반경(≈5.6) 근처에서 단서가 최대에 닿아야 화면 안에서 위/아래가 확실히 갈린다.
-        [Tooltip("피치 상하 단서가 최대가 되는 높이차(월드 유닛). 작을수록 가까이서도 확실히 구분된다.")]
-        [SerializeField, Min(0f)] private float sfx3DVerticalCueRange = 6f;
+        // 상하가 양방향으로 기울 여유를 두려고 완전 개방(22000)보다 낮게 잡는다.
+        [Tooltip("가까울 때의 저역 통과 컷오프(Hz). 상하 기울기의 기준선이 된다.")]
+        [SerializeField, Range(1000f, 22000f)] private float sfx3DNearCutoff = 12000f;
 
-        [Tooltip("maxDistance에서의 저역 통과 컷오프(Hz). 멀수록 먹먹해진다. 0이면 사용 안 함.")]
+        [Tooltip("maxDistance에서의 저역 통과 컷오프(Hz). 멀수록 먹먹해진다. 0이면 거리 음색 변화 사용 안 함.")]
         [SerializeField, Range(0f, 22000f)] private float sfx3DFarCutoff = 900f;
+
+        [Tooltip("상하 음색 기울기 배율. 화면 위쪽은 컷오프 x배(밝게), 아래쪽은 ÷배(먹먹). 1이면 사용 안 함.")]
+        [SerializeField, Range(1f, 6f)] private float sfx3DVerticalCueTilt = 2.5f;
+
+        // 화면 세로 반경(≈5.6) 근처에서 최대에 닿아야 화면 안에서 위/아래가 갈린다.
+        [Tooltip("상하 음색 기울기가 최대가 되는 높이차(월드 유닛). 작을수록 가까이서도 확실히 구분된다.")]
+        [SerializeField, Min(0f)] private float sfx3DVerticalCueRange = 6f;
 
         // ── BGM (A/B 크로스페이드) ────────────────────────────────
         private AudioSource _activeBgm;   // 현재 재생 중
@@ -305,35 +311,35 @@ namespace PixelChroma
 
             // 소스를 돌려 쓰므로 아래 값들은 매 재생마다 반드시 다시 지정한다.
             src.spread = sfx3DSpread;
-            src.pitch = VerticalCuePitch(entry, dy);
-            _sfx3DLowPass[slot].cutoffFrequency = DistanceCutoff(planar, min, max);
+            _sfx3DLowPass[slot].cutoffFrequency = SpatialCutoff(planar, dy, min, max);
 
             src.Play();
         }
 
-        // 스테레오 패너는 좌우만 표현해 위/아래가 똑같이 정중앙으로 들린다.
-        // 대신 높이차를 피치로 기울여 알린다(위=높게, 아래=낮게).
-        // 기준이 maxDistance가 아닌 이유: 감쇠 거리로 나누면 화면 안에서 단서가 몇 %밖에 안 붙는다.
-        private float VerticalCuePitch(SoundLibrarySO.SfxEntry entry, float dy)
+        // 거리와 상하를 하나의 저역 통과 필터로 표현한다. 둘 다 멀거나 아래일수록 먹먹해진다.
+        // 상하를 음색으로 주는 이유: 스테레오 패너로는 표현이 안 되고, 탑다운이라 화면 아래는
+        // 고도가 아니라 캐릭터 후방이다. "뒤에서 나는 소리는 먹먹하다"는 이미 학습된 단서다.
+        // 주파수는 로그로 인지되므로 보간과 기울기를 모두 로그(배율) 공간에서 처리한다.
+        private float SpatialCutoff(float planar, float dy, float min, float max)
         {
-            if (entry.verticalPitchCue <= 0f || sfx3DVerticalCueRange <= 0f)
-                return 1f;
-
-            return 1f + Mathf.Clamp(dy / sfx3DVerticalCueRange, -1f, 1f) * entry.verticalPitchCue;
-        }
-
-        // 멀수록 고역을 깎는다. minDistance 안쪽은 볼륨이 전부 같아 거리감이 없는데, 음색은 잘 잡힌다.
-        private float DistanceCutoff(float planar, float min, float max)
-        {
+            const float FloorCutoff = 300f;
             const float OpenCutoff = 22000f;   // 사실상 필터가 꺼진 상태
-            if (sfx3DFarCutoff <= 0f || max <= min)
-                return OpenCutoff;
 
-            float t = Mathf.Clamp01((planar - min) / (max - min));
+            float cutoff = sfx3DNearCutoff;
 
-            // 주파수는 로그로 인지되므로 로그 공간에서 보간해야 거리에 따라 고르게 변한다.
-            float logCutoff = Mathf.Lerp(Mathf.Log(OpenCutoff), Mathf.Log(sfx3DFarCutoff), t);
-            return Mathf.Exp(logCutoff);
+            if (sfx3DFarCutoff > 0f && max > min)
+            {
+                float t = Mathf.Clamp01((planar - min) / (max - min));
+                cutoff = Mathf.Exp(Mathf.Lerp(Mathf.Log(sfx3DNearCutoff), Mathf.Log(sfx3DFarCutoff), t));
+            }
+
+            if (sfx3DVerticalCueTilt > 1f && sfx3DVerticalCueRange > 0f)
+            {
+                float t = Mathf.Clamp(dy / sfx3DVerticalCueRange, -1f, 1f);
+                cutoff *= Mathf.Pow(sfx3DVerticalCueTilt, t);   // 위=배수, 아래=제수
+            }
+
+            return Mathf.Clamp(cutoff, FloorCutoff, OpenCutoff);
         }
 
         // 리스너(메인 카메라)와 같은 평면에 소스를 두면 방향이 (Δx, Δy, 0)이 되어 팬이

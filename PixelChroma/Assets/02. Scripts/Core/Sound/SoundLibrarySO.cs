@@ -35,9 +35,7 @@ namespace PixelChroma
             [Tooltip("이 거리에서 완전히 안 들린다. 0이면 SoundManager 기본값 사용.")]
             public float maxDistance;
 
-            // 스테레오 패너로는 상하를 표현할 수 없어 피치 기울기로 대신 준다(위=높게, 아래=낮게).
-            [Tooltip("위/아래를 피치로 알린다. 0이면 사용 안 함. 0.18 = 최대 ±18%.")]
-            [Range(0f, 0.3f)] public float verticalPitchCue;
+            // 방향 단서는 소리마다 달라지면 안 되므로 SoundManager에서 전역으로 다룬다.
         }
 
         [SerializeField] private BgmEntry[] bgmEntries;
