@@ -22,6 +22,13 @@ namespace PixelChroma.UI
         [SerializeField] private float sweepStagger = 0.3f;     // Row 간 시간차
         [SerializeField] private float counterDuration = 0.6f;
 
+
+        [Header("Sound")]
+        [Tooltip("SeekTime/CheckTime 전환음과 겹치지 않도록, 전환 직후 이 시간 동안 갱신음을 생략")]
+        [SerializeField] private float stateChangeMuteWindow = 1.5f;
+
+        private float _lastStateChangeTime = -100f;
+
         // 애니메이션 기준값 (connectionId 키)
         private readonly Dictionary<int, int> _prevScoreMap = new();
         private readonly Dictionary<int, int> _prevRankMap = new();
@@ -52,6 +59,7 @@ namespace PixelChroma.UI
             ScoreBoardClient.OnPlayerDead += HandlePlayerDead;
             ScoreBoardClient.OnPixelRevealed += HandlePixelRevealed;
             ScoreBoardClient.OnCountdownChanged += HandleCountdownChanged;
+            GameRoundManager.OnTimeStateChanged += HandleTimeStateChanged;
 
             RenderCurrentState();   // 인스턴스 교체 직후에도 대기 없이 즉시 반영
         }
@@ -62,6 +70,7 @@ namespace PixelChroma.UI
             ScoreBoardClient.OnPlayerDead -= HandlePlayerDead;
             ScoreBoardClient.OnPixelRevealed -= HandlePixelRevealed;
             ScoreBoardClient.OnCountdownChanged -= HandleCountdownChanged;
+            GameRoundManager.OnTimeStateChanged -= HandleTimeStateChanged;
 
             DOTween.Kill(this);
         }
@@ -150,8 +159,11 @@ namespace PixelChroma.UI
                 return;
             }
 
-            
-            SoundManager.Instance?.PlaySfx(SfxType.ScoreRefresh);
+            bool isForcedSnapshot = ScoreBoardClient.RefreshCountdown <= 0;
+            bool nearStateChange = Time.unscaledTime - _lastStateChangeTime < stateChangeMuteWindow;
+
+            if (!isForcedSnapshot && !nearStateChange)
+                SoundManager.Instance?.PlaySfx(SfxType.ScoreRefresh);
 
             // ── 스윕 시퀀스: Row별 시간차로 스윕 → 중간에 데이터 갱신 ──
             for (int i = 0; i < entries.Length; i++)
@@ -216,6 +228,12 @@ namespace PixelChroma.UI
             _prevRankMap.Clear();
 
             if (refreshTimerText != null) refreshTimerText.text = "";
+        }
+
+        private void HandleTimeStateChanged(TimeState state, int timer)
+        {
+            if (state == TimeState.SeekTime || state == TimeState.CheckTime)
+                _lastStateChangeTime = Time.unscaledTime;
         }
     }
 }
