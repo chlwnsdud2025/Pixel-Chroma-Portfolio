@@ -297,6 +297,8 @@ namespace PixelChroma.UI
             rect.anchoredPosition = resultBaseAnchoredPos;
             rect.localScale = Vector3.one * resultAppearStartScale;
 
+            SoundManager.Instance?.PlaySfx(SfxType.ResultAppear);
+
             DOTween.Sequence().SetTarget(resultOverlayGroup)
                 .Append(rect.DOScale(Vector3.one, resultAppearDuration)
                     .SetEase(Ease.OutBack, resultPopOvershoot))

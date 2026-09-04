@@ -150,6 +150,9 @@ namespace PixelChroma.UI
                 return;
             }
 
+            
+            SoundManager.Instance?.PlaySfx(SfxType.ScoreRefresh);
+
             // ── 스윕 시퀀스: Row별 시간차로 스윕 → 중간에 데이터 갱신 ──
             for (int i = 0; i < entries.Length; i++)
             {
