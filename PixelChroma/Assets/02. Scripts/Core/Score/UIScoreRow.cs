@@ -59,9 +59,9 @@ namespace PixelChroma.UI
             // 그림 닉네임 적용
             if (pixelNicknameImage != null)
             {
-                if (entry.pixelNicknamePng != null && entry.pixelNicknamePng.Length > 0)
+                if (ScoreBoardClient.TryGetPixelNickname(entry.connectionId, out var pixelPng))
                 {
-                    _pixelTex = PixelNicknameHelper.ApplyPng(pixelNicknameImage, entry.pixelNicknamePng, _pixelTex);
+                    _pixelTex = PixelNicknameHelper.ApplyPng(pixelNicknameImage, pixelPng, _pixelTex);
                     pixelNicknameImage.gameObject.SetActive(true);
                     if (nameText != null) nameText.gameObject.SetActive(false);
                 }

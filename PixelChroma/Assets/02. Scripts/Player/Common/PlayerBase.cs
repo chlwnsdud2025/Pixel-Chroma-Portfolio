@@ -236,7 +236,10 @@ namespace PixelChroma
             string mySavedName = TextNicknameService.LoadOrDefault();
             CmdRegisterMyNameWithManager(mySavedName);
 
-            byte[] pixelPng = PixelNicknameService.Load();
+            // 그림 닉네임은 접속당 1회만 전송한다. 씬 전환·술래 전환으로 오브젝트가 새로 생기면
+            // 서버가 명부(NicknameRegistry)의 PNG를 스폰 전에 SyncVar에 입혀 두므로 이미 값이 있다.
+            bool alreadyRegistered = pixelNicknamePng != null && pixelNicknamePng.Length > 0;
+            byte[] pixelPng = alreadyRegistered ? null : PixelNicknameService.Load();
             if (pixelPng != null && pixelPng.Length > 0)
                 CmdRegisterPixelNickname(pixelPng);
 

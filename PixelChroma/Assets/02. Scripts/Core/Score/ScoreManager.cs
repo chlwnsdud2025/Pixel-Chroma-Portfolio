@@ -151,7 +151,6 @@ namespace PixelChroma
                     netId = GetNetIdByConnectionId(kv.Key),
                     playerName = NicknameRegistry.TryGet(kv.Key, out var n) ? n : $"Player {kv.Key}",
                     score = kv.Value,
-                    pixelNicknamePng = NicknameRegistry.TryGetPixel(kv.Key, out var png) ? png : System.Array.Empty<byte>(),
                     isDead = _frozenPlayers.Contains(kv.Key)
                 })
                 .ToArray();

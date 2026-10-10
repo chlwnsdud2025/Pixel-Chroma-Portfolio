@@ -16,11 +16,18 @@ namespace PixelChroma
         // ── 상태 ──
         private static readonly HashSet<int> _deadConnIds = new();
 
+        // 그림 닉네임은 스냅샷에 싣지 않고, 이미 SyncVar로 받아 둔 플레이어 데이터를 netId로 찾아 쓴다.
+        // netId는 감염 전환 시 바뀌므로 찾은 PNG를 connectionId 기준으로 보관한다.
+        private static readonly Dictionary<int, byte[]> _pixelByConnId = new();
+
         public static ScoreEntry[] Entries { get; private set; } = Array.Empty<ScoreEntry>();
         public static int RefreshCountdown { get; private set; }
         public static int MyConnectionId { get; private set; } = -1;
 
         public static bool IsDead(int connectionId) => _deadConnIds.Contains(connectionId);
+
+        public static bool TryGetPixelNickname(int connectionId, out byte[] pngData)
+            => _pixelByConnId.TryGetValue(connectionId, out pngData);
 
         // ── 등록 / 해제 ──
 
@@ -50,6 +57,7 @@ namespace PixelChroma
             RefreshCountdown = 0;
             MyConnectionId = -1;
             _deadConnIds.Clear();
+            _pixelByConnId.Clear();
 
             OnSnapshot?.Invoke(Entries);
             OnCountdownChanged?.Invoke(0);
@@ -63,6 +71,7 @@ namespace PixelChroma
             RefreshCountdown = Mathf.RoundToInt(msg.refreshInterval);
 
             ResolveMyConnectionId();
+            CachePixelNicknames();
 
             // 서버 스냅샷의 사망 상태를 누적 집합에 합친다.
             for (int i = 0; i < Entries.Length; i++)
@@ -111,6 +120,19 @@ namespace PixelChroma
                 }
             }
             // 목록에 없으면(= 내가 Seeker) 마지막 값을 유지한다. connectionId는 불변이라 안전.
+        }
+
+        // 스냅샷의 netId로 현재 씬의 플레이어를 찾아 그림 닉네임을 connectionId별로 보관한다.
+        // 못 찾으면(오브젝트 교체 직후 등) 이전에 보관한 값을 그대로 유지한다.
+        private static void CachePixelNicknames()
+        {
+            for (int i = 0; i < Entries.Length; i++)
+            {
+                var player = PixelNicknameHelper.FindPlayer(Entries[i].netId);
+                byte[] png = PixelNicknameHelper.GetPixelData(player);
+                if (png != null)
+                    _pixelByConnId[Entries[i].connectionId] = png;
+            }
         }
     }
 }
